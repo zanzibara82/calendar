@@ -45,6 +45,9 @@ import javax.inject.Singleton
  *
  *  Финал: lastSyncTime провайдера = now; напоминания перепланируются для затронутых
  *  событий. Голосовые заметки НЕ синхронизируются (файлы остаются на устройстве).
+ *
+ *  Метки, текстовая и голосовая заметки есть только локально, поэтому при перезаписи
+ *  события удалённой версией они переносятся из локальной записи (см. [appliedTo]).
  */
 @Singleton
 class SyncRepositoryImpl @Inject constructor(
@@ -180,7 +183,7 @@ class SyncRepositoryImpl @Inject constructor(
 
                     // Изменилось только в календаре -> забираем удалённую версию
                     else -> {
-                        eventRepository.saveFromRemote(incoming.copy(id = local.id))
+                        eventRepository.saveFromRemote(incoming.appliedTo(local))
                         pulled++
                         conflicts++
                         pulledIds += local.id
@@ -189,7 +192,7 @@ class SyncRepositoryImpl @Inject constructor(
 
                 // Конфликт: изменены и локально, и в облаке -> last-write-wins
                 conflictResolver.resolve(local, remoteEvent) == SyncConflictResolver.Resolution.TAKE_REMOTE -> {
-                    eventRepository.saveFromRemote(incoming.copy(id = local.id))
+                    eventRepository.saveFromRemote(incoming.appliedTo(local))
                     pulled++
                     conflicts++
                     pulledIds += local.id
@@ -284,3 +287,17 @@ class SyncRepositoryImpl @Inject constructor(
             local.reminderMinutes.sorted() == remote.reminderMinutes.sorted() &&
             local.repeatRule == remote.repeatRule
 }
+
+/**
+ * Удалённая версия события, перенесённая на локальную запись.
+ *
+ * id и локальные поля (метки, текстовая и голосовая заметки) берутся из [local]:
+ * в облако они не отправляются и обратно не приходят, поэтому правка на стороне
+ * провайдера не должна их стирать.
+ */
+fun Event.appliedTo(local: Event): Event = copy(
+    id = local.id,
+    tags = local.tags,
+    textNote = local.textNote,
+    voiceNotePath = local.voiceNotePath,
+)
