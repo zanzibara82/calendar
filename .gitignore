@@ -1,0 +1,69 @@
+### Build-артефакты Gradle / AGP ###
+.gradle/
+build/
+.kotlin/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+
+# app/schemas/ и сгенерированные baseline-profile намеренно отслеживаются:
+# это история схемы БД и профиля запуска, их нельзя выкидывать правилом про generated/.
+
+### IDE ###
+.idea/
+*.iml
+captures/
+.navigation/
+.playground/
+
+### Локальная конфигурация окружения ###
+local.properties
+signing_report.json
+
+### Ключи подписи и секреты ###
+*.jks
+*.keystore
+*.p12
+*.pk8
+keystore.properties
+signing.properties
+secrets.properties
+.env
+
+### Логи и вывод ручных прогонов ###
+*.log
+*_log.txt
+/accel.txt
+/licenses_yes.txt
+/pkgs.txt
+/test_result_28.txt
+
+### Одноразовые скрипты разворачивания SDK/AVD и прогона тестов ###
+/check_build2.bat
+/check_emu.bat
+/check_emu2.bat
+/check_emu3.bat
+/check_test28.bat
+/create_avd.ps1
+/disk.bat
+/install_images.bat
+/make_avd.ps1
+/run_matrix.bat
+/run_one.bat
+/run_tests_only.bat
+
+### Локальные архивы (SDK-инструменты и т.п.) ###
+*.zip
+
+### Мусор ОС ###
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+hs_err_pid*.log
+replay_pid*.log

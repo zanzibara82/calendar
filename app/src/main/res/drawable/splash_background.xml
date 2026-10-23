@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/splash_bg" />
+
+    <!-- Градиент для красоты -->
+    <item>
+        <shape>
+            <gradient
+                android:startColor="#F0F4F8"
+                android:endColor="#E3E9F0"
+                android:angle="270"/>
+        </shape>
+    </item>
+</layer-list>

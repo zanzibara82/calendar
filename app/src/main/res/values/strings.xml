@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Мой календарь</string>
+
+    <!-- Splash / Auth -->
+    <string name="auth_title">Мой календарь</string>
+    <string name="auth_subtitle">События, напоминания и голосовые заметки</string>
+    <string name="enter_app">Войти</string>
+
+    <!-- Календарь -->
+    <string name="view_month">Месяц</string>
+    <string name="view_week">Неделя</string>
+    <string name="view_day">День</string>
+    <string name="today">Сегодня</string>
+    <string name="no_events">Нет событий</string>
+    <string name="no_events_hint">Нажмите «+», чтобы создать событие</string>
+    <string name="new_event">Новое событие</string>
+    <string name="settings">Настройки</string>
+    <string name="permissions">Разрешения</string>
+    <string name="back">Назад</string>
+
+    <!-- Создание/редактирование события -->
+    <string name="edit_event">Редактирование события</string>
+    <string name="event_title_hint">Название события</string>
+    <string name="event_description_hint">Описание</string>
+    <string name="event_start">Начало</string>
+    <string name="event_end">Конец</string>
+    <string name="event_reminders">Напомню до события за:</string>
+    <string name="event_repeat">Повтор</string>
+    <string name="text_note_hint">Текстовая заметка</string>
+    <string name="save">Сохранить</string>
+    <string name="cancel">Отмена</string>
+    <string name="delete">Удалить</string>
+    <string name="edit">Изменить</string>
+    <string name="ok">ОК</string>
+
+    <!-- Повторение -->
+    <string name="repeat_none">Без повтора</string>
+    <string name="repeat_daily">Каждый день</string>
+    <string name="repeat_weekly">Каждую неделю</string>
+    <string name="repeat_monthly">Каждый месяц</string>
+    <string name="repeat_yearly">Каждый год</string>
+
+    <!-- Напоминания -->
+    <string name="reminder_5m">5 мин</string>
+    <string name="reminder_10m">10 мин</string>
+    <string name="reminder_15m">15 мин</string>
+    <string name="reminder_30m">30 мин</string>
+    <string name="reminder_1h">1 час</string>
+    <string name="reminder_1d">1 день</string>
+    <string name="reminder_before">За %1$s до события</string>
+
+    <!-- Детали события -->
+    <string name="event_details">Детали события</string>
+    <string name="delete_event_title">Удалить событие?</string>
+    <string name="delete_event_text">Событие «%1$s» будет удалено вместе с голосовой заметкой.</string>
+
+    <!-- Метки события -->
+    <string name="event_tags">Метки</string>
+    <string name="tag_birthday">День рождения</string>
+    <string name="tag_date">Свидание</string>
+    <string name="tag_cinema">Кино</string>
+
+    <!-- Голосовая заметка -->
+    <string name="voice_note">Голосовая заметка</string>
+    <string name="record_voice">Записать голосовую заметку</string>
+    <string name="stop_recording">Остановить запись</string>
+    <string name="recording_in_progress">Идёт запись… %1$s</string>
+    <string name="play">Воспроизвести</string>
+    <string name="pause">Пауза</string>
+    <string name="delete_voice_note">Удалить голосовую заметку</string>
+    <string name="voice_recording_failed">Не удалось начать запись. Проверьте разрешение на микрофон.</string>
+    <string name="mic_permission_needed">Для записи голоса нужен доступ к микрофону</string>
+
+    <string name="close">Закрыть</string>
+
+    <!-- Разрешения -->
+    <string name="permissions_title">Разрешения</string>
+    <string name="permissions_rationale">Для работы напоминаний, голосовых заметок и синхронизации выдайте приложению разрешения:</string>
+    <string name="permission_notifications">Уведомления</string>
+    <string name="permission_notifications_desc">Показ напоминаний о событиях</string>
+    <string name="permission_mic">Микрофон</string>
+    <string name="permission_mic_desc">Запись голосовых заметок</string>
+    <string name="permission_calendar">Календарь</string>
+    <string name="permission_calendar_desc">Чтение и запись системного календаря при синхронизации</string>
+    <string name="permission_exact_alarm">Точные напоминания</string>
+    <string name="permission_exact_alarm_desc">Срабатывание напоминаний ровно в срок (Android 12+)</string>
+    <string name="permission_fullscreen">Уведомления во весь экран</string>
+    <string name="permission_fullscreen_desc">Окно напоминания поверх локскрина при погашенном экране</string>
+    <string name="grant">Выдать</string>
+    <string name="granted">Выдано</string>
+    <string name="permission_granted_toast">Разрешение выдано</string>
+    <string name="permission_denied_toast">Разрешение не выдано</string>
+
+    <!-- Настройки -->
+    <string name="appearance">Оформление</string>
+    <string name="theme_mode">Тема</string>
+    <string name="theme_system">Системная</string>
+    <string name="theme_light">Светлая</string>
+    <string name="theme_dark">Тёмная</string>
+    <string name="dynamic_color">Динамические цвета</string>
+    <string name="dynamic_color_desc">Цвета из обоев (Android 12+)</string>
+    <string name="accounts">Аккаунты</string>
+    <string name="sign_in">Войти</string>
+    <string name="sign_out">Выйти</string>
+    <string name="signed_in_as">Вы вошли как %1$s</string>
+    <string name="guest_mode">Гость (локальное хранение)</string>
+    <string name="sync">Синхронизация</string>
+    <string name="sync_now">Синхронизировать</string>
+    <string name="sync_all">Синхронизировать все календари</string>
+    <string name="sync_in_progress">Синхронизация…</string>
+    <string name="last_sync_never">Синхронизация ещё не выполнялась</string>
+    <string name="last_sync">Последняя синхронизация: %1$s</string>
+    <string name="sync_done">Готово: отправлено %1$d, получено %2$d, конфликтов %3$d</string>
+    <string name="sync_failed">Ошибка синхронизации: %1$s</string>
+    <string name="sync_guest">Синхронизация недоступна: выполните вход</string>
+    <string name="sync_not_connected">Календарь не подключён</string>
+    <string name="sync_partial">Синхронизировано частично: %1$s</string>
+
+    <!-- Подключаемые календари -->
+    <string name="calendars_section">Календари</string>
+    <string name="calendars_section_desc">Подключите календари, чтобы их события появились
+        в приложении. Можно подключить оба сразу — они синхронизируются независимо.</string>
+    <string name="provider_google">Google Календарь</string>
+    <string name="provider_yandex">Яндекс Календарь</string>
+    <string name="provider_local">Локальный календарь</string>
+    <string name="calendar_not_connected">Не подключён</string>
+    <string name="connect">Подключить</string>
+    <string name="disconnect">Отключить</string>
+    <string name="google_system_calendar_help">Google Календарь подключается через системный календарь Android:
+        аккаунт уже добавлен на телефон и синхронизируется системой, поэтому OAuth-клиент
+        и регистрация в Google Cloud Console не нужны — достаточно разрешения на доступ
+        к календарю. Созданные в приложении события попадают в этот календарь и уходят
+        в Google сами.</string>
+
+    <!-- Настройка OAuth: точные значения для этого проекта -->
+    <string name="oauth_setup_title">Настройка входа</string>
+    <string name="oauth_setup_google">Google — БЕЗ OAuth:\n1) Аккаунт Google уже добавлен на телефон (Настройки → Аккаунты)\n2) В его настройках включите синхронизацию «Календарь»\n3) В настройках приложения нажмите «Подключить» и разрешите доступ к календарю\n\nНи client_id, ни SHA-1, ни регистрация в Google Cloud Console не требуются.</string>
+    <string name="oauth_setup_yandex">Яндекс:\n1) oauth.yandex.ru → Создать приложение\n2) Платформы → Веб-сервисы → Callback URI: mycalendar://oauth\n3) Доступы → Яндекс.Паспорт (email, логин) и Яндекс.Календарь (calendar:all)\n4) Скопируйте «ID приложения» в OAuthConfig.YANDEX_CLIENT_ID</string>
+    <string name="oauth_not_configured_google">Вход через Google не настроен: нет OAuth-клиента в Google Cloud Console (пакет com.example.mycalendar, SHA-1 подписи).</string>
+    <string name="oauth_not_configured_yandex">Вход через Яндекс не настроен: не задан YANDEX_CLIENT_ID в data/auth/OAuthConfig.kt.</string>
+
+    <!-- Ошибки валидации -->
+    <string name="error_empty_title">Введите название события</string>
+    <string name="error_end_before_start">Время окончания раньше времени начала</string>
+
+    <!-- Уведомления -->
+    <string name="notification_channel_reminders">Напоминания о событиях</string>
+    <string name="notification_channel_reminders_desc">Уведомления о предстоящих событиях</string>
+    <string name="notification_channel_sync">Синхронизация</string>
+    <string name="notification_reminder_title">%1$s</string>
+    <string name="notification_reminder_text">Начало в %1$s (через %2$s)</string>
+    <string name="notification_reminder_now">Событие начинается</string>
+    <string name="notification_open_event">Открыть событие</string>
+    <string name="notification_snooze">Отложить на %1$d мин</string>
+    <string name="notification_snoozed">Напоминание отложено на %1$d мин</string>
+
+    <!-- Единицы времени -->
+    <string name="minutes_short">%1$d мин</string>
+    <string name="hours_short">%1$d ч</string>
+    <string name="days_short">%1$d д</string>
+
+    <plurals name="events_count">
+        <item quantity="one">%d событие</item>
+        <item quantity="few">%d события</item>
+        <item quantity="many">%d событий</item>
+        <item quantity="other">%d событий</item>
+    </plurals>
+</resources>

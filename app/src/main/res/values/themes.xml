@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+        Базовая тема: только "оболочка" для окна.
+        Вся визуальная тема (цвета, шрифты) задаётся в Compose (presentation/theme).
+    -->
+    <style name="Theme.MyCalendar" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <!--
+        Splash через androidx.core:core-splashscreen:
+        система показывает его до первого кадра, после чего
+        MainActivity вызывает installSplashScreen() и рисует UI на Compose.
+    -->
+    <style name="Theme.MyCalendar.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_bg</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="postSplashScreenTheme">@style/Theme.MyCalendar</item>
+    </style>
+
+    <!--
+        Аларм-экран напоминания: прозрачное окно поверх локскрина,
+        карточка рисуется в Compose (ReminderActivity).
+    -->
+    <style name="Theme.MyCalendar.Alarm" parent="Theme.MyCalendar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+    </style>
+</resources>

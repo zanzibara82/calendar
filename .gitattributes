@@ -1,0 +1,19 @@
+* text=auto
+
+# gradlew выполняется bash-ом (CI, WSL, macOS): CRLF в нём ломает сборку
+gradlew text eol=lf
+*.sh text eol=lf
+
+# Windows-скрипты остаются с CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Бинарники не нормализуем
+*.png binary
+*.webp binary
+*.jpg binary
+*.mp3 binary
+*.jar binary
+*.apk binary
+*.aab binary
+*.zip binary
