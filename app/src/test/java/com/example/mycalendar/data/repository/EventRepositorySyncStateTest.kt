@@ -9,7 +9,6 @@ import com.example.mycalendar.domain.model.RepeatRule
 import com.example.mycalendar.domain.model.SyncSnapshot
 import com.example.mycalendar.domain.repository.VoiceNoteCleanup
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -76,6 +75,7 @@ class EventRepositorySyncStateTest {
 
         assertEquals("e1", record?.event?.id)
         assertTrue(record?.isDeleted == true)
+        assertEquals(false, record?.pendingSync)
         assertEquals(base, record?.base)
     }
 
@@ -117,11 +117,24 @@ class EventRepositorySyncStateTest {
         repository.purge("e1")
 
         assertTrue(dao.rows.isEmpty())
+        assertTrue(voiceNotes.deletedPaths.isEmpty())
     }
 
     @Test
     fun `purge removes the voice file together with the row`() = kotlinx.coroutines.runBlocking {
         repository.saveFromRemote(event.copy(voiceNotePath = VOICE_PATH), base)
+
+        repository.purge("e1")
+
+        assertTrue(dao.rows.isEmpty())
+        assertEquals(listOf(VOICE_PATH), voiceNotes.deletedPaths)
+    }
+
+    @Test
+    fun `purge drops the row even when the file system refuses to delete`() = kotlinx.coroutines.runBlocking {
+        repository.saveFromRemote(event.copy(voiceNotePath = VOICE_PATH), base)
+        // Файл «занят»: подмена сообщает об отказе, но путь всё равно запрошен на удаление.
+        voiceNotes.deleteResult = false
 
         repository.purge("e1")
 
@@ -159,11 +172,13 @@ private class FakeEventDao : EventDao {
         rows[id]?.let { EventSyncState(it.syncBase, it.updatedAt) }
 }
 
-/** Фикс чистки заметок: записывает удалённые пути вместо работы с файловой системой. */
+/** Фикс чистки заметок: записывает запрошенные на удаление пути и отвечает за результат. */
 private class FakeVoiceNoteStorage : VoiceNoteCleanup {
     val deletedPaths = mutableListOf<String>()
+    var deleteResult = true
 
-    override fun deleteFile(absolutePath: String) {
+    override fun deleteFile(absolutePath: String): Boolean {
         deletedPaths += absolutePath
+        return deleteResult
     }
 }

@@ -1,6 +1,7 @@
 package com.example.mycalendar.data.audio
 
 import android.content.Context
+import android.util.Log
 import com.example.mycalendar.domain.repository.VoiceNoteCleanup
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -27,8 +28,22 @@ class VoiceNoteStorage @Inject constructor(
         fileFor(eventId).delete()
     }
 
-    /** Удаление по пути из строки: репозиторий знает путь события, но не каталог заметок. */
-    override fun deleteFile(absolutePath: String) {
-        File(absolutePath).delete()
+    /**
+     * Удаление по пути из строки: репозиторий знает путь события, но не каталог заметок.
+     * `true` — файл удалён или его уже не было, `false` — файл остался (отказ файловой системы).
+     */
+    override fun deleteFile(absolutePath: String): Boolean {
+        val file = File(absolutePath)
+        if (file.delete()) return true
+        // delete() возвращает false и когда файла нет: предупреждение пишем только при отказе.
+        if (file.exists()) {
+            Log.w(TAG, "Файл голосовой заметки не удалён: $absolutePath")
+            return false
+        }
+        return true
+    }
+
+    private companion object {
+        private const val TAG = "VoiceNoteStorage"
     }
 }

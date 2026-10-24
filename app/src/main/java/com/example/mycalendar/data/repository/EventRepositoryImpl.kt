@@ -107,7 +107,9 @@ class EventRepositoryImpl @Inject constructor(
     }
 
     override suspend fun purge(id: String) {
-        eventDao.getEvent(id)?.voiceNotePath?.let(voiceNotes::deleteFile)
+        // Результат удаления файла в репозитории не используется: строка БД удаляется
+        // в любом случае, а отказ файловой системы наблюдаем в логе data-слоя.
+        eventDao.getEvent(id)?.voiceNotePath?.let { voiceNotes.deleteFile(it) }
         eventDao.hardDelete(id)
     }
 }

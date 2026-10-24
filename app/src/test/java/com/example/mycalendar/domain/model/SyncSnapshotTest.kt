@@ -46,6 +46,11 @@ class SyncSnapshotTest {
     }
 
     @Test
+    fun `valid json without required fields parses as null`() {
+        assertNull(SyncSnapshot.fromJson("{}"))
+    }
+
+    @Test
     fun `reminder order is not a difference`() {
         assertEquals(
             emptySet<SyncField>(),
