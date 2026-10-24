@@ -81,6 +81,35 @@ class SyncSnapshotTest {
     }
 
     @Test
+    fun `apply changes exactly the chosen field set and leaves startTime`() {
+        val cloud = base.copy(
+            startTime = 8_000L,
+            endTime = 9_000L,
+            reminderMinutes = listOf(30),
+            repeatRule = RepeatRule.DAILY,
+        )
+
+        val merged = cloud.appliedTo(
+            event,
+            setOf(SyncField.END_TIME, SyncField.REMINDER_MINUTES, SyncField.REPEAT_RULE),
+        )
+
+        assertEquals(9_000L, merged.endTime)
+        assertEquals(listOf(30), merged.reminderMinutes)
+        assertEquals(RepeatRule.DAILY, merged.repeatRule)
+        assertEquals(1_000L, merged.startTime)
+    }
+
+    @Test
+    fun `apply of DESCRIPTION from a null snapshot clears the local description`() {
+        val cloud = base.copy(description = null)
+
+        val merged = cloud.appliedTo(event, setOf(SyncField.DESCRIPTION))
+
+        assertNull(merged.description)
+    }
+
+    @Test
     fun `apply of no fields keeps event untouched`() {
         assertEquals(event, base.appliedTo(event, emptySet()))
     }

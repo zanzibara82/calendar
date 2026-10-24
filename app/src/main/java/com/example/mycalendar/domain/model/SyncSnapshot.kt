@@ -45,7 +45,16 @@ data class SyncSnapshot(
         SyncField.REPEAT_RULE -> repeatRule
     }
 
-    /** [event] с значениями полей [fields] из снимка; остальное остаётся локальным. */
+    /**
+     * [event] с значениями полей [fields] из снимка; остальное остаётся локальным.
+     *
+     * Поле DESCRIPTION налагается буквально: [SyncSnapshot.description] переносится как
+     * есть, поэтому снимок с description = null ОЧИЩАЕТ описание события. Это расходится
+     * с [fieldOf], где null и пустая строка — одно и то же: при сравнении отсутствие
+     * описания не считается отличием, а при наложении выбранного поля DESCRIPTION оно
+     * стирает локальное значение. Слияние из синхронизации накладывает ровно выбранные
+     * поля, так что это поведение зафиксировано тестом.
+     */
     fun appliedTo(event: Event, fields: Set<SyncField>): Event = fields.fold(event) { acc, field ->
         when (field) {
             SyncField.TITLE -> acc.copy(title = title)
