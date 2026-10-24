@@ -15,7 +15,8 @@ data class RemoteEvent(
     val endTime: Long,
     val reminderMinutes: List<Int>,
     val repeatRule: RepeatRule?,
-    /** updated (RFC3339 -> epoch millis): основа для last-write-wins. */
+    /** updated (RFC3339, пересчёт в миллисекунды от эпохи): нужен для порядка
+     *  отображения, а не для решения о слиянии. */
     val updatedAt: Long,
     /** status=cancelled в Google Calendar означает удаление. */
     val deleted: Boolean = false,
@@ -31,7 +32,7 @@ interface RemoteCalendarDataSource {
     /**
      * Есть ли у провайдера достоверное время изменения события.
      *
-     * У системного календаря Android ([CalendarContract]) такой колонки нет, поэтому
+     * У системного календаря Android (`CalendarContract`) такой колонки нет, поэтому
      * инкрементальный pull по updatedMin невозможен и каждая синхронизация читает всю
      * выборку. На решение о слиянии признак больше не влияет: сравнивается снимок-предок,
      * а не время изменения.

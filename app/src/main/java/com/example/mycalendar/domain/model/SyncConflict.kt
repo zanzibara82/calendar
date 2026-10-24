@@ -27,7 +27,8 @@ data class SyncConflict(
     val kind: ConflictKind,
     val base: SyncSnapshot?,
     val remote: SyncSnapshot,
-    /** Спорные поля; пусто для [ConflictKind.REMOTE_DELETED] и [ConflictKind.LOCAL_DELETED]. */
+    /** Спорные поля: пусто для [ConflictKind.REMOTE_DELETED]; для [ConflictKind.LOCAL_DELETED] —
+     *  изменения облака, если предок есть, и все отличия строки от облака, если предка нет. */
     val contested: Set<SyncField>,
     val detectedAt: Long,
 ) {

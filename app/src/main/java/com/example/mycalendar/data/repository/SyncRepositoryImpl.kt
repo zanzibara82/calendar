@@ -13,6 +13,8 @@ import com.example.mycalendar.domain.repository.SyncRepository
 import com.example.mycalendar.domain.repository.SyncResult
 import com.example.mycalendar.work.ReminderScheduler
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -49,6 +51,10 @@ class SyncRepositoryImpl @Inject constructor(
     private val dataSourceProvider: RemoteDataSourceProvider,
     private val reminderScheduler: ReminderScheduler,
 ) : SyncRepository {
+
+    // Очередь конфликтов пишется без транзакции, а входов в pull два (периодический воркер и
+    // интерфейс): конкурентный проход того же провайдера роняет уникальный индекс по eventId.
+    private val providerLocks = CalendarProvider.entries.associateWith { Mutex() }
 
     /** Синхронизация всех подключённых календарей со сводным результатом. */
     override suspend fun syncNow(): SyncResult {
@@ -95,19 +101,21 @@ class SyncRepositoryImpl @Inject constructor(
     override suspend fun syncProvider(provider: CalendarProvider): SyncResult {
         if (provider == CalendarProvider.LOCAL) return SyncResult.nothingConnected()
 
-        // Провайдер мог быть отключён — проверяем перед запросом токена
-        val account = authRepository.accountFor(provider)
-            ?: return SyncResult.failure(provider, "Календарь ${provider.name} не подключён")
+        return providerLocks.getValue(provider).withLock {
+            // Провайдер мог быть отключён — проверяем перед запросом токена
+            val account = authRepository.accountFor(provider)
+                ?: return@withLock SyncResult.failure(provider, "Календарь ${provider.name} не подключён")
 
-        val remote = dataSourceProvider.forProvider(provider)
-            ?: return SyncResult.failure(provider, "Провайдер ${provider.name} не обслуживается")
+            val remote = dataSourceProvider.forProvider(provider)
+                ?: return@withLock SyncResult.failure(provider, "Провайдер ${provider.name} не обслуживается")
 
-        return try {
-            val result = doSync(remote, provider)
-            settingsRepository.setLastSyncTime(provider, System.currentTimeMillis())
-            result
-        } catch (e: Exception) {
-            SyncResult.failure(provider, e.message ?: e.javaClass.simpleName)
+            try {
+                val result = doSync(remote, provider)
+                settingsRepository.setLastSyncTime(provider, System.currentTimeMillis())
+                result
+            } catch (e: Exception) {
+                SyncResult.failure(provider, e.message ?: e.javaClass.simpleName)
+            }
         }
     }
 
@@ -117,7 +125,7 @@ class SyncRepositoryImpl @Inject constructor(
     ): SyncResult {
         var pulled = 0
         var conflicts = 0
-        val pulledIds = mutableListOf<String>()
+        val rescheduleIds = mutableListOf<String>()
 
         // Время последней синхронизации ИМЕННО этого провайдера
         val since = settingsRepository.lastSyncTime(provider).first()
@@ -130,25 +138,29 @@ class SyncRepositoryImpl @Inject constructor(
                 is PullDecision.Insert -> {
                     eventRepository.saveFromRemote(decision.event, decision.base)
                     pulled++
-                    pulledIds += decision.event.id
+                    rescheduleIds += decision.event.id
                 }
 
                 is PullDecision.ApplyRemote -> {
                     eventRepository.saveFromRemote(decision.event, decision.base)
                     pulled++
-                    pulledIds += decision.event.id
+                    rescheduleIds += decision.event.id
                 }
 
                 // Объединение непересекаемых полей: результат неотправлен, предок НЕ двигаем.
                 is PullDecision.AutoMerge -> {
                     eventRepository.saveFromUser(decision.event)
                     pulled++
-                    pulledIds += decision.event.id
+                    rescheduleIds += decision.event.id
                 }
 
                 is PullDecision.Conflict -> {
                     // Для спорных полей держим локальное значение; молча перезаписывать нельзя (§7).
-                    if (!decision.kind.isDeletion) eventRepository.saveFromUser(decision.mergedLocal)
+                    if (!decision.kind.isDeletion) {
+                        eventRepository.saveFromUser(decision.mergedLocal)
+                        // Объединённая строка берёт из облака и время: будильник надо переставить.
+                        rescheduleIds += decision.eventId
+                    }
                     conflictRepository.save(decision.toConflict(provider, remoteEvent.remoteId))
                     conflicts++
                 }
@@ -163,8 +175,8 @@ class SyncRepositoryImpl @Inject constructor(
 
         val pushed = push(remote, provider)
 
-        // Напоминания для событий, приехавших из облака
-        pulledIds.distinct().forEach { id ->
+        // Перепланирование напоминаний для событий, которым pull двигал содержимое
+        rescheduleIds.distinct().forEach { id ->
             eventRepository.getEvent(id)?.let { reminderScheduler.schedule(it) }
         }
 

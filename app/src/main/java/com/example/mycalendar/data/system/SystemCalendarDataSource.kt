@@ -266,7 +266,7 @@ class SystemCalendarDataSource @Inject constructor(
                     reminderMinutes = emptyList(), // заполняются отдельным запросом
                     repeatRule = cursor.getString(iRrule)?.toRepeatRule(),
                     // У системного календаря нет времени изменения: фиксируем
-                    // момент наблюдения (на сравнение это не влияет — см. doSync)
+                    // момент наблюдения (на сравнение это не влияет — см. `SyncConflictResolver.decide`)
                     updatedAt = observedAt,
                     deleted = cursor.getInt(iDeleted) == 1,
                 )

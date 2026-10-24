@@ -23,7 +23,8 @@ data class Event(
     val calendarProvider: CalendarProvider = CalendarProvider.LOCAL,
     /** Идентификатор события на стороне удалённого провайдера (Google/Yandex). */
     val remoteId: String? = null,
-    /** Время последнего изменения (epoch millis) — основа для last-write-wins. */
+    /** Время последнего изменения в миллисекундах от эпохи: задаёт порядок отображения,
+     *  а не решение о слиянии — слияние сравнивает снимок-предок. */
     val updatedAt: Long = 0L,
 )
 

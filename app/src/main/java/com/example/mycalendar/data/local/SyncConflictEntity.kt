@@ -40,7 +40,8 @@ data class SyncConflictEntity(
     val base: String?,
     /** JSON [SyncSnapshot] облачной версии. */
     val remote: String,
-    /** Имена [SyncField] через запятую; пусто для конфликтов-удалений. */
+    /** Имена [SyncField] через запятую; пусто для `REMOTE_DELETED`, а для `LOCAL_DELETED` —
+     *  изменения облака при предке и все отличия строки от облака без предка. */
     val contestedFields: String,
     val detectedAt: Long,
 )
