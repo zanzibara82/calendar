@@ -1,5 +1,6 @@
 package com.example.mycalendar.di
 
+import com.example.mycalendar.data.audio.VoiceNoteStorage
 import com.example.mycalendar.data.auth.AccessTokenProvider
 import com.example.mycalendar.data.auth.YandexAuthDataSource
 import com.example.mycalendar.data.preferences.SettingsRepositoryImpl
@@ -10,6 +11,7 @@ import com.example.mycalendar.domain.repository.AuthRepository
 import com.example.mycalendar.domain.repository.EventRepository
 import com.example.mycalendar.domain.repository.SettingsRepository
 import com.example.mycalendar.domain.repository.SyncRepository
+import com.example.mycalendar.domain.repository.VoiceNoteCleanup
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -41,4 +43,9 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindAccessTokenProvider(impl: YandexAuthDataSource): AccessTokenProvider
+
+    /** Чистка файла голосовой заметки: репозиторий зависит от контракта, а не от Android-реализации. */
+    @Binds
+    @Singleton
+    abstract fun bindVoiceNoteCleanup(impl: VoiceNoteStorage): VoiceNoteCleanup
 }

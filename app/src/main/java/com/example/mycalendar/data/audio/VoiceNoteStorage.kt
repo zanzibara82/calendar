@@ -1,6 +1,7 @@
 package com.example.mycalendar.data.audio
 
 import android.content.Context
+import com.example.mycalendar.domain.repository.VoiceNoteCleanup
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import javax.inject.Inject
@@ -13,7 +14,7 @@ import javax.inject.Singleton
 @Singleton
 class VoiceNoteStorage @Inject constructor(
     @ApplicationContext context: Context,
-) {
+) : VoiceNoteCleanup {
     private val voiceDir: File = File(context.filesDir, "voice_notes").apply { mkdirs() }
 
     /** Постоянный файл заметки для события. */
@@ -24,5 +25,10 @@ class VoiceNoteStorage @Inject constructor(
 
     fun deleteFor(eventId: String) {
         fileFor(eventId).delete()
+    }
+
+    /** Удаление по пути из строки: репозиторий знает путь события, но не каталог заметок. */
+    override fun deleteFile(absolutePath: String) {
+        File(absolutePath).delete()
     }
 }

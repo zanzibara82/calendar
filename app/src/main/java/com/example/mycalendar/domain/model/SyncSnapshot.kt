@@ -1,6 +1,7 @@
 package com.example.mycalendar.domain.model
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 
 /** Синхронизируемое поле события — единица спора при конфликте. */
@@ -60,8 +61,11 @@ data class SyncSnapshot(
         private val json = Json { ignoreUnknownKeys = true }
 
         /** null — строка до миграции либо событие, которое ещё ни с чем не синхронизировалось. */
-        fun fromJson(raw: String?): SyncSnapshot? =
-            raw?.let { runCatching { json.decodeFromString<SyncSnapshot>(it) }.getOrNull() }
+        fun fromJson(raw: String?): SyncSnapshot? = try {
+            raw?.let { json.decodeFromString<SyncSnapshot>(it) }
+        } catch (e: SerializationException) {
+            null
+        }
 
         fun of(event: Event): SyncSnapshot = SyncSnapshot(
             title = event.title,

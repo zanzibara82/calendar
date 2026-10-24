@@ -7,6 +7,7 @@ import com.example.mycalendar.data.remote.yandex.YandexCalendarDataSource
 import com.example.mycalendar.data.system.SystemCalendarDataSource
 import com.example.mycalendar.domain.model.CalendarProvider
 import com.example.mycalendar.domain.model.Event
+import com.example.mycalendar.domain.model.SyncSnapshot
 import com.example.mycalendar.domain.repository.AuthRepository
 import com.example.mycalendar.domain.repository.EventRepository
 import com.example.mycalendar.domain.repository.SettingsRepository
@@ -151,7 +152,7 @@ class SyncRepositoryImpl @Inject constructor(
         val remoteEvents = remote.fetchUpdatedSince(if (since > 0) since else 0L)
         for (remoteEvent in remoteEvents) {
             val incoming = remoteEvent.toEvent(provider)
-            val local = eventRepository.findByRemoteId(provider, remoteEvent.remoteId)
+            val local = eventRepository.findSyncedRecord(provider, remoteEvent.remoteId)?.event
 
             // Удалённое на удалённой стороне событие. Системный календарь помечает
             // такие строки DELETED=1 — их можно вычистить локально. REST-провайдеры
@@ -168,7 +169,8 @@ class SyncRepositoryImpl @Inject constructor(
             when {
                 // Новое событие на стороне облака
                 local == null -> {
-                    eventRepository.saveFromRemote(incoming)
+                    // TODO(Task 6): предок из снимка
+                    eventRepository.saveFromRemote(incoming, SyncSnapshot.of(incoming))
                     pulled++
                     pulledIds += incoming.id
                 }
@@ -183,7 +185,8 @@ class SyncRepositoryImpl @Inject constructor(
 
                     // Изменилось только в календаре -> забираем удалённую версию
                     else -> {
-                        eventRepository.saveFromRemote(incoming.appliedTo(local))
+                        // TODO(Task 6): предок из снимка
+                        eventRepository.saveFromRemote(incoming.appliedTo(local), null)
                         pulled++
                         conflicts++
                         pulledIds += local.id
@@ -192,7 +195,8 @@ class SyncRepositoryImpl @Inject constructor(
 
                 // Конфликт: изменены и локально, и в облаке -> last-write-wins
                 conflictResolver.resolve(local, remoteEvent) == SyncConflictResolver.Resolution.TAKE_REMOTE -> {
-                    eventRepository.saveFromRemote(incoming.appliedTo(local))
+                    // TODO(Task 6): предок из снимка
+                    eventRepository.saveFromRemote(incoming.appliedTo(local), null)
                     pulled++
                     conflicts++
                     pulledIds += local.id
@@ -200,7 +204,7 @@ class SyncRepositoryImpl @Inject constructor(
 
                 // Локальная версия новее: уйдёт в облако в push-фазе
                 else -> {
-                    eventRepository.markPendingSync(local.id)
+                    eventRepository.saveFromUser(local)
                     conflicts++
                 }
             }
@@ -254,7 +258,7 @@ class SyncRepositoryImpl @Inject constructor(
                 event.remoteId == null -> {
                     // Новое локальное событие -> create в облаке и привязка к провайдеру
                     val remoteId = remote.insert(event)
-                    eventRepository.attachToProvider(event.id, remoteId, provider)
+                    eventRepository.attachToProvider(event.id, remoteId, provider, SyncSnapshot.of(event))
                     reminderScheduler.schedule(event)
                     pushed++
                 }
@@ -262,7 +266,7 @@ class SyncRepositoryImpl @Inject constructor(
                 else -> {
                     // Локальное изменение существующего события -> update в облаке
                     remote.update(event.remoteId, event)
-                    eventRepository.markSynced(listOf(event.id))
+                    eventRepository.markSynced(event.id, SyncSnapshot.of(event))
                     reminderScheduler.schedule(event)
                     pushed++
                 }

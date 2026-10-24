@@ -2,6 +2,8 @@ package com.example.mycalendar.domain.repository
 
 import com.example.mycalendar.domain.model.CalendarProvider
 import com.example.mycalendar.domain.model.Event
+import com.example.mycalendar.domain.model.SyncedRecord
+import com.example.mycalendar.domain.model.SyncSnapshot
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -35,10 +37,10 @@ interface EventRepository {
     suspend fun saveFromUser(event: Event)
 
     /**
-     * Запись события, пришедшего ИЗ облака: pendingSync не выставляется,
-     * updatedAt берётся из удалённого источника (важно для last-write-wins).
+     * Запись, приехавшая ИЗ облака: pendingSync не выставляется (иначе цикл синхронизации),
+     * а [syncBase] становится новым снимком-предком этой строки.
      */
-    suspend fun saveFromRemote(event: Event)
+    suspend fun saveFromRemote(event: Event, syncBase: SyncSnapshot?)
 
     /** Мягкое удаление: запись помечается tombstone'ом и удаляется из облака при синхронизации. */
     suspend fun markDeleted(id: String)
@@ -49,10 +51,8 @@ interface EventRepository {
     /** События, ожидающие отправки в облако (в т.ч. tombstone'ы). */
     suspend fun getPendingSyncEvents(): List<PendingSyncEvent>
 
-    suspend fun markSynced(ids: List<String>)
-
-    /** Пометить событие требующим отправки в облако (updatedAt не меняется). */
-    suspend fun markPendingSync(id: String)
+    /** Успешный push: снять pendingSync и догнать предка отправленным состоянием. */
+    suspend fun markSynced(id: String, syncBase: SyncSnapshot)
 
     suspend fun setRemoteId(id: String, remoteId: String)
 
@@ -63,7 +63,26 @@ interface EventRepository {
      * Выставление провайдера важно при НЕСКОЛЬКИХ подключённых календарях:
      * иначе событие осталось бы LOCAL и попало бы в push второго календаря.
      */
-    suspend fun attachToProvider(id: String, remoteId: String, provider: CalendarProvider)
+    suspend fun attachToProvider(
+        id: String,
+        remoteId: String,
+        provider: CalendarProvider,
+        syncBase: SyncSnapshot?,
+    )
 
-    suspend fun findByRemoteId(provider: CalendarProvider, remoteId: String): Event?
+    /** Строка с её служебным состоянием (для решения о слиянии) или null, если пары нет. */
+    suspend fun findSyncedRecord(provider: CalendarProvider, remoteId: String): SyncedRecord?
+
+    /**
+     * Разбор конфликта: [event] с выбранными значениями становится локальной записью,
+     * а [syncBase] — новым предком. Разобранное состояние ещё не в облаке,
+     * поэтому флаг неотправленного включается обязательно.
+     */
+    suspend fun saveResolved(event: Event, syncBase: SyncSnapshot)
+
+    /**
+     * Полное удаление: строка БД И файл голосовой заметки.
+     * Инвариант: файла нет ровно тогда, когда нет строки.
+     */
+    suspend fun purge(id: String)
 }
