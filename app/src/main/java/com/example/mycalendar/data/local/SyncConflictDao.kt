@@ -21,8 +21,9 @@ interface SyncConflictDao {
     @Query("SELECT * FROM sync_conflicts WHERE id = :id")
     suspend fun getById(id: String): SyncConflictEntity?
 
-    @Query("SELECT id FROM sync_conflicts WHERE eventId = :eventId LIMIT 1")
-    suspend fun idByEvent(eventId: String): String?
+    /** Открытый конфликт события, если он уже в очереди: ради идентификатора и времени первого обнаружения. */
+    @Query("SELECT * FROM sync_conflicts WHERE eventId = :eventId LIMIT 1")
+    suspend fun getByEvent(eventId: String): SyncConflictEntity?
 
     @Upsert
     suspend fun upsert(conflict: SyncConflictEntity)

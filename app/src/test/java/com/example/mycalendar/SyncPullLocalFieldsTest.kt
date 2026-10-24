@@ -2,11 +2,11 @@ package com.example.mycalendar
 
 import com.example.mycalendar.data.remote.RemoteEvent
 import com.example.mycalendar.data.remote.toEvent
-import com.example.mycalendar.data.repository.appliedTo
 import com.example.mycalendar.domain.model.CalendarProvider
 import com.example.mycalendar.domain.model.Event
 import com.example.mycalendar.domain.model.EventTag
 import com.example.mycalendar.domain.model.RepeatRule
+import com.example.mycalendar.domain.model.withLocalFieldsFrom
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -45,7 +45,7 @@ class SyncPullLocalFieldsTest {
         updatedAt = 100L,
     )
 
-    private fun incoming() = remote.toEvent(CalendarProvider.GOOGLE).appliedTo(local)
+    private fun incoming() = remote.toEvent(CalendarProvider.GOOGLE).withLocalFieldsFrom(local)
 
     @Test
     fun `remote overwrite keeps local tags notes and id`() {
@@ -79,7 +79,7 @@ class SyncPullLocalFieldsTest {
             voiceNotePath = null,
         )
 
-        val merged = remote.toEvent(CalendarProvider.GOOGLE).appliedTo(localWithoutNotes)
+        val merged = remote.toEvent(CalendarProvider.GOOGLE).withLocalFieldsFrom(localWithoutNotes)
 
         assertNull(merged.textNote)
         assertNull(merged.voiceNotePath)

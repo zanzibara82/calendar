@@ -1,20 +1,19 @@
 package com.example.mycalendar.data.repository
 
 import com.example.mycalendar.data.remote.RemoteCalendarDataSource
-import com.example.mycalendar.data.remote.RemoteEvent
-import com.example.mycalendar.data.remote.toEvent
-import com.example.mycalendar.data.remote.yandex.YandexCalendarDataSource
-import com.example.mycalendar.data.system.SystemCalendarDataSource
+import com.example.mycalendar.data.remote.RemoteDataSourceProvider
 import com.example.mycalendar.domain.model.CalendarProvider
-import com.example.mycalendar.domain.model.Event
+import com.example.mycalendar.domain.model.SyncConflict
 import com.example.mycalendar.domain.model.SyncSnapshot
 import com.example.mycalendar.domain.repository.AuthRepository
+import com.example.mycalendar.domain.repository.ConflictRepository
 import com.example.mycalendar.domain.repository.EventRepository
 import com.example.mycalendar.domain.repository.SettingsRepository
 import com.example.mycalendar.domain.repository.SyncRepository
 import com.example.mycalendar.domain.repository.SyncResult
 import com.example.mycalendar.work.ReminderScheduler
 import kotlinx.coroutines.flow.first
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -22,33 +21,23 @@ import javax.inject.Singleton
  * Двусторонняя синхронизация локальной БД с календарями провайдеров.
  *
  * Провайдеры НЕЗАВИСИМЫ: событие принадлежит одному из них (поле calendarProvider),
- * поэтому Google и Яндекс могут быть подключены одновременно и синхронизироваться
- * параллельно, не затирая друг друга.
+ * поэтому Google и Яндекс могут быть подключены одновременно и не затирают друг друга.
  *
- * Алгоритм для одного провайдера (за одну итерацию):
+ *  PULL: для каждого события провайдера [SyncConflictResolver.decide] сравнивает
+ *  облачную версию и локальную запись с их общим предком (EventEntity.syncBase):
+ *  - предок = облако                     -> Skip (локальные правки не трогаем);
+ *  - менялось только облако              -> применяем, предок едет за ним;
+ *  - правки не пересекаются              -> объединяем, предок ждёт успешного push;
+ *  - пересечение по полю                 -> строка в sync_conflicts, локальное значение в силе;
+ *  - удаление на одной из сторон с правками на другой -> тоже конфликт (см. design §3).
  *
- *  PULL: события провайдера, изменённые с момента его lastSyncTime
- *    (системный календарь не отдаёт время изменения — читаются все события,
- *     а конфликт решается по содержимому, см. [sameContent]):
- *    - нет локальной пары (по remoteId)      -> вставить локально;
- *    - локальная пара есть                   -> last-write-wins по updatedAt;
- *      - удалённая версия новее              -> перезаписать локальную;
- *      - локальная версия новее              -> пометить pendingSync (уйдёт в push).
+ *  PUSH: локальные записи с pendingSync = этого провайдера; события с открытым
+ *  конфликтом пропускаются. После успешной отправки syncBase догоняет отправленное.
  *
- *  PUSH: локальные записи с pendingSync = true, принадлежащие ЭТОМУ провайдеру:
- *    - tombstone (isDeleted)                 -> удалить в облаке + hardDelete локально;
- *    - без remoteId                          -> insert в облако + сохранить remoteId;
- *    - с remoteId                            -> update в облаке.
- *
- *  Исключение: если подключён РОВНО ОДИН провайдер, в него также уходят локальные
- *  (LOCAL) события — так поведение не отличается от единственного календаря,
- *  а при двух подключённых локальные события не дублируются в оба облака.
- *
- *  Финал: lastSyncTime провайдера = now; напоминания перепланируются для затронутых
- *  событий. Голосовые заметки НЕ синхронизируются (файлы остаются на устройстве).
- *
- *  Метки, текстовая и голосовая заметки есть только локально, поэтому при перезаписи
- *  события удалённой версией они переносятся из локальной записи (см. [appliedTo]).
+ *  Метки, текстовая и голосовая заметки есть только локально: при перезаписи события
+ *  удалённой версией они переносятся из локальной записи (`Event.withLocalFieldsFrom`)
+ *  и потому не могут быть спорными. Файл голосовой заметки удаляется вместе со строкой
+ *  БД ([EventRepository.purge]).
  */
 @Singleton
 class SyncRepositoryImpl @Inject constructor(
@@ -56,8 +45,8 @@ class SyncRepositoryImpl @Inject constructor(
     private val authRepository: AuthRepository,
     private val settingsRepository: SettingsRepository,
     private val conflictResolver: SyncConflictResolver,
-    private val systemCalendarDataSource: SystemCalendarDataSource,
-    private val yandexCalendarDataSource: YandexCalendarDataSource,
+    private val conflictRepository: ConflictRepository,
+    private val dataSourceProvider: RemoteDataSourceProvider,
     private val reminderScheduler: ReminderScheduler,
 ) : SyncRepository {
 
@@ -110,13 +99,8 @@ class SyncRepositoryImpl @Inject constructor(
         val account = authRepository.accountFor(provider)
             ?: return SyncResult.failure(provider, "Календарь ${provider.name} не подключён")
 
-        val remote: RemoteCalendarDataSource = when (provider) {
-            // Google идёт через СИСТЕМНЫЙ календарь Android (CalendarContract):
-            // OAuth-клиент и регистрация в Google Cloud Console не нужны.
-            CalendarProvider.GOOGLE -> systemCalendarDataSource
-            CalendarProvider.YANDEX -> yandexCalendarDataSource
-            CalendarProvider.LOCAL -> return SyncResult.nothingConnected()
-        }
+        val remote = dataSourceProvider.forProvider(provider)
+            ?: return SyncResult.failure(provider, "Провайдер ${provider.name} не обслуживается")
 
         return try {
             val result = doSync(remote, provider)
@@ -131,7 +115,6 @@ class SyncRepositoryImpl @Inject constructor(
         remote: RemoteCalendarDataSource,
         provider: CalendarProvider,
     ): SyncResult {
-        var pushed = 0
         var pulled = 0
         var conflicts = 0
         val pulledIds = mutableListOf<String>()
@@ -139,79 +122,46 @@ class SyncRepositoryImpl @Inject constructor(
         // Время последней синхронизации ИМЕННО этого провайдера
         val since = settingsRepository.lastSyncTime(provider).first()
 
-        // Провайдер без updatedAt (системный календарь) разрешает конфликты
-        // по содержимому, поэтому список локальных изменений нужен заранее —
-        // именно он отвечает на вопрос «кто изменился».
-        val pendingIds = if (remote.hasReliableUpdatedAt) {
-            emptySet()
-        } else {
-            eventRepository.getPendingSyncEvents().map { it.event.id }.toSet()
-        }
+        for (remoteEvent in remote.fetchUpdatedSince(if (since > 0) since else 0L)) {
+            val record = eventRepository.findSyncedRecord(provider, remoteEvent.remoteId)
+            when (val decision = conflictResolver.decide(record, remoteEvent, provider)) {
+                PullDecision.Skip, PullDecision.PushDelete -> Unit
 
-        // ---------- PULL ----------
-        val remoteEvents = remote.fetchUpdatedSince(if (since > 0) since else 0L)
-        for (remoteEvent in remoteEvents) {
-            val incoming = remoteEvent.toEvent(provider)
-            val local = eventRepository.findSyncedRecord(provider, remoteEvent.remoteId)?.event
-
-            // Удалённое на удалённой стороне событие. Системный календарь помечает
-            // такие строки DELETED=1 — их можно вычистить локально. REST-провайдеры
-            // (Google API: status=cancelled) пока пропускаем, как и раньше.
-            if (remoteEvent.deleted) {
-                if (!remote.hasReliableUpdatedAt && local != null) {
-                    eventRepository.hardDelete(local.id)
-                    reminderScheduler.cancel(local)
+                is PullDecision.Insert -> {
+                    eventRepository.saveFromRemote(decision.event, decision.base)
                     pulled++
-                }
-                continue
-            }
-
-            when {
-                // Новое событие на стороне облака
-                local == null -> {
-                    // TODO(Task 6): предок из снимка
-                    eventRepository.saveFromRemote(incoming, SyncSnapshot.of(incoming))
-                    pulled++
-                    pulledIds += incoming.id
+                    pulledIds += decision.event.id
                 }
 
-                // Провайдер без updatedAt: сравниваем по содержимому
-                !remote.hasReliableUpdatedAt -> when {
-                    // Ничего не изменилось — не трогаем запись вообще
-                    sameContent(local, remoteEvent) -> Unit
-
-                    // Локально есть неотправленные изменения -> уйдёт в push
-                    local.id in pendingIds -> conflicts++
-
-                    // Изменилось только в календаре -> забираем удалённую версию
-                    else -> {
-                        // TODO(Task 6): предок из снимка
-                        eventRepository.saveFromRemote(incoming.appliedTo(local), null)
-                        pulled++
-                        conflicts++
-                        pulledIds += local.id
-                    }
+                is PullDecision.ApplyRemote -> {
+                    eventRepository.saveFromRemote(decision.event, decision.base)
+                    pulled++
+                    pulledIds += decision.event.id
                 }
 
-                // Конфликт: изменены и локально, и в облаке -> last-write-wins
-                conflictResolver.resolve(local, remoteEvent) == SyncConflictResolver.Resolution.TAKE_REMOTE -> {
-                    // TODO(Task 6): предок из снимка
-                    eventRepository.saveFromRemote(incoming.appliedTo(local), null)
+                // Объединение непересекаемых полей: результат неотправлен, предок НЕ двигаем.
+                is PullDecision.AutoMerge -> {
+                    eventRepository.saveFromUser(decision.event)
                     pulled++
+                    pulledIds += decision.event.id
+                }
+
+                is PullDecision.Conflict -> {
+                    // Для спорных полей держим локальное значение; молча перезаписывать нельзя (§7).
+                    if (!decision.kind.isDeletion) eventRepository.saveFromUser(decision.mergedLocal)
+                    conflictRepository.save(decision.toConflict(provider, remoteEvent.remoteId))
                     conflicts++
-                    pulledIds += local.id
                 }
 
-                // Локальная версия новее: уйдёт в облако в push-фазе
-                else -> {
-                    eventRepository.saveFromUser(local)
-                    conflicts++
+                PullDecision.Purge -> {
+                    record?.let { eventRepository.purge(it.event.id) }
+                    record?.let { reminderScheduler.cancel(it.event) }
+                    pulled++
                 }
             }
         }
 
-        // ---------- PUSH ----------
-        pushed = push(remote, provider)
+        val pushed = push(remote, provider)
 
         // Напоминания для событий, приехавших из облака
         pulledIds.distinct().forEach { id ->
@@ -223,6 +173,21 @@ class SyncRepositoryImpl @Inject constructor(
             conflicts = conflicts, provider = provider,
         )
     }
+
+    private fun PullDecision.Conflict.toConflict(
+        provider: CalendarProvider,
+        remoteId: String,
+    ): SyncConflict = SyncConflict(
+        id = UUID.randomUUID().toString(),
+        eventId = eventId,
+        provider = provider,
+        remoteId = remoteId,
+        kind = kind,
+        base = base,
+        remote = remote,
+        contested = contested,
+        detectedAt = System.currentTimeMillis(),
+    )
 
     /**
      * Отправка локальных изменений в облако [provider].
@@ -238,19 +203,25 @@ class SyncRepositoryImpl @Inject constructor(
         val connected = authRepository.connectedProviders()
         val includeLocal = connected.size == 1 && connected.first() == provider
 
+        // Спорные поля в облако не идут: локальное значение держим до разбора (§7).
+        val contestedIds = conflictRepository.openEventIds().toSet()
+
         val pending = eventRepository.getPendingSyncEvents().filter { item ->
-            item.event.calendarProvider == provider ||
-                (includeLocal && item.event.calendarProvider == CalendarProvider.LOCAL)
+            item.event.id !in contestedIds &&
+                (item.event.calendarProvider == provider ||
+                    (includeLocal && item.event.calendarProvider == CalendarProvider.LOCAL))
         }
 
         var pushed = 0
         for (item in pending) {
             val event = item.event
+            // Отправленное состояние и есть новый предок — после подтверждения провайдера.
+            val sent = SyncSnapshot.of(event)
             when {
                 item.isDeleted -> {
                     // Tombstone: удалить в облаке (если событие там есть) и локально
                     event.remoteId?.let { remote.delete(it) }
-                    eventRepository.hardDelete(event.id)
+                    eventRepository.purge(event.id)
                     reminderScheduler.cancel(event)
                     pushed++
                 }
@@ -258,7 +229,7 @@ class SyncRepositoryImpl @Inject constructor(
                 event.remoteId == null -> {
                     // Новое локальное событие -> create в облаке и привязка к провайдеру
                     val remoteId = remote.insert(event)
-                    eventRepository.attachToProvider(event.id, remoteId, provider, SyncSnapshot.of(event))
+                    eventRepository.attachToProvider(event.id, remoteId, provider, sent)
                     reminderScheduler.schedule(event)
                     pushed++
                 }
@@ -266,7 +237,7 @@ class SyncRepositoryImpl @Inject constructor(
                 else -> {
                     // Локальное изменение существующего события -> update в облаке
                     remote.update(event.remoteId, event)
-                    eventRepository.markSynced(event.id, SyncSnapshot.of(event))
+                    eventRepository.markSynced(event.id, sent)
                     reminderScheduler.schedule(event)
                     pushed++
                 }
@@ -274,34 +245,4 @@ class SyncRepositoryImpl @Inject constructor(
         }
         return pushed
     }
-
-    /**
-     * Совпадает ли локальная запись с удалённой по СОДЕРЖИМОМУ.
-     *
-     * Нужно для провайдеров без updatedAt (системный календарь): сравнивать
-     * версии по времени там нечем, поэтому сравниваются зна́чимые поля.
-     * updatedAt намеренно исключён — у системного календаря это момент
-     * наблюдения, а не реальное время изменения.
-     */
-    private fun sameContent(local: Event, remote: RemoteEvent): Boolean =
-        local.title == remote.title &&
-            local.description.orEmpty() == remote.description.orEmpty() &&
-            local.startTime == remote.startTime &&
-            local.endTime == remote.endTime &&
-            local.reminderMinutes.sorted() == remote.reminderMinutes.sorted() &&
-            local.repeatRule == remote.repeatRule
 }
-
-/**
- * Удалённая версия события, перенесённая на локальную запись.
- *
- * id и локальные поля (метки, текстовая и голосовая заметки) берутся из [local]:
- * в облако они не отправляются и обратно не приходят, поэтому правка на стороне
- * провайдера не должна их стирать.
- */
-fun Event.appliedTo(local: Event): Event = copy(
-    id = local.id,
-    tags = local.tags,
-    textNote = local.textNote,
-    voiceNotePath = local.voiceNotePath,
-)

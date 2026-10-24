@@ -8,6 +8,10 @@ enum class ConflictKind {
     REMOTE_DELETED,
     /** Локальный tombstone, а в облаке событие правили. */
     LOCAL_DELETED,
+    ;
+
+    /** Конфликт-удаление: спорных полей нет, выбор бинарный (удалить или оставить). */
+    val isDeletion: Boolean get() = this != CONTENT
 }
 
 /**
@@ -27,5 +31,5 @@ data class SyncConflict(
     val contested: Set<SyncField>,
     val detectedAt: Long,
 ) {
-    val isDeletion: Boolean get() = kind != ConflictKind.CONTENT
+    val isDeletion: Boolean get() = kind.isDeletion
 }

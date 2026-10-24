@@ -67,13 +67,6 @@ interface EventDao {
     @Query("UPDATE events SET pendingSync = 0, syncBase = :syncBase WHERE id = :id")
     suspend fun markSynced(id: String, syncBase: String?)
 
-    /**
-     * Методом пользоваться нельзя: он снимает `pendingSync`, не двигая `syncBase`, и открывает
-     * путь к молчаливому `Purge` поверх правки в облаке. Объявление переживает до задачи 6.
-     */
-    @Query("UPDATE events SET remoteId = :remoteId, pendingSync = 0 WHERE id = :id")
-    suspend fun setRemoteId(id: String, remoteId: String)
-
     /** Привязка к провайдеру: событие уходит в облако и больше не считается локальным. */
     @Query(
         "UPDATE events SET remoteId = :remoteId, calendarProvider = :provider, " +

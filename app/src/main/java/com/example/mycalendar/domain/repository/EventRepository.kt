@@ -54,8 +54,6 @@ interface EventRepository {
     /** Успешный push: снять pendingSync и догнать предка отправленным состоянием. */
     suspend fun markSynced(id: String, syncBase: SyncSnapshot)
 
-    suspend fun setRemoteId(id: String, remoteId: String)
-
     /**
      * Привязка локального события к провайдеру после создания его в облаке:
      * сохраняет [remoteId], выставляет [provider] и снимает флаг pendingSync.

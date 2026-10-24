@@ -89,8 +89,11 @@ class SaveEventUseCase @Inject constructor(
 }
 
 /**
- * Удаление события: отмена напоминаний, удаление файла голосовой заметки
- * (требование ТЗ — «удаление файла вместе с событием») и мягкое удаление в БД.
+ * Удаление события: отмена напоминаний и tombstone.
+ *
+ * Файл голосовой заметки здесь НЕ удаляется: облако могло не принять удаление,
+ * а потеря записи хуже отложенного файла. Файл снимается вместе со строкой БД
+ * в [com.example.mycalendar.domain.repository.EventRepository.purge].
  */
 class DeleteEventUseCase @Inject constructor(
     private val eventRepository: EventRepository,
@@ -99,7 +102,6 @@ class DeleteEventUseCase @Inject constructor(
     suspend operator fun invoke(id: String) {
         val event = eventRepository.getEvent(id) ?: return
         reminderScheduler.cancel(event)
-        event.voiceNotePath?.let { path -> File(path).delete() }
         eventRepository.markDeleted(id)
     }
 }

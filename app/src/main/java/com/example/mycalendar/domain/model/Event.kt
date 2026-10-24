@@ -28,6 +28,20 @@ data class Event(
 )
 
 /**
+ * Облачная версия события, перенесённая на локальную запись.
+ *
+ * Идентификатор и локальные поля (метки, текстовая и голосовая заметки) берутся из [local]:
+ * в облако они не отправляются и обратно не приходят, поэтому правка на стороне
+ * провайдера не должна их стирать.
+ */
+fun Event.withLocalFieldsFrom(local: Event): Event = copy(
+    id = local.id,
+    tags = local.tags,
+    textNote = local.textNote,
+    voiceNotePath = local.voiceNotePath,
+)
+
+/**
  * Метки события (выбираются чекбоксами в редакторе).
  */
 enum class EventTag {

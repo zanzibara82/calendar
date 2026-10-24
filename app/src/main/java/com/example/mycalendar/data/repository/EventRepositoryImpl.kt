@@ -20,7 +20,7 @@ import javax.inject.Singleton
  *
  * Ключевая логика синхронизации:
  *  - saveFromUser — любое изменение пользователя помечает запись pendingSync и
- *    обновляет updatedAt (для сравнения версий при last-write-wins);
+ *    обновляет updatedAt, предка НЕ трогает (сравнение при слиянии идёт с предком);
  *  - saveFromRemote — запись из облака НЕ помечается pendingSync (иначе цикл синхронизации).
  */
 @Singleton
@@ -73,9 +73,6 @@ class EventRepositoryImpl @Inject constructor(
 
     override suspend fun markSynced(id: String, syncBase: SyncSnapshot) =
         eventDao.markSynced(id, syncBase.toJson())
-
-    override suspend fun setRemoteId(id: String, remoteId: String) =
-        eventDao.setRemoteId(id, remoteId)
 
     override suspend fun attachToProvider(
         id: String,

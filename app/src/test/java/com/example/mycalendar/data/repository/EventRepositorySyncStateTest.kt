@@ -160,9 +160,6 @@ private class FakeEventDao : EventDao {
     override suspend fun markSynced(id: String, syncBase: String?) {
         rows[id] = rows.getValue(id).copy(pendingSync = false, syncBase = syncBase)
     }
-    override suspend fun setRemoteId(id: String, remoteId: String) {
-        rows[id] = rows.getValue(id).copy(remoteId = remoteId, pendingSync = false)
-    }
     override suspend fun attachToProvider(id: String, remoteId: String, provider: String, syncBase: String?) {
         rows[id] = rows.getValue(id).copy(remoteId = remoteId, calendarProvider = provider, pendingSync = false, syncBase = syncBase)
     }

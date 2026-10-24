@@ -24,10 +24,6 @@ class VoiceNoteStorage @Inject constructor(
     /** Временный файл активной записи (до сохранения события). */
     val tempFile: File = File(voiceDir, "temp_recording.m4a")
 
-    fun deleteFor(eventId: String) {
-        fileFor(eventId).delete()
-    }
-
     /**
      * Удаление по пути из строки: репозиторий знает путь события, но не каталог заметок.
      * `true` — файл удалён или его уже не было, `false` — файл остался (отказ файловой системы).

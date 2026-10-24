@@ -67,6 +67,22 @@ class ConflictRepositoryImplTest {
         assertEquals("Ещё правка", repository.get("c1")?.remote?.title)
     }
 
+    /**
+     * Повторное обнаружение не передвигает конфликт в конец очереди: время первого
+     * обнаружения остаётся, свежие снимки облака при этом записываются.
+     */
+    @Test
+    fun `re-detected conflict keeps the time it was first found`() = runBlocking {
+        repository.save(conflict(id = "c1"))
+
+        repository.save(conflict(id = "c-new").copy(detectedAt = 9_000L, remote = remote.copy(title = "Ещё правка")))
+
+        assertEquals(1, dao.rows.size)
+        val stored = repository.get("c1")!!
+        assertEquals(1_000L, stored.detectedAt)
+        assertEquals("Ещё правка", stored.remote.title)
+    }
+
     @Test
     fun `open event ids feed the push gate`() = runBlocking {
         repository.save(conflict(eventId = "e1"))
@@ -98,7 +114,7 @@ class ConflictRepositoryImplTest {
     /**
      * Строка, записанная другой версией приложения, не должна ронять разбор:
      * нераспознанный вид становится контентным, провайдер — локальным, битые имена
-     * спорных поля отбрасываются, а непарсящееся облачное значение — пустым снимком.
+     * спорных полей отбрасываются, а непарсящееся облачное значение — пустым снимком.
      */
     @Test
     fun `corrupt row falls back to a content conflict and keeps the rest`() = runBlocking {
@@ -132,7 +148,8 @@ private class FakeSyncConflictDao : SyncConflictDao {
     override fun observeCount(): Flow<Int> = flowOf(rows.size)
     override suspend fun openEventIds(): List<String> = rows.values.map { it.eventId }
     override suspend fun getById(id: String): SyncConflictEntity? = rows[id]
-    override suspend fun idByEvent(eventId: String): String? = rows.values.firstOrNull { it.eventId == eventId }?.id
+    override suspend fun getByEvent(eventId: String): SyncConflictEntity? =
+        rows.values.firstOrNull { it.eventId == eventId }
     override suspend fun upsert(conflict: SyncConflictEntity) { rows[conflict.id] = conflict }
     override suspend fun deleteById(id: String) { rows.remove(id) }
 }

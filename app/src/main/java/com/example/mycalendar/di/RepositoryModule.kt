@@ -4,6 +4,8 @@ import com.example.mycalendar.data.audio.VoiceNoteStorage
 import com.example.mycalendar.data.auth.AccessTokenProvider
 import com.example.mycalendar.data.auth.YandexAuthDataSource
 import com.example.mycalendar.data.preferences.SettingsRepositoryImpl
+import com.example.mycalendar.data.remote.CalendarDataSourceProvider
+import com.example.mycalendar.data.remote.RemoteDataSourceProvider
 import com.example.mycalendar.data.repository.AuthRepositoryImpl
 import com.example.mycalendar.data.repository.ConflictRepositoryImpl
 import com.example.mycalendar.data.repository.EventRepositoryImpl
@@ -54,4 +56,9 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindVoiceNoteCleanup(impl: VoiceNoteStorage): VoiceNoteCleanup
+
+    /** Выбор облачного источника: единственное место, где движок узнаёт про конкретные провайдеры. */
+    @Binds
+    @Singleton
+    abstract fun bindRemoteDataSourceProvider(impl: CalendarDataSourceProvider): RemoteDataSourceProvider
 }

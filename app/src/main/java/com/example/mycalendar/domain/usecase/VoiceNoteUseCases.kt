@@ -43,9 +43,10 @@ class DeleteVoiceNoteUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(eventId: String) {
         val event = eventRepository.getEvent(eventId) ?: return
-        // Удаляем и явный путь события, и файл события в стандартном хранилище
-        event.voiceNotePath?.let { path -> File(path).delete() }
-        voiceNoteStorage.fileFor(eventId).delete()
+        // Удаляем и путь из строки, и файл события в стандартном хранилище. Отказ виден в логе
+        // data-слоя; путь из строки снимается в любом случае, иначе событие ссылалось бы на мёртвый файл.
+        event.voiceNotePath?.let { path -> voiceNoteStorage.deleteFile(path) }
+        voiceNoteStorage.deleteFile(voiceNoteStorage.fileFor(eventId).absolutePath)
         eventRepository.saveFromUser(event.copy(voiceNotePath = null))
     }
 }

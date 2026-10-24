@@ -24,9 +24,15 @@ class ConflictRepositoryImpl @Inject constructor(
     override suspend fun get(id: String): SyncConflict? = conflictDao.getById(id)?.toDomain()
 
     override suspend fun save(conflict: SyncConflict) {
-        // Id существующего конфликта сохраняем: на него уже может указывать открытый экран разбора.
-        val existingId = conflictDao.idByEvent(conflict.eventId)
-        conflictDao.upsert(conflict.copy(id = existingId ?: conflict.id).toEntity())
+        // Повторное обнаружение держит и идентификатор (на него уже открыт экран разбора), и
+        // время первого обнаружения (по нему сортируется очередь). Обновляются только снимки.
+        val existing = conflictDao.getByEvent(conflict.eventId)
+        conflictDao.upsert(
+            conflict.copy(
+                id = existing?.id ?: conflict.id,
+                detectedAt = existing?.detectedAt ?: conflict.detectedAt,
+            ).toEntity()
+        )
     }
 
     override suspend fun delete(id: String) = conflictDao.deleteById(id)

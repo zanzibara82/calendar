@@ -9,6 +9,7 @@ import com.example.mycalendar.domain.model.SyncField
 import com.example.mycalendar.domain.model.SyncSnapshot
 import com.example.mycalendar.domain.model.SyncedRecord
 import com.example.mycalendar.domain.model.diffFields
+import com.example.mycalendar.domain.model.withLocalFieldsFrom
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -36,10 +37,9 @@ class SyncConflictResolver @Inject constructor() {
             // Облако удалено, а локальной пары нет: вставлять нечего, предка нет, чистить нечего.
             if (record == null) return PullDecision.Skip
             val local = record.event
-            // Признак «локальных правок нет» — `pendingSync`: он корректен ровно потому, что все
-            // места, снимающие флаг, одновременно двигают предка (`saveFromRemote`, `markSynced`,
-            // `attachToProvider`). `setRemoteId` этого правила не соблюдает и в продакшне не
-            // вызывается.
+            // Признак «локальных правок нет» — `pendingSync`: он корректен ровно потому, что
+            // все места, снимающие флаг, одновременно двигают предка. Других мест нет:
+            // `saveFromRemote`, `markSynced`, `attachToProvider`, `saveResolved`.
             if (record.isDeleted || !record.pendingSync) return PullDecision.Purge
             return PullDecision.Conflict(
                 eventId = local.id,
@@ -85,7 +85,7 @@ class SyncConflictResolver @Inject constructor() {
             val differs = diffFields(localSnapshot, remoteSnapshot)
             return when {
                 differs.isEmpty() -> PullDecision.Skip
-                !record.pendingSync -> PullDecision.ApplyRemote(incoming.appliedTo(local), remoteSnapshot)
+                !record.pendingSync -> PullDecision.ApplyRemote(incoming.withLocalFieldsFrom(local), remoteSnapshot)
                 else -> PullDecision.Conflict(
                     eventId = local.id,
                     kind = ConflictKind.CONTENT,
@@ -105,7 +105,7 @@ class SyncConflictResolver @Inject constructor() {
             // Строка равна предку, но её состояние (наш разбор или возврат из облака) ещё
             // не подтверждено облаком. Молча заменять её нельзя: дождёмся push.
             return if (record.pendingSync) PullDecision.Skip
-            else PullDecision.ApplyRemote(incoming.appliedTo(local), remoteSnapshot)
+            else PullDecision.ApplyRemote(incoming.withLocalFieldsFrom(local), remoteSnapshot)
         }
 
         // Пересечение изменений спорно только если значения реально разошлись:
@@ -130,14 +130,6 @@ class SyncConflictResolver @Inject constructor() {
             contested = contested,
             mergedLocal = merged,
         )
-    }
-
-    // TODO(Task 6): удалить вместе с переходом pull на decide()
-    enum class Resolution { KEEP_LOCAL, TAKE_REMOTE }
-
-    fun resolve(local: Event, remote: RemoteEvent): Resolution = when {
-        remote.updatedAt > local.updatedAt -> Resolution.TAKE_REMOTE
-        else -> Resolution.KEEP_LOCAL
     }
 }
 

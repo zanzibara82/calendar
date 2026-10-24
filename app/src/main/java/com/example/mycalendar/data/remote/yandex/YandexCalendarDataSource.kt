@@ -23,9 +23,10 @@ import javax.inject.Singleton
  *  - [delete]             -> DELETE `<календарь>/<uid>.ics`.
  *
  * [hasReliableUpdatedAt] = `false`: у VEVENT нет надёжного «времени изменения»
- * (LAST-MODIFIED сервер может не обновлять), поэтому [SyncRepositoryImpl.doSync]
- * разрешает конфликты ПО СОДЕРЖИМОМУ, а не по updatedAt — это надёжнее и не зависит
- * от корректности LAST-MODIFIED на стороне сервера.
+ * (LAST-MODIFIED сервер может не обновлять), поэтому инкрементальный pull по
+ * updatedMin невозможен и REPORT читает всю коллекцию. На решение о слиянии признак
+ * больше не влияет: `SyncConflictResolver.decide` сравнивает снимок-предок, а не
+ * updatedAt — это надёжнее и не зависит от корректности LAST-MODIFIED на стороне сервера.
  */
 @Singleton
 class YandexCalendarDataSource @Inject constructor(
