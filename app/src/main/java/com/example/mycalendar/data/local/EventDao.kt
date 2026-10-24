@@ -59,6 +59,17 @@ interface EventDao {
     @Query("UPDATE events SET pendingSync = 0 WHERE id IN (:ids)")
     suspend fun markSynced(ids: List<String>)
 
+    /** Служебное состояние строки: предок и время изменения — чтобы не вычитывать весь контент. */
+    @Query("SELECT syncBase, updatedAt FROM events WHERE id = :id")
+    suspend fun getSyncState(id: String): EventSyncState?
+
+    /**
+     * Успешный push: предок догоняет отправленное состояние.
+     * Больше никаких мест, где syncBase двигает синхронизация, нет (разбор — Task 7).
+     */
+    @Query("UPDATE events SET pendingSync = 0, syncBase = :syncBase WHERE id = :id")
+    suspend fun markSynced(id: String, syncBase: String?)
+
     /** Пометить событие требующим отправки в облако, не меняя updatedAt (для LWW). */
     @Query("UPDATE events SET pendingSync = 1 WHERE id = :id")
     suspend fun markPendingSync(id: String)
@@ -73,6 +84,15 @@ interface EventDao {
     )
     suspend fun attachToProvider(id: String, remoteId: String, provider: String)
 
+    @Query(
+        "UPDATE events SET remoteId = :remoteId, calendarProvider = :provider, " +
+            "pendingSync = 0, syncBase = :syncBase WHERE id = :id"
+    )
+    suspend fun attachToProvider(id: String, remoteId: String, provider: String, syncBase: String?)
+
     @Query("SELECT * FROM events WHERE calendarProvider = :provider AND remoteId = :remoteId LIMIT 1")
     suspend fun findByRemoteId(provider: String, remoteId: String): EventEntity?
 }
+
+/** Две служебные колонки одной строки (запрос [EventDao.getSyncState]). */
+data class EventSyncState(val syncBase: String?, val updatedAt: Long)

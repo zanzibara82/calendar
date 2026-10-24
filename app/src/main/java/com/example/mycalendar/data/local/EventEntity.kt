@@ -36,6 +36,8 @@ data class EventEntity(
     val updatedAt: Long,
     val isDeleted: Boolean = false,
     val pendingSync: Boolean = true,
+    /** JSON [com.example.mycalendar.domain.model.SyncSnapshot]: общее состояние с облаком. */
+    val syncBase: String? = null,
 )
 
 /** Сериализация списка напоминаний: [5, 15, 30] -> "5,15,30". */
@@ -75,6 +77,7 @@ fun Event.toEntity(
     updatedAt: Long,
     pendingSync: Boolean,
     isDeleted: Boolean = false,
+    syncBase: String? = null,
 ): EventEntity = EventEntity(
     id = id,
     title = title,
@@ -91,4 +94,5 @@ fun Event.toEntity(
     updatedAt = updatedAt,
     isDeleted = isDeleted,
     pendingSync = pendingSync,
+    syncBase = syncBase,
 )
