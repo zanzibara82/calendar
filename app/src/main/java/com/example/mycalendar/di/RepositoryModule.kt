@@ -5,9 +5,11 @@ import com.example.mycalendar.data.auth.AccessTokenProvider
 import com.example.mycalendar.data.auth.YandexAuthDataSource
 import com.example.mycalendar.data.preferences.SettingsRepositoryImpl
 import com.example.mycalendar.data.repository.AuthRepositoryImpl
+import com.example.mycalendar.data.repository.ConflictRepositoryImpl
 import com.example.mycalendar.data.repository.EventRepositoryImpl
 import com.example.mycalendar.data.repository.SyncRepositoryImpl
 import com.example.mycalendar.domain.repository.AuthRepository
+import com.example.mycalendar.domain.repository.ConflictRepository
 import com.example.mycalendar.domain.repository.EventRepository
 import com.example.mycalendar.domain.repository.SettingsRepository
 import com.example.mycalendar.domain.repository.SyncRepository
@@ -34,6 +36,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindSyncRepository(impl: SyncRepositoryImpl): SyncRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindConflictRepository(impl: ConflictRepositoryImpl): ConflictRepository
 
     @Binds
     @Singleton

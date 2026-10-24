@@ -26,4 +26,6 @@ data class SyncConflict(
     /** Спорные поля; пусто для [ConflictKind.REMOTE_DELETED] и [ConflictKind.LOCAL_DELETED]. */
     val contested: Set<SyncField>,
     val detectedAt: Long,
-)
+) {
+    val isDeletion: Boolean get() = kind != ConflictKind.CONTENT
+}
