@@ -82,7 +82,6 @@ class SyncConflictResolverTest {
 
         val decision = decide(record = null, remote = changed)
 
-        assertTrue(decision is PullDecision.Insert)
         decision as PullDecision.Insert
         assertEquals("Название из облака", decision.event.title)
         assertEquals(SyncSnapshot.of(changed.toEvent(CalendarProvider.GOOGLE)), decision.base)
@@ -116,7 +115,9 @@ class SyncConflictResolverTest {
     }
 
     @Test
-    fun `disjoint changes merge automatically without moving predecessor`() {
+    fun `disjoint changes merge automatically`() {
+        // Предок здесь не двигается: `AutoMerge` несёт только слитое событие, `syncBase`
+        // догонит состояние облака после успешного push.
         val decision = decide(
             record(event = localEvent { copy(title = "Моя правка") }, pendingSync = true),
             remoteEvent { copy(startTime = 7_000L, endTime = 8_000L) },
@@ -197,7 +198,9 @@ class SyncConflictResolverTest {
             remoteEvent { copy(title = "Название из облака") },
         )
 
-        assertTrue(decision is PullDecision.ApplyRemote)
+        decision as PullDecision.ApplyRemote
+        assertEquals("Название из облака", decision.event.title)
+        assertEquals("Локальная заметка", decision.event.textNote)
     }
 
     @Test
@@ -223,6 +226,11 @@ class SyncConflictResolverTest {
         )
 
         assertEquals(PullDecision.Skip, decision)
+    }
+
+    @Test
+    fun `cloud deletion without a local pair inserts nothing`() {
+        assertEquals(PullDecision.Skip, decide(record = null, remote = deletedRemote()))
     }
 
     @Test
@@ -269,13 +277,24 @@ class SyncConflictResolverTest {
     }
 
     @Test
-    fun `tombstone without predecessor deletes silently`() {
-        val decision = decide(
-            record(isDeleted = true, pendingSync = true, base = null),
-            remoteEvent { copy(title = "Правка из облака") },
-        )
+    fun `tombstone without predecessor queues conflict`() {
+        val remote = remoteEvent { copy(title = "Правка из облака") }
 
-        assertEquals(PullDecision.PushDelete, decision)
+        val decision = decide(record(isDeleted = true, pendingSync = true, base = null), remote)
+
+        // Без предка неизвестно, правлено ли облако: молча удалять его нельзя,
+        // поэтому спорят ВСЕ отличия грозящей строки от облачной версии.
+        assertEquals(
+            PullDecision.Conflict(
+                eventId = "e1",
+                kind = ConflictKind.LOCAL_DELETED,
+                base = null,
+                remote = SyncSnapshot.of(remote.toEvent(CalendarProvider.GOOGLE)),
+                contested = setOf(SyncField.TITLE),
+                mergedLocal = localEvent(),
+            ),
+            decision,
+        )
     }
 }
 

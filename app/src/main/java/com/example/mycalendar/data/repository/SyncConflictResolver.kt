@@ -20,7 +20,10 @@ import javax.inject.Singleton
  * по-разному (у системного календаря такой колонки нет вовсе), и по нему правки
  * терялись молча.
  *
- * Чистый класс без Android-зависимостей — вся матрица покрыта unit-тестами.
+ * Чистота здесь — по побочным эффектам: метод ничего не читает и не пишет, Android-зависимостей
+ * нет, вся матрица покрыта unit-тестами. Детерминизма по полю `id` при этом нет: идентификатор
+ * вставляемой копии генерирует `toEvent`, поэтому решения сверяют по снимкам и содержимому,
+ * а не по идентификатору.
  */
 @Singleton
 class SyncConflictResolver @Inject constructor() {
@@ -28,25 +31,44 @@ class SyncConflictResolver @Inject constructor() {
     fun decide(record: SyncedRecord?, remote: RemoteEvent, provider: CalendarProvider): PullDecision {
         val incoming = remote.toEvent(provider)
         val remoteSnapshot = SyncSnapshot.of(incoming)
-        val local = record?.event
-            ?: return PullDecision.Insert(incoming, remoteSnapshot)
-        val base = record.base
 
-        if (remote.deleted) return when {
-            record.isDeleted || !record.pendingSync -> PullDecision.Purge
-            else -> PullDecision.Conflict(
+        if (remote.deleted) {
+            // Облако удалено, а локальной пары нет: вставлять нечего, предка нет, чистить нечего.
+            if (record == null) return PullDecision.Skip
+            val local = record.event
+            // Признак «локальных правок нет» — `pendingSync`: он корректен ровно потому, что все
+            // места, снимающие флаг, одновременно двигают предка (`saveFromRemote`, `markSynced`,
+            // `attachToProvider`). `setRemoteId` этого правила не соблюдает и в продакшне не
+            // вызывается.
+            if (record.isDeleted || !record.pendingSync) return PullDecision.Purge
+            return PullDecision.Conflict(
                 eventId = local.id,
                 kind = ConflictKind.REMOTE_DELETED,
-                base = base,
+                base = record.base,
                 remote = remoteSnapshot,
                 contested = emptySet(),
                 mergedLocal = local,
             )
         }
 
+        if (record == null) return PullDecision.Insert(incoming, remoteSnapshot)
+        val local = record.event
+        val base = record.base
+        val localSnapshot = SyncSnapshot.of(local)
+
         if (record.isDeleted) {
+            // Без предка мы не знаем, правлено ли облако: молча удалять нельзя, спорим всё,
+            // чем грозящая строка отличается от облачной версии.
+            if (base == null) return PullDecision.Conflict(
+                eventId = local.id,
+                kind = ConflictKind.LOCAL_DELETED,
+                base = null,
+                remote = remoteSnapshot,
+                contested = diffFields(localSnapshot, remoteSnapshot),
+                mergedLocal = local,
+            )
             // Tombstone удаляем в облаке молча только если независимой правки там нет.
-            val changedInCloud = base?.let { diffFields(it, remoteSnapshot) }.orEmpty()
+            val changedInCloud = diffFields(base, remoteSnapshot)
             return if (changedInCloud.isEmpty()) PullDecision.PushDelete
             else PullDecision.Conflict(
                 eventId = local.id,
@@ -57,8 +79,6 @@ class SyncConflictResolver @Inject constructor() {
                 mergedLocal = local,
             )
         }
-
-        val localSnapshot = SyncSnapshot.of(local)
 
         // Предка нет (строки до миграции): локальная правка — единственное, что мы знаем.
         if (base == null) {
@@ -133,7 +153,12 @@ sealed interface PullDecision {
     /** Правки только на стороне облака: применяем молча, предок едет за облаком. */
     data class ApplyRemote(val event: Event, val base: SyncSnapshot) : PullDecision
 
-    /** Изменения не пересеклись: результат нужно отправить, предок ждёт успешного push. */
+    /**
+     * Изменения не пересеклись: результат нужно отправить, предок ждёт успешного push.
+     * Сохранять его вправе только пара, поднимающая флаг, — `saveFromUser` / `saveResolved`:
+     * сохранение через `saveFromRemote(..., null)` убрало бы `pendingSync`, не отправив слияние,
+     * и автослитое значение повисло бы локально с вечным `Skip`.
+     */
     data class AutoMerge(val event: Event) : PullDecision
 
     /** Нужен разбор пользователем; спорные поля остаются с локальным значением. */

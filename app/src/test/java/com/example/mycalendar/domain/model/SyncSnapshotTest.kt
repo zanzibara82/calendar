@@ -88,6 +88,8 @@ class SyncSnapshotTest {
     @Test
     fun `apply changes exactly the chosen field set and leaves startTime`() {
         val cloud = base.copy(
+            title = "Название из облака",
+            description = "Описание из облака",
             startTime = 8_000L,
             endTime = 9_000L,
             reminderMinutes = listOf(30),
@@ -103,6 +105,8 @@ class SyncSnapshotTest {
         assertEquals(listOf(30), merged.reminderMinutes)
         assertEquals(RepeatRule.DAILY, merged.repeatRule)
         assertEquals(1_000L, merged.startTime)
+        assertEquals("Встреча с мамой", merged.title)
+        assertEquals(base.description, merged.description)
     }
 
     @Test
