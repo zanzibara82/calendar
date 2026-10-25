@@ -66,3 +66,16 @@ enum class RepeatRule {
     MONTHLY,
     YEARLY,
 }
+
+/**
+ * Сдвинулись ли поля, от которых зависит заказ будильников.
+ *
+ * Название, описание, метки и заметки заказ не меняют: `AlarmReceiver` читает событие из базы по
+ * идентификатору. Перепланирование по любому изменению снимка снимало бы будильники и маркер
+ * отложенного напоминания без нужды.
+ */
+fun Event.scheduleChangedFrom(other: Event): Boolean =
+    startTime != other.startTime ||
+        endTime != other.endTime ||
+        reminderMinutes.sorted() != other.reminderMinutes.sorted() ||
+        repeatRule != other.repeatRule

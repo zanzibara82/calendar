@@ -5,6 +5,7 @@ import com.example.mycalendar.domain.model.Event
 import com.example.mycalendar.domain.model.SyncConflict
 import com.example.mycalendar.domain.model.SyncField
 import com.example.mycalendar.domain.model.SyncSnapshot
+import com.example.mycalendar.domain.model.scheduleChangedFrom
 import com.example.mycalendar.domain.repository.ConflictRepository
 import com.example.mycalendar.domain.repository.EventRepository
 import com.example.mycalendar.work.ReminderScheduler
@@ -82,13 +83,16 @@ class ResolveConflictUseCase @Inject constructor(
         }
         val resolved = resolvedEvent(current, local, remoteChosen)
         // schedule() снимает только будильники НОВОГО набора минут; прежние снимаем явно.
-        reminderScheduler.cancel(local)
+        // Если поля заказа не сдвинулись, планировщик не трогаем вовсе: иначе на строке, которую
+        // пользователь оставил как была, гибнет маркер отложенного напоминания.
+        val reschedule = resolved.scheduleChangedFrom(local)
+        if (reschedule) reminderScheduler.cancel(local)
         if (SyncSnapshot.of(resolved) == current.remote) {
             eventRepository.saveFromRemote(resolved, current.remote)
         } else {
             eventRepository.saveResolved(resolved, SyncSnapshot.of(resolved))
         }
-        reminderScheduler.schedule(resolved)
+        if (reschedule) reminderScheduler.schedule(resolved)
         conflictRepository.delete(current.id)
     }
 

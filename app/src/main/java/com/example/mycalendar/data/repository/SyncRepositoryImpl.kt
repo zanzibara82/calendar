@@ -4,6 +4,7 @@ import com.example.mycalendar.data.remote.RemoteCalendarDataSource
 import com.example.mycalendar.data.remote.RemoteDataSourceProvider
 import com.example.mycalendar.domain.model.CalendarProvider
 import com.example.mycalendar.domain.model.SyncConflict
+import com.example.mycalendar.domain.model.scheduleChangedFrom
 import com.example.mycalendar.domain.model.SyncSnapshot
 import com.example.mycalendar.domain.repository.AuthRepository
 import com.example.mycalendar.domain.repository.ConflictRepository
@@ -157,12 +158,15 @@ class SyncRepositoryImpl @Inject constructor(
                 is PullDecision.Conflict -> {
                     // Для спорных полей держим локальное значение; молча перезаписывать нельзя (§7).
                     if (!decision.kind.isDeletion) {
-                        val before = record?.let { SyncSnapshot.of(it.event) }
                         eventRepository.saveFromUser(decision.mergedLocal)
-                        // Переставляем будильник только когда содержимое реально сдвинулось:
+                        // Переставляем будильник только когда сдвинулись поля заказа:
                         // schedule() первым делом снимает прежний заказ вместе с маркером
-                        // отложенного напоминания, а строка конфликта часто остаётся прежней.
-                        if (before != SyncSnapshot.of(decision.mergedLocal)) {
+                        // отложенного напоминания, а конфликт часто решается в пользу облачного
+                        // названия или описания. Нет прежней записи — заказ нужен заново.
+                        val reschedule = record?.let {
+                            decision.mergedLocal.scheduleChangedFrom(it.event)
+                        } ?: true
+                        if (reschedule) {
                             rescheduleIds += decision.eventId
                         }
                     }
