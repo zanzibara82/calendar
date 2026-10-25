@@ -5,6 +5,7 @@ import com.example.mycalendar.domain.model.Event
 import com.example.mycalendar.domain.model.SyncConflict
 import com.example.mycalendar.domain.model.SyncField
 import com.example.mycalendar.domain.model.SyncSnapshot
+import com.example.mycalendar.domain.model.diffFields
 import com.example.mycalendar.domain.model.scheduleChangedFrom
 import com.example.mycalendar.domain.repository.ConflictRepository
 import com.example.mycalendar.domain.repository.EventRepository
@@ -87,7 +88,9 @@ class ResolveConflictUseCase @Inject constructor(
         // пользователь оставил как была, гибнет маркер отложенного напоминания.
         val reschedule = resolved.scheduleChangedFrom(local)
         if (reschedule) reminderScheduler.cancel(local)
-        if (SyncSnapshot.of(resolved) == current.remote) {
+        // Сравнение — по нормализованным полям, как у решателя: `null` и пустая строка описания,
+        // а также порядок минут одним значением не считаются.
+        if (diffFields(current.remote, SyncSnapshot.of(resolved)).isEmpty()) {
             eventRepository.saveFromRemote(resolved, current.remote)
         } else {
             eventRepository.saveResolved(resolved, SyncSnapshot.of(resolved))

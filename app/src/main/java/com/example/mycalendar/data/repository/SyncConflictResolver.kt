@@ -38,9 +38,10 @@ class SyncConflictResolver @Inject constructor() {
             if (record == null) return PullDecision.Skip
             val local = record.event
             // Признак «локальных правок нет» — `pendingSync`: он корректен ровно потому, что
-            // предка двигают `saveFromRemote`, `markSynced`, `attachToProvider`, `saveResolved`,
-            // а `pendingSync` из них снимают только первые три. Потеря флага без движения
-            // предка невозможна; других мест, двигающих предка, нет.
+            // предка двигают `saveFromRemote`, `markSynced`, `attachToProvider`, `saveResolved`
+            // и `moveSyncBase` (разбор «удалить везде»), а `pendingSync` из них снимают только
+            // записи из облака и успешный push. `moveSyncBase` предка двигает, но флаг оставляет —
+            // и появляется он лишь там, где локальная правка ещё не отправлена.
             if (record.isDeleted || !record.pendingSync) return PullDecision.Purge
             return PullDecision.Conflict(
                 eventId = local.id,

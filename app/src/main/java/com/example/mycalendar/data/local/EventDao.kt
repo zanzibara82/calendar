@@ -61,8 +61,10 @@ interface EventDao {
     suspend fun getSyncState(id: String): EventSyncState?
 
     /**
-     * Успешный push: предок догоняет отправленное состояние.
-     * Больше никаких мест, где syncBase двигает синхронизация, нет (разбор — Task 7).
+     * Успешный push: предок догоняет отправленное состояние и снимает флаг отправки.
+     * Кроме него предка двигают [moveSyncBase] (разбор «удалить везде»), [attachToProvider]
+     * и записи через `EventRepository` (`saveFromRemote`, `saveResolved`); флаг отправки
+     * снимают только записи из облака и успешный push.
      */
     @Query("UPDATE events SET pendingSync = 0, syncBase = :syncBase WHERE id = :id")
     suspend fun markSynced(id: String, syncBase: String?)
