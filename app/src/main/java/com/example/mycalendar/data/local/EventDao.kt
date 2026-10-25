@@ -67,6 +67,14 @@ interface EventDao {
     @Query("UPDATE events SET pendingSync = 0, syncBase = :syncBase WHERE id = :id")
     suspend fun markSynced(id: String, syncBase: String?)
 
+    /**
+     * Сдвинуть предка, не трогая ни содержимого, ни отметки удаления, ни флага отправки.
+     * Нужно разбору «удалить везде»: облачная правка становится предком, чтобы следующий pull
+     * не повторил спор, а push снял облачную копию.
+     */
+    @Query("UPDATE events SET syncBase = :syncBase WHERE id = :id")
+    suspend fun moveSyncBase(id: String, syncBase: String?)
+
     /** Привязка к провайдеру: событие уходит в облако и больше не считается локальным. */
     @Query(
         "UPDATE events SET remoteId = :remoteId, calendarProvider = :provider, " +

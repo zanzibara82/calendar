@@ -45,12 +45,17 @@ fun resolvedEvent(conflict: SyncConflict, local: Event, remoteChosen: Set<SyncFi
 /**
  * Разбор открытого конфликта (экран `conflict/{id}`, задача 10).
  *
- * Разобранное состояние становится НОВЫМ ПРЕДКОМ ([EventRepository.saveResolved]): выбранное
- * пользователем значение и есть согласованная точка, от которой дальше считаются локальные
- * изменения. Оставить предка на месте нельзя: следующий pull увидел бы то же пересечение и
- * воскресил бы конфликт, а выбор пользователя так и не ушёл бы в облако. Флаг pendingSync
- * включается — в облаке разобранного состояния ещё нет, гейт открытых конфликтов к этому моменту
- * уже снят.
+ * Снимок с экрана может устареть: очередь переиспользует идентификатор строки и перезаписывает вид,
+ * поэтому оба метода начинают с перечитывания конфликта и работают только с прочитанным объектом.
+ *
+ * По полям: разобранное состояние становится НОВЫМ ПРЕДКОМ ([EventRepository.saveResolved]) —
+ * выбранное значение и есть согласованная точка, от которой считаются дальнейшие изменения. Если
+ * разобранная строка уже равна облаку, предок ставится записью из облака
+ * ([EventRepository.saveFromRemote]): отправлять подтверждение повторно незачем.
+ *
+ * Удаления: «удалить везде» при локальном tombstone сдвигает предка на увиденное облако
+ * ([EventRepository.moveSyncBase]) — иначе следующий pull повторил бы тот же конфликт, а push
+ * остался бы закрыт гейтом открытых конфликтов, и удаление не доехало бы до облака никогда.
  *
  * Строка очереди удаляется всегда, в том числе когда локальной записи уже нет (её мог снять
  * каскад при чистке tombstone'а).
@@ -63,43 +68,69 @@ class ResolveConflictUseCase @Inject constructor(
 
     /** Разбор по полям: в [remoteChosen] — поля, по которым выбрано облачное значение. */
     suspend operator fun invoke(conflict: SyncConflict, remoteChosen: Set<SyncField>) {
-        val local = eventRepository.getEvent(conflict.eventId)
-            ?: return conflictRepository.delete(conflict.id)
-        val resolved = resolvedEvent(conflict, local, remoteChosen)
-        eventRepository.saveResolved(resolved, SyncSnapshot.of(resolved))
+        val current = conflictRepository.get(conflict.id) ?: return
+        require(!current.kind.isDeletion) {
+            "По полям разбирается только конфликт содержимого, а не [${current.kind}]."
+        }
+        val local = eventRepository.getEvent(current.eventId)
+            ?: return conflictRepository.delete(current.id)
+        // Пока конфликт висел, строку могли удалить из списка: воскрешать её нельзя (§7).
+        require(
+            eventRepository.findSyncedRecord(current.provider, current.remoteId)?.isDeleted != true
+        ) {
+            "Событие уже удалено локально: разбирать по полям нечего."
+        }
+        val resolved = resolvedEvent(current, local, remoteChosen)
+        // schedule() снимает только будильники НОВОГО набора минут; прежние снимаем явно.
+        reminderScheduler.cancel(local)
+        if (SyncSnapshot.of(resolved) == current.remote) {
+            eventRepository.saveFromRemote(resolved, current.remote)
+        } else {
+            eventRepository.saveResolved(resolved, SyncSnapshot.of(resolved))
+        }
         reminderScheduler.schedule(resolved)
-        conflictRepository.delete(conflict.id)
+        conflictRepository.delete(current.id)
     }
 
     /** Исход конфликта-удаления по выбору пользователя. */
     suspend fun resolveDeletion(conflict: SyncConflict, choice: DeletionChoice) {
-        require(conflict.kind.isDeletion) {
-            "Удалением можно разбирать только конфликт-удаление, а не [$conflict.kind]."
+        val current = conflictRepository.get(conflict.id) ?: return
+        require(current.kind.isDeletion) {
+            "Удалением можно разбирать только конфликт-удаление, а не [${current.kind}]."
         }
-        val local = eventRepository.getEvent(conflict.eventId)
-            ?: return conflictRepository.delete(conflict.id)
-        when (planResolution(conflict.kind, choice)) {
-            // Tombstone уже стоит, предка не трогаем: облачная правка, из-за которой был
-            // конфликт, остаётся в облаке и перестанет быть спорной только после push.
-            ResolutionAction.TombstoneAndPush -> Unit
+        val local = eventRepository.getEvent(current.eventId)
+            ?: return conflictRepository.delete(current.id)
+        when (planResolution(current.kind, choice)) {
+            // Tombstone остаётся, но предок догоняет облако: следующий pull не повторит спор,
+            // а push снимет облачную копию.
+            ResolutionAction.TombstoneAndPush ->
+                eventRepository.moveSyncBase(current.eventId, current.remote)
+
             ResolutionAction.PurgeLocal -> {
-                eventRepository.purge(conflict.eventId)
+                eventRepository.purge(current.eventId)
                 reminderScheduler.cancel(local)
             }
+
             ResolutionAction.RestoreFromCloud -> {
-                val restored = conflict.remote
+                val restored = current.remote
                     .appliedTo(local, SyncField.entries.toSet())
                     // В облаке события уже нет — push должен создать его заново.
                     .copy(
-                        remoteId = if (conflict.kind == ConflictKind.REMOTE_DELETED) null
+                        remoteId = if (current.kind == ConflictKind.REMOTE_DELETED) null
                         else local.remoteId
                     )
-                // Предок = снимок облака: строка после возврата равна ему, и следующий pull
-                // обязан встать в очередь на push, а не повторить конфликт.
-                eventRepository.saveResolved(restored, conflict.remote)
+                // Прежние будильники снимаются по минутам удалённой записи, а не только новые.
+                reminderScheduler.cancel(local)
+                if (current.kind == ConflictKind.REMOTE_DELETED) {
+                    // Строки в облаке нет: она обязана уйти в push как новое событие.
+                    eventRepository.saveResolved(restored, current.remote)
+                } else {
+                    // Облачное состояние у провайдера уже есть: отправлять подтверждение незачем.
+                    eventRepository.saveFromRemote(restored, current.remote)
+                }
                 reminderScheduler.schedule(restored)
             }
         }
-        conflictRepository.delete(conflict.id)
+        conflictRepository.delete(current.id)
     }
 }

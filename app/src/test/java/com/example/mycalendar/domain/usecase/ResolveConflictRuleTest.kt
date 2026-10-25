@@ -52,7 +52,7 @@ class ResolveConflictRuleTest {
     )
 
     @Test
-    fun `выбор удалить везде при локальном удалении сохраняет отметку удаления для отправки`() {
+    fun `local tombstone deleted everywhere keeps tombstone for push`() {
         assertEquals(
             ResolutionAction.TombstoneAndPush,
             planResolution(ConflictKind.LOCAL_DELETED, DeletionChoice.DELETE_EVERYWHERE),
@@ -60,7 +60,7 @@ class ResolveConflictRuleTest {
     }
 
     @Test
-    fun `выбор удалить везде при облачном удалении чистит локальную строку без отправки`() {
+    fun `cloud already gone means purge without push`() {
         assertEquals(
             ResolutionAction.PurgeLocal,
             planResolution(ConflictKind.REMOTE_DELETED, DeletionChoice.DELETE_EVERYWHERE),
@@ -68,19 +68,39 @@ class ResolveConflictRuleTest {
     }
 
     @Test
-    fun `возврат из облака сохраняет локальную запись при обоих удалениях`() {
+    fun `restoring after local deletion keeps the local row`() {
         assertEquals(
             ResolutionAction.RestoreFromCloud,
             planResolution(ConflictKind.LOCAL_DELETED, DeletionChoice.RESTORE_FROM_CLOUD),
         )
+    }
+
+    @Test
+    fun `restoring after cloud deletion keeps the local row`() {
         assertEquals(
             ResolutionAction.RestoreFromCloud,
             planResolution(ConflictKind.REMOTE_DELETED, DeletionChoice.RESTORE_FROM_CLOUD),
         )
     }
 
+    /**
+     * Конфликт содержимого матрице неизвестен: любой выбор даёт возврат из облака, а от бинарного
+     * выбора защищает `require` в самом разборе.
+     */
     @Test
-    fun `выбранное поле приходит из облака, остальное остаётся локальным`() {
+    fun `content conflict is unknown to the deletion matrix`() {
+        assertEquals(
+            ResolutionAction.RestoreFromCloud,
+            planResolution(ConflictKind.CONTENT, DeletionChoice.DELETE_EVERYWHERE),
+        )
+        assertEquals(
+            ResolutionAction.RestoreFromCloud,
+            planResolution(ConflictKind.CONTENT, DeletionChoice.RESTORE_FROM_CLOUD),
+        )
+    }
+
+    @Test
+    fun `chosen field comes from the cloud, the rest stays local`() {
         val resolved = resolvedEvent(conflict, local, setOf(SyncField.TITLE))
 
         assertEquals("Правка облака", resolved.title)
@@ -96,7 +116,7 @@ class ResolveConflictRuleTest {
      * а локальная правка вне спора — данные пользователя, их нельзя терять молча.
      */
     @Test
-    fun `неспорное поле облаком не перезаписывается`() {
+    fun `field outside the dispute is not overwritten by the cloud`() {
         val resolved = resolvedEvent(conflict, local, SyncField.entries.toSet())
 
         assertEquals("Правка облака", resolved.title)
@@ -104,7 +124,7 @@ class ResolveConflictRuleTest {
     }
 
     @Test
-    fun `пустой выбор оставляет локальную запись без изменений`() {
+    fun `empty choice keeps the local record untouched`() {
         val resolved = resolvedEvent(conflict, local, emptySet())
 
         assertEquals(local, resolved)

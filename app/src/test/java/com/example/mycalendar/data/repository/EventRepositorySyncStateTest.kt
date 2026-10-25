@@ -111,6 +111,21 @@ class EventRepositorySyncStateTest {
     }
 
     @Test
+    fun `moveSyncBase keeps tombstone content and pending flag`() = kotlinx.coroutines.runBlocking {
+        repository.saveFromRemote(event, base)
+        repository.markDeleted("e1")
+        val cloudEdit = base.copy(title = "Правка из облака")
+
+        repository.moveSyncBase("e1", cloudEdit)
+
+        val stored = dao.rows.getValue("e1")
+        assertTrue(stored.isDeleted)
+        assertTrue(stored.pendingSync)
+        assertEquals("Встреча", stored.title)
+        assertEquals(cloudEdit, SyncSnapshot.fromJson(stored.syncBase))
+    }
+
+    @Test
     fun `purge drops the row`() = kotlinx.coroutines.runBlocking {
         repository.saveFromRemote(event, base)
 
@@ -159,6 +174,9 @@ private class FakeEventDao : EventDao {
     override suspend fun getPendingSync(): List<EventEntity> = rows.values.filter { it.pendingSync }
     override suspend fun markSynced(id: String, syncBase: String?) {
         rows[id] = rows.getValue(id).copy(pendingSync = false, syncBase = syncBase)
+    }
+    override suspend fun moveSyncBase(id: String, syncBase: String?) {
+        rows[id] = rows.getValue(id).copy(syncBase = syncBase)
     }
     override suspend fun attachToProvider(id: String, remoteId: String, provider: String, syncBase: String?) {
         rows[id] = rows.getValue(id).copy(remoteId = remoteId, calendarProvider = provider, pendingSync = false, syncBase = syncBase)

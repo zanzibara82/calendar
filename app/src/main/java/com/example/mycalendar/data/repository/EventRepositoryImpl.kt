@@ -74,6 +74,9 @@ class EventRepositoryImpl @Inject constructor(
     override suspend fun markSynced(id: String, syncBase: SyncSnapshot) =
         eventDao.markSynced(id, syncBase.toJson())
 
+    override suspend fun moveSyncBase(id: String, syncBase: SyncSnapshot) =
+        eventDao.moveSyncBase(id, syncBase.toJson())
+
     override suspend fun attachToProvider(
         id: String,
         remoteId: String,
