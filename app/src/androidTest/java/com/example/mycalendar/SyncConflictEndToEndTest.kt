@@ -60,6 +60,7 @@ class SyncConflictEndToEndTest {
     private lateinit var sync: SyncRepositoryImpl
     private lateinit var resolve: ResolveConflictUseCase
     private lateinit var voiceNotes: VoiceNoteStorage
+    private lateinit var scheduler: ReminderScheduler
     private val cloud = FakeRemote()
 
     private val base = SyncSnapshot(
@@ -80,7 +81,7 @@ class SyncConflictEndToEndTest {
         voiceNotes = VoiceNoteStorage(context)
         events = EventRepositoryImpl(db.eventDao(), voiceNotes)
         conflicts = ConflictRepositoryImpl(db.syncConflictDao())
-        val scheduler = ReminderScheduler(context)
+        scheduler = ReminderScheduler(context)
         sync = SyncRepositoryImpl(
             eventRepository = events,
             authRepository = FakeAuth(),
@@ -97,7 +98,20 @@ class SyncConflictEndToEndTest {
 
     @After
     fun tearDown() {
-        db.close()
+        if (::scheduler.isInitialized) {
+            // Настоящий планировщик заказывает будильники в системном AlarmManager: снимаем за собой,
+            // иначе заказы теста переживут прогон. `cancel` смотрит только на id и минуты.
+            scheduler.cancel(
+                Event(
+                    id = "e1",
+                    title = "",
+                    startTime = 0L,
+                    endTime = 0L,
+                    reminderMinutes = base.reminderMinutes,
+                )
+            )
+        }
+        if (::db.isInitialized) db.close()
     }
 
     /** Синхронизированное событие с предком + локальная правка названия. */
@@ -153,9 +167,13 @@ class SyncConflictEndToEndTest {
         seedLocallyEdited("Моя правка")
         cloud.events += remoteEvent(base.copy(title = "Правка из облака"))
 
-        sync.syncProvider(CalendarProvider.GOOGLE)
-        sync.syncProvider(CalendarProvider.GOOGLE)
+        val first = sync.syncProvider(CalendarProvider.GOOGLE)
+        val second = sync.syncProvider(CalendarProvider.GOOGLE)
 
+        // Нарушение уникального индекса по eventId движок гасит исключением: без проверки успеха
+        // поломка переиспользования id прошла бы незамеченной, счётчик остался бы единицей.
+        assertTrue(first.success)
+        assertTrue(second.success)
         assertEquals(1, conflicts.observeOpenCount().first())
     }
 
@@ -180,6 +198,8 @@ class SyncConflictEndToEndTest {
         sync.syncProvider(CalendarProvider.GOOGLE)
 
         assertEquals(1, cloud.updateCount)
+        // В облако ушло именно выбранное пользователем значение, а не облачное.
+        assertEquals("Моя правка", cloud.lastUpdated?.title)
         assertFalse(events.getPendingSyncEvents().any { it.event.id == "e1" })
         // Тот же облачный снимок после разбора не воскрешает конфликт.
         assertEquals(0, conflicts.observeOpenCount().first())
@@ -258,6 +278,8 @@ class SyncConflictEndToEndTest {
         sync.syncProvider(CalendarProvider.GOOGLE)
 
         assertEquals(1, cloud.insertCount)
+        // Создано событие с содержимым возвращённой строки.
+        assertEquals("Общее название", cloud.lastInserted?.title)
         assertEquals("r-new", events.getEvent("e1")?.remoteId)
         assertEquals(0, conflicts.observeOpenCount().first())
     }
@@ -416,6 +438,8 @@ private class FakeRemote : RemoteCalendarDataSource {
     var updateCount = 0
     var insertCount = 0
     var deletedRemoteId: String? = null
+    var lastUpdated: Event? = null
+    var lastInserted: Event? = null
 
     override val hasReliableUpdatedAt: Boolean get() = false
 
@@ -423,11 +447,13 @@ private class FakeRemote : RemoteCalendarDataSource {
 
     override suspend fun insert(event: Event): String {
         insertCount++
+        lastInserted = event
         return "r-new"
     }
 
     override suspend fun update(remoteId: String, event: Event) {
         updateCount++
+        lastUpdated = event
     }
 
     override suspend fun delete(remoteId: String) {
