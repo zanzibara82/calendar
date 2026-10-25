@@ -15,8 +15,8 @@ data class RemoteEvent(
     val endTime: Long,
     val reminderMinutes: List<Int>,
     val repeatRule: RepeatRule?,
-    /** updated (RFC3339, пересчёт в миллисекунды от эпохи): нужен для порядка
-     *  отображения, а не для решения о слиянии. */
+    /** updated (RFC3339, пересчёт в миллисекунды от эпохи): отметка времени изменения на стороне
+     *  провайдера; в решении о слиянии не участвует, читателей в движке нет. */
     val updatedAt: Long,
     /** status=cancelled в Google Calendar означает удаление. */
     val deleted: Boolean = false,

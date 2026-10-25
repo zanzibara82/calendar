@@ -157,9 +157,14 @@ class SyncRepositoryImpl @Inject constructor(
                 is PullDecision.Conflict -> {
                     // Для спорных полей держим локальное значение; молча перезаписывать нельзя (§7).
                     if (!decision.kind.isDeletion) {
+                        val before = record?.let { SyncSnapshot.of(it.event) }
                         eventRepository.saveFromUser(decision.mergedLocal)
-                        // Объединённая строка берёт из облака и время: будильник надо переставить.
-                        rescheduleIds += decision.eventId
+                        // Переставляем будильник только когда содержимое реально сдвинулось:
+                        // schedule() первым делом снимает прежний заказ вместе с маркером
+                        // отложенного напоминания, а строка конфликта часто остаётся прежней.
+                        if (before != SyncSnapshot.of(decision.mergedLocal)) {
+                            rescheduleIds += decision.eventId
+                        }
                     }
                     conflictRepository.save(decision.toConflict(provider, remoteEvent.remoteId))
                     conflicts++
