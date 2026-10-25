@@ -26,7 +26,7 @@ class Migration2to3Test {
 
     @Test
     @Throws(IOException::class)
-    fun `migration keeps events and adds sync state`() {
+    fun migration_keepsEventsAndAddsSyncState() {
         val dbName = "migration-2-to-3"
         helper.createDatabase(dbName, 2).apply {
             execSQL(
