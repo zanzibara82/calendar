@@ -1,5 +1,6 @@
 package com.example.mycalendar.presentation.conflict
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -20,11 +22,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -55,6 +62,19 @@ fun ConflictDetailScreen(
     viewModel: ConflictDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    var confirmDelete by rememberSaveable { mutableStateOf(false) }
+
+    // Решение не применилось (очередь успела измениться): экран уже закрывается, сообщение
+    // переживёт переход и объяснит, почему выбор не сработал.
+    LaunchedEffect(state.notice) {
+        val notice = state.notice ?: return@LaunchedEffect
+        val text = when (notice) {
+            ConflictNotice.STALE -> R.string.conflict_stale
+            ConflictNotice.NO_LOCAL_ROW -> R.string.conflict_no_longer_relevant
+        }
+        Toast.makeText(context, text, Toast.LENGTH_LONG).show()
+    }
     LaunchedEffect(state.isResolved) {
         if (state.isResolved) onBack()
     }
@@ -88,6 +108,38 @@ fun ConflictDetailScreen(
             return@Scaffold
         }
 
+        // Необратимый исход: удаление в облаке и безвозвратная потеря заметок и голосовой записи.
+        if (confirmDelete) {
+            AlertDialog(
+                onDismissRequest = { confirmDelete = false },
+                title = { Text(stringResource(R.string.delete_event_title)) },
+                text = {
+                    Text(
+                        stringResource(
+                            R.string.conflict_delete_everywhere_text,
+                            displayTitle(local.title),
+                        )
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        confirmDelete = false
+                        viewModel.chooseDeletion(DeletionChoice.DELETE_EVERYWHERE)
+                    }) {
+                        Text(
+                            text = stringResource(R.string.delete),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { confirmDelete = false }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                },
+            )
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -105,13 +157,26 @@ fun ConflictDetailScreen(
             if (conflict.kind.isDeletion) {
                 DeletionComparison(conflict = conflict, local = local)
                 Button(
-                    onClick = { viewModel.chooseDeletion(DeletionChoice.DELETE_EVERYWHERE) },
+                    onClick = { confirmDelete = true },
+                    enabled = !state.isSaving,
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text(stringResource(R.string.conflict_delete_everywhere)) }
                 OutlinedButton(
                     onClick = { viewModel.chooseDeletion(DeletionChoice.RESTORE_FROM_CLOUD) },
+                    enabled = !state.isSaving,
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text(stringResource(R.string.conflict_restore_from_cloud)) }
+                ) {
+                    Text(
+                        stringResource(
+                            if (conflict.kind == ConflictKind.REMOTE_DELETED) {
+                                // В облаке записи нет: исход создаёт событие заново.
+                                R.string.conflict_recreate_in_cloud
+                            } else {
+                                R.string.conflict_restore_from_cloud
+                            }
+                        )
+                    )
+                }
             } else {
                 SyncField.entries.filter { it in conflict.contested }.forEach { field ->
                     FieldRow(
@@ -119,11 +184,13 @@ fun ConflictDetailScreen(
                         local = local,
                         conflict = conflict,
                         chosenFromCloud = field in state.remoteChosen,
+                        enabled = !state.isSaving,
                         onChoose = { fromCloud -> viewModel.onChoose(field, fromCloud) },
                     )
                 }
                 Button(
                     onClick = viewModel::apply,
+                    enabled = !state.isSaving,
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text(stringResource(R.string.conflict_apply)) }
             }
@@ -140,7 +207,10 @@ private fun kindHelp(kind: ConflictKind): String = stringResource(
     }
 )
 
-/** Сравнение двух версий для конфликта-удаления: спорных полей там нет, выбор один из двух. */
+/**
+ * Сравнение двух версий для конфликта-удаления: спорных полей там нет, выбор один из двух.
+ * Показывается всё, что пользователь потеряет, выбрав другой исход, включая заметки.
+ */
 @Composable
 private fun DeletionComparison(conflict: SyncConflict, local: Event) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -152,23 +222,70 @@ private fun DeletionComparison(conflict: SyncConflict, local: Event) {
                 text = stringResource(R.string.conflict_local_version),
                 style = MaterialTheme.typography.labelLarge,
             )
-            Text(local.title, style = MaterialTheme.typography.titleMedium)
-            Text(
-                text = formatRange(local.startTime, local.endTime),
-                style = MaterialTheme.typography.bodyMedium,
+            VersionDetails(
+                title = local.title,
+                description = local.description,
+                startTime = local.startTime,
+                endTime = local.endTime,
+                reminderMinutes = local.reminderMinutes,
+                repeatRule = local.repeatRule,
             )
+            if (!local.textNote.isNullOrBlank()) {
+                Text(
+                    text = stringResource(R.string.conflict_text_note_deleted),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            if (!local.voiceNotePath.isNullOrBlank()) {
+                Text(
+                    text = stringResource(R.string.conflict_voice_note_deleted),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
             Text(
-                text = stringResource(R.string.conflict_cloud_version),
+                text = stringResource(
+                    if (conflict.kind == ConflictKind.REMOTE_DELETED) {
+                        // В облаке записи уже нет: показываем последний сохранённый снимок.
+                        R.string.conflict_cloud_version_last
+                    } else {
+                        R.string.conflict_cloud_version
+                    }
+                ),
                 style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier.padding(top = 8.dp),
             )
-            Text(conflict.remote.title, style = MaterialTheme.typography.titleMedium)
-            Text(
-                text = formatRange(conflict.remote.startTime, conflict.remote.endTime),
-                style = MaterialTheme.typography.bodyMedium,
+            VersionDetails(
+                title = conflict.remote.title,
+                description = conflict.remote.description,
+                startTime = conflict.remote.startTime,
+                endTime = conflict.remote.endTime,
+                reminderMinutes = conflict.remote.reminderMinutes,
+                repeatRule = conflict.remote.repeatRule,
             )
         }
     }
+}
+
+/** Версия целиком: всё, что пользователь теряет или сохраняет, выбрав исход. */
+@Composable
+private fun VersionDetails(
+    title: String,
+    description: String?,
+    startTime: Long,
+    endTime: Long,
+    reminderMinutes: List<Int>,
+    repeatRule: RepeatRule?,
+) {
+    Text(displayTitle(title), style = MaterialTheme.typography.titleMedium)
+    Text(formatRange(startTime, endTime), style = MaterialTheme.typography.bodyMedium)
+    Text(stringResource(R.string.field_description), style = MaterialTheme.typography.labelMedium)
+    Text(displayDescription(description), style = MaterialTheme.typography.bodyMedium)
+    Text(stringResource(R.string.field_reminders), style = MaterialTheme.typography.labelMedium)
+    Text(remindersLabel(reminderMinutes), style = MaterialTheme.typography.bodyMedium)
+    Text(stringResource(R.string.field_repeat_rule), style = MaterialTheme.typography.labelMedium)
+    Text(repeatLabel(repeatRule), style = MaterialTheme.typography.bodyMedium)
 }
 
 /** Одна строка сравнения: чипы выбора и оба значения. */
@@ -178,6 +295,7 @@ private fun FieldRow(
     local: Event,
     conflict: SyncConflict,
     chosenFromCloud: Boolean,
+    enabled: Boolean,
     onChoose: (Boolean) -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -190,11 +308,13 @@ private fun FieldRow(
                 FilterChip(
                     selected = !chosenFromCloud,
                     onClick = { onChoose(false) },
+                    enabled = enabled,
                     label = { Text(stringResource(R.string.conflict_use_local)) },
                 )
                 FilterChip(
                     selected = chosenFromCloud,
                     onClick = { onChoose(true) },
+                    enabled = enabled,
                     label = { Text(stringResource(R.string.conflict_use_cloud)) },
                 )
             }
@@ -225,8 +345,8 @@ private fun fieldLabel(field: SyncField): String = stringResource(
 
 @Composable
 private fun localValue(field: SyncField, local: Event): String = when (field) {
-    SyncField.TITLE -> local.title
-    SyncField.DESCRIPTION -> local.description.orEmpty()
+    SyncField.TITLE -> displayTitle(local.title)
+    SyncField.DESCRIPTION -> displayDescription(local.description)
     SyncField.START_TIME -> formatDateTime(local.startTime)
     SyncField.END_TIME -> formatDateTime(local.endTime)
     SyncField.REMINDER_MINUTES -> remindersLabel(local.reminderMinutes)
@@ -235,13 +355,21 @@ private fun localValue(field: SyncField, local: Event): String = when (field) {
 
 @Composable
 private fun cloudValue(field: SyncField, conflict: SyncConflict): String = when (field) {
-    SyncField.TITLE -> conflict.remote.title
-    SyncField.DESCRIPTION -> conflict.remote.description.orEmpty()
+    SyncField.TITLE -> displayTitle(conflict.remote.title)
+    SyncField.DESCRIPTION -> displayDescription(conflict.remote.description)
     SyncField.START_TIME -> formatDateTime(conflict.remote.startTime)
     SyncField.END_TIME -> formatDateTime(conflict.remote.endTime)
     SyncField.REMINDER_MINUTES -> remindersLabel(conflict.remote.reminderMinutes)
     SyncField.REPEAT_RULE -> repeatLabel(conflict.remote.repeatRule)
 }
+
+@Composable
+private fun displayTitle(title: String): String =
+    title.ifBlank { stringResource(R.string.conflict_untitled) }
+
+@Composable
+private fun displayDescription(description: String?): String =
+    description?.takeIf { it.isNotBlank() } ?: stringResource(R.string.conflict_no_description)
 
 @Composable
 private fun repeatLabel(rule: RepeatRule?): String = stringResource(
@@ -257,8 +385,8 @@ private fun repeatLabel(rule: RepeatRule?): String = stringResource(
 @Composable
 private fun remindersLabel(minutes: List<Int>): String {
     if (minutes.isEmpty()) return stringResource(R.string.conflict_no_reminders)
-    // `map` — inline, поэтому `stringResource` в его лямбде допустим; `joinToString` форматирование
-    // не принимает вовсе, поэтому сначала собираем подписи, потом склеиваем.
+    // `map` — inline, поэтому `stringResource` в его лямбде допустим; `joinToString` не inline,
+    // поэтому форматировать в нём нельзя: сначала собираем подписи, потом склеиваем.
     return minutes.sorted()
         .map { stringResource(R.string.minutes_short, it) }
         .joinToString(", ")

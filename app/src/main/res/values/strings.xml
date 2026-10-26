@@ -199,4 +199,11 @@
     <string name="field_end_time">Конец</string>
     <string name="field_reminders">Напоминания</string>
     <string name="field_repeat_rule">Повтор</string>
+    <string name="conflict_stale">Конфликт изменился — откройте его заново из очереди</string>
+    <string name="conflict_no_description">без описания</string>
+    <string name="conflict_cloud_version_last">Последняя версия из облака</string>
+    <string name="conflict_recreate_in_cloud">Создать заново в облаке</string>
+    <string name="conflict_delete_everywhere_text">Событие «%1$s» будет удалено на этом устройстве и в облаке. Заметки удаляются безвозвратно.</string>
+    <string name="conflict_text_note_deleted">Текстовая заметка удаляется вместе с событием</string>
+    <string name="conflict_voice_note_deleted">Голосовая запись удаляется вместе с событием</string>
 </resources>
