@@ -27,8 +27,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.mycalendar.R
 import com.example.mycalendar.domain.model.ConflictKind
-import java.text.DateFormat
-import java.util.Date
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /**
  * Очередь конфликтов синхронизации: что столкнулось и сколько полей надо разобрать.
@@ -78,15 +80,16 @@ fun ConflictListScreen(
         ) {
             items(count = conflicts.size, key = { conflicts[it].id }) { index ->
                 val conflict = conflicts[index]
+                val title = conflict.remote.title.ifBlank { stringResource(R.string.conflict_untitled) }
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { onOpenConflict(conflict.id) },
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text(conflict.remote.title, style = MaterialTheme.typography.titleMedium)
+                        Text(title, style = MaterialTheme.typography.titleMedium)
                         Text(
-                            text = DateFormat.getDateInstance().format(Date(conflict.detectedAt)),
+                            text = formatDetectedAt(conflict.detectedAt),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -110,3 +113,10 @@ fun ConflictListScreen(
         }
     }
 }
+
+/** Отметка обнаружения в русской форме, как на экране настроек: локаль устройства не участвует. */
+private val detectedAtFormatter =
+    DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm", Locale.forLanguageTag("ru"))
+
+private fun formatDetectedAt(millis: Long): String =
+    Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(detectedAtFormatter)

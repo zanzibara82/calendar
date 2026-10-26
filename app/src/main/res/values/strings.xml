@@ -169,9 +169,10 @@
 
     <string name="conflicts_title">Конфликты синхронизации</string>
     <string name="conflicts_count">Конфликты: %1$d</string>
-    <string name="conflicts_empty">Конфликтов нет — все правки применены автоматически</string>
+    <string name="conflicts_empty">Открытых конфликтов нет</string>
+    <string name="conflict_untitled">Событие без названия</string>
     <string name="conflict_remote_deleted">Событие удалено в облаке, локально есть ваши правки</string>
-    <string name="conflict_local_deleted">Событие удалено локально, в облаке его правили</string>
+    <string name="conflict_local_deleted">Событие удалено локально, а в облаке есть версия</string>
     <string name="conflict_detail_title">Разбор конфликта</string>
     <string name="conflict_detail_placeholder">Экран разбора ещё не готов</string>
     <plurals name="conflict_contested_fields">
