@@ -11,6 +11,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.mycalendar.presentation.auth.AuthScreen
 import com.example.mycalendar.presentation.calendar.CalendarScreen
+import com.example.mycalendar.presentation.conflict.ConflictDetailScreen
+import com.example.mycalendar.presentation.conflict.ConflictListScreen
 import com.example.mycalendar.presentation.event.CreateEditEventScreen
 import com.example.mycalendar.presentation.event.EventDetailsScreen
 import com.example.mycalendar.presentation.permissions.PermissionsScreen
@@ -122,6 +124,27 @@ fun AppNavGraph(
             SettingsScreen(
                 onBack = { navController.popBackStack() },
                 onOpenPermissions = { navController.navigate(Screen.Permissions.route) },
+                onOpenConflicts = { navController.navigate(Screen.Conflicts.route) },
+            )
+        }
+
+        composable(Screen.Conflicts.route) {
+            ConflictListScreen(
+                onBack = { navController.popBackStack() },
+                onOpenConflict = { conflictId ->
+                    navController.navigate(Screen.ConflictDetail.create(conflictId))
+                },
+            )
+        }
+
+        composable(
+            route = Screen.ConflictDetail.route,
+            arguments = listOf(navArgument("conflictId") { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val conflictId = backStackEntry.arguments?.getString("conflictId") ?: return@composable
+            ConflictDetailScreen(
+                conflictId = conflictId,
+                onBack = { navController.popBackStack() },
             )
         }
 

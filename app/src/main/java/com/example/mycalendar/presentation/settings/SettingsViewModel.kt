@@ -8,6 +8,7 @@ import com.example.mycalendar.domain.model.CalendarProvider
 import com.example.mycalendar.domain.model.ThemeMode
 import com.example.mycalendar.domain.repository.AuthRepository
 import com.example.mycalendar.domain.repository.CalendarConnection
+import com.example.mycalendar.domain.repository.ConflictRepository
 import com.example.mycalendar.domain.repository.SettingsRepository
 import com.example.mycalendar.domain.repository.SyncResult
 import com.example.mycalendar.domain.usecase.SyncEventsUseCase
@@ -63,6 +64,8 @@ data class SettingsUiState(
     val dynamicColor: Boolean = true,
     /** Всегда две карточки — подключённые и нет. */
     val calendars: List<CalendarConnectionState> = emptyList(),
+    /** Открытые конфликты синхронизации; 0 — строку не показываем. */
+    val conflictCount: Int = 0,
 )
 
 /**
@@ -81,6 +84,7 @@ class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val authRepository: AuthRepository,
     private val syncEvents: SyncEventsUseCase,
+    private val conflictRepository: ConflictRepository,
 ) : ViewModel() {
 
     /**
@@ -101,6 +105,17 @@ class SettingsViewModel @Inject constructor(
     /** Результат последней операции по провайдеру. */
     private val results = MutableStateFlow<Map<CalendarProvider, SyncResult>>(emptyMap())
 
+    /** Открытые конфликты — из таблицы sync_conflicts. */
+    private val conflictCount: Flow<Int> = conflictRepository.observeOpenCount()
+
+    /** Флаги загрузки, результаты по провайдерам и очередь конфликтов одним снимком. */
+    private data class SyncFlags(
+        val connecting: Set<CalendarProvider>,
+        val syncing: Set<CalendarProvider>,
+        val results: Map<CalendarProvider, SyncResult>,
+        val conflicts: Int,
+    )
+
     /** Показан ли диалог с пошаговой настройкой OAuth. */
     private val _showHelp = MutableStateFlow(false)
     val showHelp: StateFlow<Boolean> = _showHelp.asStateFlow()
@@ -115,8 +130,8 @@ class SettingsViewModel @Inject constructor(
         settingsRepository.dynamicColor,
         authRepository.connections,
         lastSyncTimes,
-        combine(connecting, syncing, results) { c, s, r -> Triple(c, s, r) },
-    ) { themeMode, dynamicColor, connections, syncTimes, (connecting, syncing, results) ->
+        combine(connecting, syncing, results, conflictCount, ::SyncFlags),
+    ) { themeMode, dynamicColor, connections, syncTimes, flags ->
         SettingsUiState(
             themeMode = themeMode,
             dynamicColor = dynamicColor,
@@ -124,12 +139,13 @@ class SettingsViewModel @Inject constructor(
                 CalendarConnectionState(
                     provider = connection.provider,
                     connection = connection,
-                    isConnecting = connection.provider in connecting,
-                    isSyncing = connection.provider in syncing,
+                    isConnecting = connection.provider in flags.connecting,
+                    isSyncing = connection.provider in flags.syncing,
                     lastSyncTime = syncTimes[connection.provider] ?: 0L,
-                    result = results[connection.provider],
+                    result = flags.results[connection.provider],
                 )
             },
+            conflictCount = flags.conflicts,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 

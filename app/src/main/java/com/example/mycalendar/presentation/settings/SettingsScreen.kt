@@ -25,6 +25,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -79,6 +80,7 @@ import java.util.Locale
 fun SettingsScreen(
     onBack: () -> Unit,
     onOpenPermissions: () -> Unit,
+    onOpenConflicts: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -202,6 +204,25 @@ fun SettingsScreen(
                 Icon(Icons.Filled.CloudSync, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.sync_all))
+            }
+
+            if (state.conflictCount > 0) {
+                Card(
+                    onClick = onOpenConflicts,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Filled.Warning, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.conflicts_count, state.conflictCount),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                }
             }
 
             // Как работает подключение: системный календарь vs OAuth
