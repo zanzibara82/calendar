@@ -140,12 +140,8 @@ fun AppNavGraph(
         composable(
             route = Screen.ConflictDetail.route,
             arguments = listOf(navArgument("conflictId") { type = NavType.StringType }),
-        ) { backStackEntry ->
-            val conflictId = backStackEntry.arguments?.getString("conflictId") ?: return@composable
-            ConflictDetailScreen(
-                conflictId = conflictId,
-                onBack = { navController.popBackStack() },
-            )
+        ) {
+            ConflictDetailScreen(onBack = { navController.popBackStack() })
         }
 
         composable(Screen.Permissions.route) {

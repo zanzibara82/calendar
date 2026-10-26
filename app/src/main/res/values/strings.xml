@@ -174,11 +174,29 @@
     <string name="conflict_remote_deleted">Событие удалено в облаке, локально есть ваши правки</string>
     <string name="conflict_local_deleted">Событие удалено локально, а в облаке есть версия</string>
     <string name="conflict_detail_title">Разбор конфликта</string>
-    <string name="conflict_detail_placeholder">Экран разбора ещё не готов</string>
     <plurals name="conflict_contested_fields">
         <item quantity="one">%d спорное поле</item>
         <item quantity="few">%d спорных поля</item>
         <item quantity="many">%d спорных полей</item>
         <item quantity="other">%d спорного поля</item>
     </plurals>
+
+    <string name="conflict_content_help">Выберите, какое значение оставить; непересекающиеся правки приложение объединило само</string>
+    <string name="conflict_apply">Применить</string>
+    <string name="conflict_use_local">Локальное</string>
+    <string name="conflict_use_cloud">Из облака</string>
+    <string name="conflict_value_local">Локальное: %1$s</string>
+    <string name="conflict_value_cloud">Из облака: %1$s</string>
+    <string name="conflict_local_version">Ваша версия</string>
+    <string name="conflict_cloud_version">Версия в облаке</string>
+    <string name="conflict_delete_everywhere">Удалить везде</string>
+    <string name="conflict_restore_from_cloud">Вернуть из облака</string>
+    <string name="conflict_no_reminders">без напоминаний</string>
+    <string name="conflict_no_longer_relevant">Конфликт больше не актуален</string>
+    <string name="field_title">Название</string>
+    <string name="field_description">Описание</string>
+    <string name="field_start_time">Начало</string>
+    <string name="field_end_time">Конец</string>
+    <string name="field_reminders">Напоминания</string>
+    <string name="field_repeat_rule">Повтор</string>
 </resources>
