@@ -238,7 +238,7 @@ private fun DeletionComparison(conflict: SyncConflict, local: Event) {
                 reminderMinutes = local.reminderMinutes,
                 repeatRule = local.repeatRule,
             )
-            if (!local.tags.isEmpty()) {
+            if (local.tags.isNotEmpty()) {
                 Text(
                     text = stringResource(R.string.conflict_tags_deleted, tagsLabel(local.tags)),
                     style = MaterialTheme.typography.bodyMedium,
