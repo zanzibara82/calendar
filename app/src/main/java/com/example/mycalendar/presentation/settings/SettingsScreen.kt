@@ -22,8 +22,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.CloudSync
-import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
@@ -57,7 +57,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.example.mycalendar.R
 import com.example.mycalendar.data.auth.OAuthConfig
 import com.example.mycalendar.domain.model.CalendarProvider
@@ -252,7 +252,7 @@ fun SettingsScreen(
             }
             Card(modifier = Modifier.fillMaxWidth()) {
                 TextButton(onClick = { viewModel.showSetupHelp() }, modifier = Modifier.padding(4.dp)) {
-                    Icon(Icons.Filled.HelpOutline, contentDescription = null)
+                    Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(stringResource(R.string.oauth_setup_title))
                 }

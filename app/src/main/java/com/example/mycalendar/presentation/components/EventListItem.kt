@@ -15,7 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.StickyNote2
+import androidx.compose.material.icons.automirrored.filled.StickyNote2
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -121,7 +121,7 @@ fun EventListItem(
                 }
                 if (!occurrence.event.textNote.isNullOrBlank()) {
                     Icon(
-                        imageVector = Icons.Filled.StickyNote2,
+                        imageVector = Icons.AutoMirrored.Filled.StickyNote2,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(18.dp),

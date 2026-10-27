@@ -8,7 +8,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.example.mycalendar.data.auth.YandexAuthDataSource
 import com.example.mycalendar.notifications.NotificationHelper
 import com.example.mycalendar.presentation.navigation.AppNavGraph
