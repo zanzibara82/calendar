@@ -75,10 +75,11 @@ class AlarmReceiver : BroadcastReceiver() {
 
                 // 2. Прямой запуск ReminderActivity — окно всплывает и при активном экране.
                 //    На Android 9 (API 28) fullScreenIntent подавляется, если экран активен,
-                //    поэтому запускаем activity вручную. WAKE_LOCK гарантирует, что CPU не уснёт.
+                //    поэтому запускаем activity вручную. Экран включает сама ReminderActivity
+                //    (turnScreenOn), здесь нужен лишь запрет на сон CPU на время запуска.
                 val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
                 val wakeLock = powerManager.newWakeLock(
-                    PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
+                    PowerManager.PARTIAL_WAKE_LOCK,
                     "mycalendar:reminder_fire",
                 ).apply { acquire(30_000) }
 
