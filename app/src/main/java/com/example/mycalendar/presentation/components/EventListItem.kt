@@ -27,12 +27,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.mycalendar.domain.model.CalendarProvider
+import com.example.mycalendar.presentation.common.timeFormatter
 import com.example.mycalendar.presentation.theme.EventGoogleColor
 import com.example.mycalendar.presentation.theme.EventLocalColor
 import com.example.mycalendar.presentation.theme.EventYandexColor
 import java.time.Instant
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 /** Одно конкретное вхождение события (для повторяющихся — вычисленное вхождение). */
 data class EventOccurrence(
@@ -42,8 +42,6 @@ data class EventOccurrence(
 ) {
     val isRecurring: Boolean get() = event.repeatRule != null
 }
-
-private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
 @Composable
 fun providerColor(provider: CalendarProvider): Color = when (provider) {

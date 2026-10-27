@@ -27,10 +27,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.mycalendar.R
 import com.example.mycalendar.domain.model.ConflictKind
+import com.example.mycalendar.presentation.common.shortDateTimeFormatter
 import java.time.Instant
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 /**
  * Очередь конфликтов синхронизации: что столкнулось и сколько полей надо разобрать.
@@ -114,9 +113,5 @@ fun ConflictListScreen(
     }
 }
 
-/** Отметка обнаружения в русской форме, как на экране настроек: локаль устройства не участвует. */
-private val detectedAtFormatter =
-    DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm", Locale.forLanguageTag("ru"))
-
 private fun formatDetectedAt(millis: Long): String =
-    Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(detectedAtFormatter)
+    Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(shortDateTimeFormatter)

@@ -72,11 +72,13 @@ import com.example.mycalendar.R
 import com.example.mycalendar.domain.model.EventTag
 import com.example.mycalendar.domain.model.RepeatRule
 import com.example.mycalendar.domain.usecase.EventValidation
+import com.example.mycalendar.presentation.common.russianLocale
+import com.example.mycalendar.presentation.common.shortDateFormatter
+import com.example.mycalendar.presentation.common.timeFormatter
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
-import java.util.Locale
 
 /** Доступные отступы напоминаний (минуты -> строковый ресурс). */
 private val reminderOptions: List<Pair<Int, Int>> = listOf(
@@ -494,15 +496,11 @@ private fun TimePickerDialogComposable(
 
 // ---------- Форматирование ----------
 
-private val ruLocale = Locale("ru")
-private val dateFormatter = java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy", ruLocale)
-private val timeFormatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm", ruLocale)
-
-private fun formatDate(date: LocalDate): String = date.format(dateFormatter)
+private fun formatDate(date: LocalDate): String = date.format(shortDateFormatter)
 private fun formatTime(time: LocalTime): String = time.format(timeFormatter)
 
 private fun formatSeconds(seconds: Int): String =
-    "%d:%02d".format(ruLocale, seconds / 60, seconds % 60)
+    "%d:%02d".format(russianLocale, seconds / 60, seconds % 60)
 
 private fun formatMillis(millis: Int): String =
-    "%d:%02d".format(ruLocale, millis / 60000, (millis / 1000) % 60)
+    "%d:%02d".format(russianLocale, millis / 60000, (millis / 1000) % 60)

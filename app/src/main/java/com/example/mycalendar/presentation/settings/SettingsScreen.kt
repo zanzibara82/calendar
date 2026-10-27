@@ -63,10 +63,9 @@ import com.example.mycalendar.data.auth.OAuthConfig
 import com.example.mycalendar.domain.model.CalendarProvider
 import com.example.mycalendar.domain.model.ThemeMode
 import com.example.mycalendar.domain.repository.SyncResult
+import com.example.mycalendar.presentation.common.shortDateTimeFormatter
 import java.time.Instant
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 /**
  * Экран настроек: тема, подключаемые календари (Google / Яндекс), разрешения.
@@ -473,7 +472,5 @@ private fun hasCalendarPermission(context: Context): Boolean =
         ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_CALENDAR) ==
         PackageManager.PERMISSION_GRANTED
 
-private val dateTimeFormatter = DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm", Locale("ru"))
-
 private fun formatDateTime(millis: Long): String =
-    Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(dateTimeFormatter)
+    Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(shortDateTimeFormatter)

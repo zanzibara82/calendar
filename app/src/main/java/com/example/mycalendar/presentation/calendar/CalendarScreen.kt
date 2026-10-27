@@ -47,14 +47,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.mycalendar.R
+import com.example.mycalendar.presentation.common.dayTitleFormatter
+import com.example.mycalendar.presentation.common.monthTitleFormatter
+import com.example.mycalendar.presentation.common.russianLocale
+import com.example.mycalendar.presentation.common.weekdayTitleFormatter
 import com.example.mycalendar.presentation.components.EmptyState
 import com.example.mycalendar.presentation.components.EventListItem
 import com.example.mycalendar.presentation.components.EventOccurrence
 import java.time.DayOfWeek
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import java.time.temporal.WeekFields
-import java.util.Locale
 
 /**
  * Главный экран календаря: виды Месяц/Неделя/День, список событий, FAB создания.
@@ -370,11 +372,6 @@ private fun headerTitle(state: CalendarUiState): String = when (state.viewMode) 
     CalendarViewMode.DAY -> fullDateTitle(state.selectedDate)
 }
 
-private val ruLocale: Locale = Locale("ru")
-private val monthFormatter = DateTimeFormatter.ofPattern("LLLL yyyy", ruLocale)
-private val dayFormatter = DateTimeFormatter.ofPattern("d MMMM", ruLocale)
-private val weekdayFormatter = DateTimeFormatter.ofPattern("EEEE, d MMMM", ruLocale)
-
 /** Сокращённые названия дней недели ровно по три буквы: пн..вс. */
 private val dayShortNames = mapOf(
     DayOfWeek.MONDAY to "пн",
@@ -390,13 +387,13 @@ private fun dayShortName(dayOfWeek: DayOfWeek): String =
     dayShortNames.getValue(dayOfWeek)
 
 private fun monthTitle(date: LocalDate): String =
-    date.format(monthFormatter).replaceFirstChar { it.uppercase(ruLocale) }
+    date.format(monthTitleFormatter).replaceFirstChar { it.uppercase(russianLocale) }
 
 private fun shortDateTitle(date: LocalDate): String =
-    date.format(dayFormatter)
+    date.format(dayTitleFormatter)
 
 private fun fullDateTitle(date: LocalDate): String =
-    date.format(weekdayFormatter).replaceFirstChar { it.uppercase(ruLocale) }
+    date.format(weekdayTitleFormatter).replaceFirstChar { it.uppercase(russianLocale) }
 
 /**
  * Сетка месяца: недели (Пн–Вс), включая дни соседних месяцев.

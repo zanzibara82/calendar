@@ -44,10 +44,9 @@ import com.example.mycalendar.domain.model.RepeatRule
 import com.example.mycalendar.domain.model.SyncConflict
 import com.example.mycalendar.domain.model.SyncField
 import com.example.mycalendar.domain.usecase.DeletionChoice
+import com.example.mycalendar.presentation.common.fullDateTimeFormatter
 import java.time.Instant
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 /**
  * Разбор конфликта: по полям — локальное или облачное значение каждого спорного поля;
@@ -418,13 +417,10 @@ private fun remindersLabel(minutes: List<Int>): String {
         .joinToString(", ")
 }
 
-// ---------- Форматирование (своё: в EventDetailsScreen они приватные) ----------
-
-private val ruLocale = Locale.forLanguageTag("ru")
-private val dateTimeFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy, HH:mm", ruLocale)
+// ---------- Форматирование ----------
 
 private fun formatDateTime(millis: Long): String =
-    Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(dateTimeFormatter)
+    Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(fullDateTimeFormatter)
 
 private fun formatRange(start: Long, end: Long): String =
     "${formatDateTime(start)} — ${formatDateTime(end)}"

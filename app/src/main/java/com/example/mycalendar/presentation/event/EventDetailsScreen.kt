@@ -49,11 +49,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.mycalendar.R
 import com.example.mycalendar.domain.model.EventTag
 import com.example.mycalendar.domain.model.RepeatRule
+import com.example.mycalendar.presentation.common.fullDateTimeFormatter
+import com.example.mycalendar.presentation.common.russianLocale
 import com.example.mycalendar.presentation.components.providerColor
 import java.time.Instant
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 /**
  * Экран деталей события: полная информация, текстовая заметка,
@@ -294,19 +294,16 @@ private fun DetailsBlock(title: String, content: @Composable () -> Unit) {
 
 // ---------- Форматирование ----------
 
-private val ruLocale = Locale("ru")
-private val dateTimeFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy, HH:mm", ruLocale)
-
 private fun formatDateTime(millis: Long): String =
-    Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(dateTimeFormatter)
+    Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(fullDateTimeFormatter)
 
 private fun formatMillis(millis: Int): String =
-    "%d:%02d".format(ruLocale, millis / 60000, (millis / 1000) % 60)
+    "%d:%02d".format(russianLocale, millis / 60000, (millis / 1000) % 60)
 
 private fun humanizeReminder(minutes: Int): String = when {
-    minutes >= 1440 -> "%d д".format(ruLocale, minutes / 1440)
-    minutes >= 60 -> "%d ч".format(ruLocale, minutes / 60)
-    else -> "%d мин".format(ruLocale, minutes)
+    minutes >= 1440 -> "%d д".format(russianLocale, minutes / 1440)
+    minutes >= 60 -> "%d ч".format(russianLocale, minutes / 60)
+    else -> "%d мин".format(russianLocale, minutes)
 }
 
 @Composable
