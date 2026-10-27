@@ -1,6 +1,7 @@
 package com.example.mycalendar.presentation.conflict
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -65,6 +66,10 @@ fun ConflictDetailScreen(
     val context = LocalContext.current
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
 
+    // Запись идёт двумя операциями — строка, затем строка очереди. `viewModelScope` отменит
+    // корутину на уходе, и решение применится, а конфликт останется открытым.
+    BackHandler(enabled = state.isSaving) { }
+
     // Решение не применилось (очередь успела измениться): экран уже закрывается, сообщение
     // переживёт переход и объяснит, почему выбор не сработал.
     LaunchedEffect(state.notice) {
@@ -84,7 +89,7 @@ fun ConflictDetailScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.conflict_detail_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = onBack, enabled = !state.isSaving) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.back),

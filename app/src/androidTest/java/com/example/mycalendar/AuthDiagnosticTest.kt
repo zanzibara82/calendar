@@ -32,6 +32,13 @@ class AuthDiagnosticTest {
         Log.i("AuthDiag", "YANDEX configured=${OAuthConfig.isYandexConfigured}")
         Log.i("AuthDiag", "YANDEX clientId='${OAuthConfig.YANDEX_CLIENT_ID}'")
         Log.i("AuthDiag", "YANDEX redirect='${OAuthConfig.YANDEX_REDIRECT_URI}'")
-        assertTrue(true)
+        // Клиент без redirect URI не доведёт implicit-flow до приложения: Яндекс вернёт
+        // токен во фрагмент пустого адреса. Пустая настройка — ошибка конфигурации.
+        if (OAuthConfig.isYandexConfigured) {
+            assertTrue(
+                "При заданном YANDEX_CLIENT_ID нужен непустой YANDEX_REDIRECT_URI",
+                OAuthConfig.YANDEX_REDIRECT_URI.isNotBlank(),
+            )
+        }
     }
 }
