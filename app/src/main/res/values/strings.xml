@@ -203,7 +203,9 @@
     <string name="conflict_no_description">без описания</string>
     <string name="conflict_cloud_version_last">Последняя версия из облака</string>
     <string name="conflict_recreate_in_cloud">Создать заново в облаке</string>
-    <string name="conflict_delete_everywhere_text">Событие «%1$s» будет удалено на этом устройстве и в облаке. Заметки удаляются безвозвратно.</string>
+    <string name="conflict_delete_everywhere_text">«%1$s» будет удалено на этом устройстве. Записи в облаке уже нет — вернуть событие будет нельзя.</string>
+    <string name="conflict_delete_cloud_text">«%1$s» будет удалено в облаке вместе с описанием, напоминаниями и повтором. Вернуть их будет нельзя.</string>
     <string name="conflict_text_note_deleted">Текстовая заметка удаляется вместе с событием</string>
     <string name="conflict_voice_note_deleted">Голосовая запись удаляется вместе с событием</string>
+    <string name="conflict_tags_deleted">Метки (%1$s) хранятся только на этом устройстве и исчезнут вместе с событием</string>
 </resources>

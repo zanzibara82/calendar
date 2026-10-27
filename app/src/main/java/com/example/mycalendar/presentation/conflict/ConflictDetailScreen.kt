@@ -39,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.mycalendar.R
 import com.example.mycalendar.domain.model.ConflictKind
 import com.example.mycalendar.domain.model.Event
+import com.example.mycalendar.domain.model.EventTag
 import com.example.mycalendar.domain.model.RepeatRule
 import com.example.mycalendar.domain.model.SyncConflict
 import com.example.mycalendar.domain.model.SyncField
@@ -116,7 +117,13 @@ fun ConflictDetailScreen(
                 text = {
                     Text(
                         stringResource(
-                            R.string.conflict_delete_everywhere_text,
+                            if (conflict.kind == ConflictKind.REMOTE_DELETED) {
+                                // Записи в облаке уже нет: удаление необратимо на этом устройстве.
+                                R.string.conflict_delete_everywhere_text
+                            } else {
+                                // Удаление уносит облачную копию вместе с её полями.
+                                R.string.conflict_delete_cloud_text
+                            },
                             displayTitle(local.title),
                         )
                     )
@@ -209,7 +216,8 @@ private fun kindHelp(kind: ConflictKind): String = stringResource(
 
 /**
  * Сравнение двух версий для конфликта-удаления: спорных полей там нет, выбор один из двух.
- * Показывается всё, что пользователь потеряет, выбрав другой исход, включая заметки.
+ * Показывается всё, что пользователь потеряет, выбрав другой исход: метки, текстовую и
+ * голосовую заметки.
  */
 @Composable
 private fun DeletionComparison(conflict: SyncConflict, local: Event) {
@@ -230,6 +238,13 @@ private fun DeletionComparison(conflict: SyncConflict, local: Event) {
                 reminderMinutes = local.reminderMinutes,
                 repeatRule = local.repeatRule,
             )
+            if (!local.tags.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.conflict_tags_deleted, tagsLabel(local.tags)),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
             if (!local.textNote.isNullOrBlank()) {
                 Text(
                     text = stringResource(R.string.conflict_text_note_deleted),
@@ -381,6 +396,17 @@ private fun repeatLabel(rule: RepeatRule?): String = stringResource(
         RepeatRule.YEARLY -> R.string.repeat_yearly
     }
 )
+
+@Composable
+private fun tagsLabel(tags: List<EventTag>): String =
+    tags.map { stringResource(tagLabel(it)) }.joinToString(", ")
+
+@Composable
+private fun tagLabel(tag: EventTag): Int = when (tag) {
+    EventTag.BIRTHDAY -> R.string.tag_birthday
+    EventTag.DATE -> R.string.tag_date
+    EventTag.CINEMA -> R.string.tag_cinema
+}
 
 @Composable
 private fun remindersLabel(minutes: List<Int>): String {
