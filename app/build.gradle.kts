@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -45,16 +47,12 @@ android {
 
     sourceSets {
         // MigrationTestHelper читает экспортированные схемы из ассетов теста
-        getByName("androidTest").assets.srcDir("$projectDir/schemas")
+        getByName("androidTest").assets.directories.add("$projectDir/schemas")
     }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = "17"
     }
 
     packaging {
@@ -63,6 +61,12 @@ android {
             excludes += "/META-INF/LICENSE.md"
             excludes += "/META-INF/LICENSE-notice.md"
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 
@@ -131,7 +135,7 @@ dependencies {
     // XML-pull парсер (org.xmlpull.v1) на classpath JVM-тестов: CalDavClient парсит
     // multistatus через XmlPullParser (на Android это фреймворк, на JVM юнит-тестах
     // его нет — kxml2 даёт совместимую реализацию). Только для тестов, в APK не попадает.
-    testImplementation("net.sf.kxml:kxml2:2.3.0")
+    testImplementation(libs.kxml2)
 
     // Instrumented-тесты (androidTest)
     androidTestImplementation(libs.androidx.test.ext.junit)

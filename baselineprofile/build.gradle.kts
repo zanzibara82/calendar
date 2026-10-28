@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     // Без версии: AGP уже лежит в classpath (объявлен в корневом build.gradle.kts)
     id("com.android.test")
@@ -19,14 +21,14 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    // JVM-target должен совпадать с Java, иначе Kotlin-плагин падает с
-    // «Inconsistent JVM Target Compatibility».
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     // Профиль собирается для :app
     targetProjectPath = ":app"
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
+    }
 }
 
 /**
