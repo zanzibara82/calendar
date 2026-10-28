@@ -11,8 +11,8 @@ plugins {
 
 android {
     namespace = "com.example.mycalendar"
-    // AndroidX 1.17/1.11 требуют compileSdk >= 36
-    compileSdk = 36
+    // Актуальные AndroidX (core 1.19, Compose 1.12) требуют compileSdk >= 37
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.example.mycalendar"
