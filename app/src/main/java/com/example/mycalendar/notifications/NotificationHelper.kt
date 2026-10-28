@@ -1,6 +1,7 @@
 package com.example.mycalendar.notifications
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -98,6 +99,8 @@ class NotificationHelper @Inject constructor(
      *  - full-screen intent -> [ReminderActivity] (всплывает в центре, включает экран);
      *  - тап по самому уведомлению -> детали события в MainActivity.
      */
+    // Разрешение проверяется в начале функции; lint не прослеживает вызов helper'а.
+    @SuppressLint("MissingPermission")
     fun showEventReminder(
         event: Event,
         reminderMinutes: Int,

@@ -4,9 +4,9 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.util.Log
+import androidx.core.net.toUri
 import com.example.mycalendar.domain.model.Event
 import com.example.mycalendar.domain.util.RepeatRuleHelper
 import com.example.mycalendar.notifications.AlarmReceiver
@@ -176,7 +176,7 @@ class ReminderScheduler @Inject constructor(
     ): PendingIntent {
         val intent = Intent(context, AlarmReceiver::class.java).apply {
             action = AlarmReceiver.ACTION_FIRE_REMINDER
-            data = Uri.parse("mycalendar://reminder/$eventId/$minutes")
+            data = "mycalendar://reminder/$eventId/$minutes".toUri()
             putExtra(AlarmReceiver.EXTRA_EVENT_ID, eventId)
             putExtra(AlarmReceiver.EXTRA_REMINDER_MINUTES, minutes)
             putExtra(AlarmReceiver.EXTRA_OCCURRENCE_START, occurrenceStart)

@@ -5,6 +5,8 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
 import android.util.Log
+import androidx.core.content.edit
+import androidx.core.net.toUri
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -114,7 +116,7 @@ class YandexAuthDataSource @Inject constructor(
         val url = buildAuthUrl(pendingState!!)
         Log.d(TAG, "startAuth: opening $url")
         context.startActivity(
-            Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            Intent(Intent.ACTION_VIEW, url.toUri()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         )
     }
 
@@ -176,7 +178,7 @@ class YandexAuthDataSource @Inject constructor(
         // Шифрованный кэш: иначе после рестарта процесса в DataStore остаётся
         // email, и карточка «Подключено как …» продолжает показываться,
         // хотя токена уже нет.
-        runCatching { prefs.edit().putString(KEY_ACCESS_TOKEN, token).apply() }
+        runCatching { prefs.edit { putString(KEY_ACCESS_TOKEN, token) } }
             .onFailure { Log.w(TAG, "onRedirect: failed to persist token: ${it.message}") }
         Log.d(TAG, "onRedirect: token received (${token.length} chars)")
         tokenFlow.tryEmit(token)
@@ -213,7 +215,7 @@ class YandexAuthDataSource @Inject constructor(
     fun reset() {
         accessToken = null
         pendingState = null
-        runCatching { prefs.edit().remove(KEY_ACCESS_TOKEN).apply() }
+        runCatching { prefs.edit { remove(KEY_ACCESS_TOKEN) } }
             .onFailure { Log.w(TAG, "reset: failed to clear token: ${it.message}") }
     }
 

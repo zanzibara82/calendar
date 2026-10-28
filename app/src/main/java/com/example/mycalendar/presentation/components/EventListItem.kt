@@ -143,8 +143,8 @@ fun formatTimeRange(occurrence: EventOccurrence): String {
 @Composable
 fun EmptyState(
     title: String,
-    subtitle: String? = null,
     modifier: Modifier = Modifier,
+    subtitle: String? = null,
 ) {
     Column(
         modifier = modifier
