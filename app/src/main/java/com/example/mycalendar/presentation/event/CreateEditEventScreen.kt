@@ -135,11 +135,13 @@ fun CreateEditEventScreen(
     LaunchedEffect(state.saved) { if (state.saved) onSaved() }
 
     // Валидационные ошибки
+    val emptyTitleMessage = stringResource(R.string.error_empty_title)
+    val endBeforeStartMessage = stringResource(R.string.error_end_before_start)
     LaunchedEffect(state.validationError) {
         state.validationError?.let { reason ->
             val message = when (runCatching { EventValidation.Reason.valueOf(reason) }.getOrNull()) {
-                EventValidation.Reason.EMPTY_TITLE -> context.getString(R.string.error_empty_title)
-                EventValidation.Reason.END_BEFORE_START -> context.getString(R.string.error_end_before_start)
+                EventValidation.Reason.EMPTY_TITLE -> emptyTitleMessage
+                EventValidation.Reason.END_BEFORE_START -> endBeforeStartMessage
                 null -> reason
             }
             snackbarHostState.showSnackbar(message)
