@@ -85,7 +85,7 @@ class NotificationActionsTest {
             occurrenceEnd = event.endTime,
         )
 
-        val notification = findReminderNotification()
+        val notification = awaitReminderNotification()
         assertNotNull("Уведомление-напоминание не найдено в активных", notification)
         val actions = notification!!.actions
         assertNotNull("У уведомления нет кнопок (addAction не вызван)", actions)
@@ -112,9 +112,10 @@ class NotificationActionsTest {
             occurrenceStart = event.startTime,
             occurrenceEnd = event.endTime,
         )
-        assertNotNull("Уведомление не было показано", findReminderNotification())
+        val notification = awaitReminderNotification()
+        assertNotNull("Уведомление не было показано", notification)
 
-        val snoozeAction = findReminderNotification()!!.actions!!
+        val snoozeAction = notification!!.actions!!
             .first { it.title.toString() == context.getString(R.string.notification_snooze, NotificationHelper.SNOOZE_MINUTES) }
 
         // Нажатие «Отложить» = отправка PendingIntent'а кнопки
@@ -134,6 +135,12 @@ class NotificationActionsTest {
         manager.activeNotifications
             .firstOrNull { it.id == event.id.hashCode() }
             ?.notification
+
+    /** notify() синхронный, но список активных обновляется в системе не мгновенно. */
+    private fun awaitReminderNotification(timeoutMs: Long = 5_000): Notification? {
+        waitUntil(timeoutMs) { findReminderNotification() != null }
+        return findReminderNotification()
+    }
 
     private fun waitUntil(timeoutMs: Long, condition: () -> Boolean) {
         val deadline = System.currentTimeMillis() + timeoutMs
