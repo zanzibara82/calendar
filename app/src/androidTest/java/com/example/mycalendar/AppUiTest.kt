@@ -18,6 +18,9 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
 import androidx.test.platform.app.InstrumentationRegistry
@@ -180,13 +183,37 @@ class AppUiTest {
         }
     }
 
-    /** Спрятать клавиатуру (иначе перекрывает кнопку «Сохранить» внизу экрана). */
-    private fun hideKeyboard() {
-        runCatching {
-            InstrumentationRegistry.getInstrumentation().uiAutomation
-                .executeShellCommand("input keyevent KEYCODE_BACK")
+    /** Видна ли панель IME — по WindowInsets, а не по флагам InputMethodManager. */
+    private fun isImeVisible(): Boolean {
+        var visible = false
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            val decor = composeRule.activity.window.decorView
+            visible = ViewCompat.getRootWindowInsets(decor)
+                ?.isVisible(WindowInsetsCompat.Type.ime()) == true
         }
-        Thread.sleep(600)
+        return visible
+    }
+
+    /**
+     * Спрятать клавиатуру, не трогая навигацию (иначе перекрывает кнопку «Сохранить»).
+     *
+     * KEYCODE_BACK здесь — лотерея: на targetSdk 36+ predictive back включён по
+     * умолчанию, и если IME в этот момент ещё не показан, событие уходит в
+     * OnBackInvokedCallback приложения и закрывает экран создания.
+     */
+    private fun hideKeyboard() {
+        // IME поднимается асинхронно: дожидаемся её, иначе запрос скрытия уйдёт в пустоту.
+        val deadline = System.currentTimeMillis() + 3_000
+        while (!isImeVisible() && System.currentTimeMillis() < deadline) {
+            Thread.sleep(100)
+        }
+        if (!isImeVisible()) return
+        composeRule.activityRule.scenario.onActivity { activity ->
+            WindowInsetsControllerCompat(activity.window, activity.window.decorView)
+                .hide(WindowInsetsCompat.Type.ime())
+        }
+        // Пока IME на экране, клик по кнопке под ней попадёт в окно клавиатуры.
+        composeRule.waitUntil(5_000) { !isImeVisible() }
     }
 
     /** Карточка события «Test event» в календаре (уникальный merged-кликабельный узел). */

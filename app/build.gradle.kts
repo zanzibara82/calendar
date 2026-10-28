@@ -17,7 +17,7 @@ android {
     defaultConfig {
         applicationId = "com.example.mycalendar"
         minSdk = 26          // по требованиям ТЗ
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 1
         versionName = "1.0"
 
