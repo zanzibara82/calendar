@@ -3,17 +3,16 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     // Без версии: AGP уже лежит в classpath (объявлен в корневом build.gradle.kts)
     id("com.android.test")
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.androidx.baselineprofile)
 }
 
 android {
     namespace = "com.example.mycalendar.baselineprofile"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 28
-        targetSdk = 36
+        targetSdk = 37
     }
 
     compileOptions {

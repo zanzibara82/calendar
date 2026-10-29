@@ -107,7 +107,6 @@ hilt-android-testing = { group = "com.google.dagger", name = "hilt-android-testi
 androidx-baselineprofile = { id = "androidx.baselineprofile", version.ref = "baselineProfile" }
 android-test = { id = "com.android.test", version.ref = "agp" }
 android-application = { id = "com.android.application", version.ref = "agp" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
