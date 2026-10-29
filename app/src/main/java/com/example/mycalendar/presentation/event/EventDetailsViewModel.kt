@@ -93,7 +93,6 @@ class EventDetailsViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        super.onCleared()
         voicePlayer.stop()
     }
 }

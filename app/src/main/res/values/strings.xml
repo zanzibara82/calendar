@@ -27,7 +27,6 @@
     <string name="event_end">Конец</string>
     <string name="event_reminders">Напомню до события за:</string>
     <string name="event_repeat">Повтор</string>
-    <string name="text_note_hint">Текстовая заметка</string>
     <string name="save">Сохранить</string>
     <string name="cancel">Отмена</string>
     <string name="delete">Удалить</string>
@@ -48,7 +47,6 @@
     <string name="reminder_30m">30 мин</string>
     <string name="reminder_1h">1 час</string>
     <string name="reminder_1d">1 день</string>
-    <string name="reminder_before">За %1$s до события</string>
 
     <!-- Детали события -->
     <string name="event_details">Детали события</string>
@@ -69,8 +67,6 @@
     <string name="play">Воспроизвести</string>
     <string name="pause">Пауза</string>
     <string name="delete_voice_note">Удалить голосовую заметку</string>
-    <string name="voice_recording_failed">Не удалось начать запись. Проверьте разрешение на микрофон.</string>
-    <string name="mic_permission_needed">Для записи голоса нужен доступ к микрофону</string>
 
     <string name="close">Закрыть</string>
 
@@ -89,8 +85,6 @@
     <string name="permission_fullscreen_desc">Окно напоминания поверх локскрина при погашенном экране</string>
     <string name="grant">Выдать</string>
     <string name="granted">Выдано</string>
-    <string name="permission_granted_toast">Разрешение выдано</string>
-    <string name="permission_denied_toast">Разрешение не выдано</string>
 
     <!-- Настройки -->
     <string name="appearance">Оформление</string>
@@ -100,12 +94,6 @@
     <string name="theme_dark">Тёмная</string>
     <string name="dynamic_color">Динамические цвета</string>
     <string name="dynamic_color_desc">Цвета из обоев (Android 12+)</string>
-    <string name="accounts">Аккаунты</string>
-    <string name="sign_in">Войти</string>
-    <string name="sign_out">Выйти</string>
-    <string name="signed_in_as">Вы вошли как %1$s</string>
-    <string name="guest_mode">Гость (локальное хранение)</string>
-    <string name="sync">Синхронизация</string>
     <string name="sync_now">Синхронизировать</string>
     <string name="sync_all">Синхронизировать все календари</string>
     <string name="sync_in_progress">Синхронизация…</string>
@@ -113,7 +101,6 @@
     <string name="last_sync">Последняя синхронизация: %1$s</string>
     <string name="sync_done">Готово: отправлено %1$d, получено %2$d, конфликтов %3$d</string>
     <string name="sync_failed">Ошибка синхронизации: %1$s</string>
-    <string name="sync_guest">Синхронизация недоступна: выполните вход</string>
     <string name="sync_not_connected">Календарь не подключён</string>
     <string name="sync_partial">Синхронизировано частично: %1$s</string>
 
@@ -137,7 +124,6 @@
     <string name="oauth_setup_title">Настройка входа</string>
     <string name="oauth_setup_google">Google — БЕЗ OAuth:\n1) Аккаунт Google уже добавлен на телефон (Настройки → Аккаунты)\n2) В его настройках включите синхронизацию «Календарь»\n3) В настройках приложения нажмите «Подключить» и разрешите доступ к календарю\n\nНи client_id, ни SHA-1, ни регистрация в Google Cloud Console не требуются.</string>
     <string name="oauth_setup_yandex">Яндекс:\n1) oauth.yandex.ru → Создать приложение\n2) Платформы → Веб-сервисы → Callback URI: mycalendar://oauth\n3) Доступы → Яндекс.Паспорт (email, логин) и Яндекс.Календарь (calendar:all)\n4) Скопируйте «ID приложения» в OAuthConfig.YANDEX_CLIENT_ID</string>
-    <string name="oauth_not_configured_google">Вход через Google не настроен: нет OAuth-клиента в Google Cloud Console (пакет com.example.mycalendar, SHA-1 подписи).</string>
     <string name="oauth_not_configured_yandex">Вход через Яндекс не настроен: не задан YANDEX_CLIENT_ID в data/auth/OAuthConfig.kt.</string>
 
     <!-- Ошибки валидации -->
@@ -147,8 +133,6 @@
     <!-- Уведомления -->
     <string name="notification_channel_reminders">Напоминания о событиях</string>
     <string name="notification_channel_reminders_desc">Уведомления о предстоящих событиях</string>
-    <string name="notification_channel_sync">Синхронизация</string>
-    <string name="notification_reminder_title">%1$s</string>
     <string name="notification_reminder_text">Начало в %1$s (через %2$s)</string>
     <string name="notification_reminder_now">Событие начинается</string>
     <string name="notification_open_event">Открыть событие</string>
@@ -159,13 +143,6 @@
     <string name="minutes_short">%1$d мин</string>
     <string name="hours_short">%1$d ч</string>
     <string name="days_short">%1$d д</string>
-
-    <plurals name="events_count">
-        <item quantity="one">%d событие</item>
-        <item quantity="few">%d события</item>
-        <item quantity="many">%d событий</item>
-        <item quantity="other">%d событий</item>
-    </plurals>
 
     <string name="conflicts_title">Конфликты синхронизации</string>
     <string name="conflicts_count">Конфликты: %1$d</string>

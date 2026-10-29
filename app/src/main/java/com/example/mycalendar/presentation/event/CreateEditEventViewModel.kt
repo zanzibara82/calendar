@@ -270,7 +270,6 @@ class CreateEditEventViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        super.onCleared()
         voicePlayer.stop()
     }
 }
