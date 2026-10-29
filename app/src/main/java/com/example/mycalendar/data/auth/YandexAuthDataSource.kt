@@ -149,10 +149,11 @@ class YandexAuthDataSource @Inject constructor(
         if (data.scheme != "mycalendar" || data.host != "oauth") return false
 
         val fragment = data.fragment
-        Log.d(TAG, "onRedirect: fragment=${fragment?.take(40)}…")
+        // Во фрагменте лежит access_token — в лог попадают только имена параметров.
+        val params = parseFragment(fragment)
+        Log.d(TAG, "onRedirect: params=${params.keys}")
 
         // Яндекс может вернуть ошибку прямо во фрагменте: error=access_denied&...
-        val params = parseFragment(fragment)
         val error = params["error"]
         if (!error.isNullOrBlank()) {
             Log.w(TAG, "onRedirect: OAuth error=$error")
