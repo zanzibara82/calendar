@@ -154,14 +154,7 @@ internal fun calendarsXml(base: String) = """<?xml version="1.0" encoding="utf-8
   </d:response>
 </d:multistatus>"""
 
-internal fun eventsXml(base: String) = """<?xml version="1.0" encoding="utf-8"?>
-<d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
-  <d:response>
-    <d:href>$base/dav/calendars/primary/event1.ics</d:href>
-    <d:propstat>
-      <d:prop>
-        <d:getetag>"abc123"</d:getetag>
-        <c:calendar-data>BEGIN:VCALENDAR
+private const val EVENT1_ICS = """BEGIN:VCALENDAR
 VERSION:2.0
 PRODID:-//MyCalendar//EN
 BEGIN:VEVENT
@@ -170,9 +163,50 @@ DTSTART:20231114T221320Z
 DTEND:20231114T234000Z
 SUMMARY:Тестовое событие
 END:VEVENT
-END:VCALENDAR</c:calendar-data>
+END:VCALENDAR"""
+
+/** REPORT-ответ с одним событием [EVENT1_ICS]. */
+internal fun eventsXml(base: String): String = eventsXml(base, "event1" to EVENT1_ICS)
+
+/** REPORT-ответ из произвольных пар uid -> VCALENDAR. */
+internal fun eventsXml(base: String, vararg entries: Pair<String, String>): String = buildString {
+    append("""<?xml version="1.0" encoding="utf-8"?>
+<d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+""")
+    for ((uid, ics) in entries) {
+        append("""  <d:response>
+    <d:href>$base/dav/calendars/primary/$uid.ics</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:getetag>"$uid"</d:getetag>
+        <c:calendar-data>$ics</c:calendar-data>
       </d:prop>
       <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+""")
+    }
+    append("</d:multistatus>")
+}
+
+/** REPORT-ответ, где данные события пришли с ошибочным статусом propstat. */
+internal fun failedEventsXml(base: String, status: String): String = """<?xml version="1.0" encoding="utf-8"?>
+<d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+  <d:response>
+    <d:href>$base/dav/calendars/primary/event1.ics</d:href>
+    <d:propstat>
+      <d:prop>
+        <c:calendar-data>BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:event1
+DTSTART:20231114T221320Z
+DTEND:20231114T234000Z
+SUMMARY:Тестовое событие
+END:VEVENT
+END:VCALENDAR</c:calendar-data>
+      </d:prop>
+      <d:status>$status</d:status>
     </d:propstat>
   </d:response>
 </d:multistatus>"""
@@ -185,14 +219,17 @@ END:VCALENDAR</c:calendar-data>
  * href-ы в ответах строятся от `server.baseUrl`, поэтому discovery ведёт туда же,
  * куда укажет [CalDavClient] с `baseUrl = server.baseUrl`.
  */
-internal fun yandexMockServer(captured: MutableList<MiniCalDavServer.Request>): MiniCalDavServer {
+internal fun yandexMockServer(
+    captured: MutableList<MiniCalDavServer.Request>,
+    report: (String) -> String = ::eventsXml,
+): MiniCalDavServer {
     lateinit var base: String
     val server = MiniCalDavServer { req ->
         captured += req
         when {
             req.path == "/dav/principals/me/" && req.method == "PROPFIND" -> MiniCalDavServer.Response(207, homeSetXml(base))
             req.path == "/dav/calendars/" && req.method == "PROPFIND" -> MiniCalDavServer.Response(207, calendarsXml(base))
-            req.path == "/dav/calendars/primary/" && req.method == "REPORT" -> MiniCalDavServer.Response(207, eventsXml(base))
+            req.path == "/dav/calendars/primary/" && req.method == "REPORT" -> MiniCalDavServer.Response(207, report(base))
             req.path.startsWith("/dav/calendars/primary/") && req.path.endsWith(".ics") && req.method == "PUT" -> MiniCalDavServer.Response(201, "")
             req.path.startsWith("/dav/calendars/primary/") && req.path.endsWith(".ics") && req.method == "DELETE" -> MiniCalDavServer.Response(204, "")
             req.path == "/" && req.method == "PROPFIND" -> MiniCalDavServer.Response(207, principalXml(base))

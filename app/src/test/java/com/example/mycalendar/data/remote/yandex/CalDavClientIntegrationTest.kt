@@ -55,6 +55,24 @@ class CalDavClientIntegrationTest {
     }
 
     @Test
+    fun `REPORT with a failed propstat aborts instead of returning a partial list`() {
+        yandexMockServer(mutableListOf(), report = { base -> failedEventsXml(base, "HTTP/1.1 404 Not Found") }).use { server ->
+            val client = CalDavClient(OkHttpClient(), baseUrl = server.baseUrl)
+            val cal = client.discoverAndPickCalendar(USER, TOKEN)
+
+            val ex = runCatching { client.fetchEvents(cal.url, USER, TOKEN) }.exceptionOrNull()
+
+            // Неполный multistatus нельзя выдать за полную коллекцию: отсутствующие
+            // в нём события движок синхронизации счёл бы удалёнными.
+            assertTrue("ожидался CalDavException при ошибочном propstat", ex is CalDavClient.CalDavException)
+            assertTrue(
+                "сообщение должно указывать на неполный список",
+                ex!!.message.orEmpty().contains("неполный", ignoreCase = true),
+            )
+        }
+    }
+
+    @Test
     fun `401 from server surfaces as a clear token error`() {
         MiniCalDavServer { MiniCalDavServer.Response(401, "") }.use { server ->
             val client = CalDavClient(OkHttpClient(), baseUrl = server.baseUrl)

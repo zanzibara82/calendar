@@ -23,24 +23,28 @@ data class RemoteEvent(
 )
 
 /**
+ * Результат pull-запроса.
+ *
+ * [presentRemoteIds] — все remoteId, реально найденные провайдером в коллекции
+ * (независимо от `since`), либо null, если провайдер не перечисляет коллекцию целиком.
+ * CalDAV не присылает tombstone'ов: событие, удалённое в облаке, просто исчезает из
+ * выборки, поэтому движок синхронизации распознаёт удаление по отсутствию id —
+ * но только когда список присутствующих полон и ему можно верить.
+ */
+data class RemoteFetch(
+    val events: List<RemoteEvent>,
+    val presentRemoteIds: Set<String>? = null,
+)
+
+/**
  * Абстракция удалённого календаря: pull-запросы изменённых событий и push-операции.
  * Реализации: SystemCalendarDataSource (Google через системный календарь
  * Android, CalendarContract), YandexCalendarDataSource (REST).
  */
 interface RemoteCalendarDataSource {
 
-    /**
-     * Есть ли у провайдера достоверное время изменения события.
-     *
-     * У системного календаря Android (`CalendarContract`) такой колонки нет, поэтому
-     * инкрементальный pull по updatedMin невозможен и каждая синхронизация читает всю
-     * выборку. На решение о слиянии признак больше не влияет: сравнивается снимок-предок,
-     * а не время изменения.
-     */
-    val hasReliableUpdatedAt: Boolean get() = true
-
-    /** Все события, изменённые с момента [sinceMillis] (0 = вся история). */
-    suspend fun fetchUpdatedSince(sinceMillis: Long): List<RemoteEvent>
+    /** События, изменённые с момента [sinceMillis] (0 = вся история), и состав коллекции. */
+    suspend fun fetchUpdatedSince(sinceMillis: Long): RemoteFetch
 
     /** Создание события; возвращает assigned remoteId. */
     suspend fun insert(event: Event): String

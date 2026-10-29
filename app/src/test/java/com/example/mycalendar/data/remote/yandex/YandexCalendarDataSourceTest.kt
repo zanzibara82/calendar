@@ -25,8 +25,10 @@ import java.util.UUID
  * Здесь проверяем именно логику источника данных:
  *  1. [YandexCalendarDataSource.insert] генерирует UUID и шлёт PUT `<календарь>/<uid>.ics`
  *     с корректным iCalendar-телом;
- *  2. [YandexCalendarDataSource.fetchUpdatedSince] прогоняет discovery + REPORT и
- *     отдаёт распарсенные [com.example.mycalendar.data.remote.RemoteEvent];
+ *  2. [YandexCalendarDataSource.fetchUpdatedSince] прогоняет discovery + REPORT, отдаёт
+ *     распарсенные [com.example.mycalendar.data.remote.RemoteEvent] и состав коллекции
+ *     ([com.example.mycalendar.data.remote.RemoteFetch.presentRemoteIds]) — по нему движок
+ *     распознаёт удаления; при неразобранном VEVENT состав не отдаётся вовсе;
  *  3. [YandexCalendarDataSource.credentials] бросает [YandexCalendarDataSource.YandexCalendarUnavailableException]
  *     когда нет токена И когда у аккаунта нет email (две ветки guard-а).
  *
@@ -88,12 +90,42 @@ class YandexCalendarDataSourceTest {
                 authRepository = FakeAuthRepository(UserAccount(CalendarProvider.YANDEX, email)),
             )
 
-            val events = runBlocking { ds.fetchUpdatedSince(0) }
+            val fetch = runBlocking { ds.fetchUpdatedSince(0) }
 
-            assertEquals(1, events.size)
-            assertEquals("event1", events[0].remoteId)
-            assertEquals("Тестовое событие", events[0].title)
+            assertEquals(1, fetch.events.size)
+            assertEquals("event1", fetch.events[0].remoteId)
+            assertEquals("Тестовое событие", fetch.events[0].title)
+            // Полная выборка обязана назвать состав коллекции: по нему вычисляются удаления.
+            assertEquals(setOf("event1"), fetch.presentRemoteIds)
             assertTrue("должен быть отправлен REPORT calendar-query", captured.any { it.method == "REPORT" })
+        }
+    }
+
+    @Test
+    fun `unparsable VEVENT disables absence-based deletion detection`() {
+        val broken = """BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:broken
+SUMMARY:Без времени начала
+END:VEVENT
+END:VCALENDAR"""
+        yandexMockServer(mutableListOf()) { base ->
+            eventsXml(base, "event1" to VALID_ICS, "broken" to broken)
+        }.use { server ->
+            val ds = YandexCalendarDataSource(
+                caldav = CalDavClient(OkHttpClient(), baseUrl = server.baseUrl),
+                auth = FakeTokenProvider(token),
+                authRepository = FakeAuthRepository(UserAccount(CalendarProvider.YANDEX, email)),
+            )
+
+            val fetch = runBlocking { ds.fetchUpdatedSince(0) }
+
+            // Разобралось одно событие из двух — состав коллекции неизвестен, иначе
+            // «broken» был бы принят за удалённый и вычищен локально.
+            assertEquals(1, fetch.events.size)
+            assertEquals("event1", fetch.events.single().remoteId)
+            assertEquals(null, fetch.presentRemoteIds)
         }
     }
 
@@ -133,6 +165,19 @@ class YandexCalendarDataSourceTest {
             "сообщение должно указывать на аккаунт",
             ex!!.message.orEmpty().contains("Аккаунт", ignoreCase = true),
         )
+    }
+
+    private companion object {
+        /** VCALENDAR со всеми обязательными для [IcsMapper.fromIcs] полями. */
+        const val VALID_ICS = """BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:event1
+DTSTART:20231114T221320Z
+DTEND:20231114T234000Z
+SUMMARY:Тестовое событие
+END:VEVENT
+END:VCALENDAR"""
     }
 
     /** Фейковый [AccessTokenProvider]: токен из памяти, без Android Keystore. */

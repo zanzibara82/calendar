@@ -81,11 +81,20 @@ class CalDavClient(
             ?: calendars.first()
     }
 
-    /** Получить все VEVENT коллекции календаря в виде сырых текстов VCALENDAR. */
-    fun fetchEvents(calendarUrl: String, user: String, token: String): List<String> =
-        parseMultiStatus(report(calendarUrl, user, token, depth = "1", body = eventsBody))
-            .mapNotNull { it.calendarData }
-            .filter { it.contains("VEVENT") }
+    /**
+     * Получить все VEVENT коллекции календаря в виде сырых текстов VCALENDAR.
+     *
+     * Ошибка в любом `<response>` обрывает чтение: движок синхронизации считает события,
+     * отсутствующие в полученной выборке, удалёнными в облаке. Выдать частичный ответ
+     * за полный — значит молча удалить у пользователя то, что просто не прочиталось.
+     */
+    fun fetchEvents(calendarUrl: String, user: String, token: String): List<String> {
+        val responses = parseMultiStatus(report(calendarUrl, user, token, depth = "1", body = eventsBody))
+        responses.firstOrNull { it.failedStatus != null }?.let {
+            throw CalDavException("CalDAV вернул неполный список событий: ${it.failedStatus}")
+        }
+        return responses.mapNotNull { it.calendarData }.filter { it.contains("VEVENT") }
+    }
 
     fun putEvent(calendarUrl: String, user: String, token: String, uid: String, ics: String) {
         val url = URL(calendarUrl).let { URL(it, "$uid.ics") }.toString()
@@ -152,6 +161,11 @@ class CalDavClient(
      *  - principal/home — берём `.href` (последний href в ответе = искомый);
      *  - список календарей — фильтруем по [Response.isCalendar];
      *  - события — берём `.calendarData`.
+     *
+     * Статус запоминается, чтобы [fetchEvents] мог отличить полную выборку от частичной:
+     * ошибкой считается не-2xx статус самого `<response>` либо `<propstat>`, в котором
+     * пришли данные. Не-2xx propstat без данных (запрошенное свойство отсутствует) —
+     * штатный ответ и ошибкой не считается.
      */
     private fun parseMultiStatus(xml: String): List<Response> {
         val factory = XmlPullParserFactory.newInstance()
@@ -162,6 +176,9 @@ class CalDavClient(
         val responses = mutableListOf<Response>()
         var cur: Response? = null
         var inResourcetype = false
+        var inPropstat = false
+        var propstatStatus: String? = null
+        var propstatHasData = false
         var pendingTextTag: String? = null
         var pendingText: String? = null
 
@@ -175,12 +192,18 @@ class CalDavClient(
                             pendingTextTag = null
                             pendingText = null
                         }
+                        "propstat" -> {
+                            inPropstat = true
+                            propstatStatus = null
+                            propstatHasData = false
+                        }
                         "resourcetype" -> inResourcetype = true
                         "calendar" -> if (inResourcetype) cur?.isCalendar = true
                         "href" -> pendingTextTag = "href"
                         "displayname" -> pendingTextTag = "displayname"
                         "getctag" -> pendingTextTag = "getctag"
                         "calendar-data" -> pendingTextTag = "calendar-data"
+                        "status" -> pendingTextTag = "status"
                     }
                 }
                 XmlPullParser.TEXT -> {
@@ -199,7 +222,29 @@ class CalDavClient(
                             cur?.ctag = pendingText?.trim(); pendingTextTag = null; pendingText = null
                         }
                         "calendar-data" -> if (pendingTextTag == "calendar-data") {
-                            cur?.calendarData = pendingText; pendingTextTag = null; pendingText = null
+                            cur?.calendarData = pendingText
+                            if (inPropstat) propstatHasData = true
+                            pendingTextTag = null; pendingText = null
+                        }
+                        "status" -> if (pendingTextTag == "status") {
+                            val status = pendingText?.trim()
+                            // Внутри propstat статус относится к его свойствам, на уровне
+                            // response — ко всему ответу (например, 404 на исчезнувший ресурс).
+                            if (inPropstat) {
+                                propstatStatus = status
+                            } else if (status != null && !statusCodeIsOk(status)) {
+                                cur?.failedStatus = status
+                            }
+                            pendingTextTag = null; pendingText = null
+                        }
+                        "propstat" -> {
+                            val status = propstatStatus
+                            if (propstatHasData && status != null && !statusCodeIsOk(status)) {
+                                cur?.failedStatus = status
+                            }
+                            inPropstat = false
+                            propstatStatus = null
+                            propstatHasData = false
                         }
                         "response" -> {
                             cur?.let { responses += it }
@@ -215,6 +260,12 @@ class CalDavClient(
 
     private fun localName(name: String?): String = name?.substringAfter(':') ?: ""
 
+    /** "HTTP/1.1 200 OK" -> true; неразборчивый статус считаем ошибкой. */
+    private fun statusCodeIsOk(status: String): Boolean {
+        val code = status.split(' ').getOrNull(1)?.toIntOrNull() ?: return false
+        return code in 200..299
+    }
+
     /** Один <response> из multistatus. */
     private data class Response(
         var href: String? = null,
@@ -222,5 +273,7 @@ class CalDavClient(
         var displayName: String = "",
         var ctag: String? = null,
         var calendarData: String? = null,
+        /** Не-2xx статус ответа или его данных: выборка событий неполна. */
+        var failedStatus: String? = null,
     )
 }

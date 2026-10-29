@@ -2,7 +2,7 @@ package com.example.mycalendar.data.remote.yandex
 
 import com.example.mycalendar.data.auth.AccessTokenProvider
 import com.example.mycalendar.data.remote.RemoteCalendarDataSource
-import com.example.mycalendar.data.remote.RemoteEvent
+import com.example.mycalendar.data.remote.RemoteFetch
 import com.example.mycalendar.domain.model.CalendarProvider
 import com.example.mycalendar.domain.model.Event
 import com.example.mycalendar.domain.repository.AuthRepository
@@ -22,11 +22,15 @@ import javax.inject.Singleton
  *  - [insert]/[update]    -> PUT `<календарь>/<uid>.ics`;
  *  - [delete]             -> DELETE `<календарь>/<uid>.ics`.
  *
- * [hasReliableUpdatedAt] = `false`: у VEVENT нет надёжного «времени изменения»
- * (LAST-MODIFIED сервер может не обновлять), поэтому инкрементальный pull по
- * updatedMin невозможен и REPORT читает всю коллекцию. На решение о слиянии признак
- * больше не влияет: `SyncConflictResolver.decide` сравнивает снимок-предок, а не
- * updatedAt — это надёжнее и не зависит от корректности LAST-MODIFIED на стороне сервера.
+ * У VEVENT нет надёжного «времени изменения» (LAST-MODIFIED сервер может не обновлять),
+ * поэтому инкрементальный pull по updatedMin невозможен и REPORT читает всю коллекцию.
+ * На решение о слиянии это не влияет: `SyncConflictResolver.decide` сравнивает
+ * снимок-предок, а не updatedAt.
+ *
+ * Удаления CalDAV не сообщает отдельной строкой — событие просто исчезает из выборки.
+ * Поэтому [fetchUpdatedSince] возвращает состав коллекции ([RemoteFetch.presentRemoteIds]),
+ * и только если разобрались ВСЕ VEVENT: неразобранный файл — это пропущенный id,
+ * по которому нельзя судить об удалении.
  */
 @Singleton
 class YandexCalendarDataSource @Inject constructor(
@@ -36,8 +40,6 @@ class YandexCalendarDataSource @Inject constructor(
 ) : RemoteCalendarDataSource {
 
     class YandexCalendarUnavailableException(message: String) : Exception(message)
-
-    override val hasReliableUpdatedAt: Boolean get() = false
 
     /** Кэш URL выбранного календаря в рамках процесса (discovery — дорогая операция). */
     @Volatile
@@ -59,11 +61,20 @@ class YandexCalendarDataSource @Inject constructor(
         return calendar.url
     }
 
-    override suspend fun fetchUpdatedSince(sinceMillis: Long): List<RemoteEvent> =
+    override suspend fun fetchUpdatedSince(sinceMillis: Long): RemoteFetch =
         withContext(Dispatchers.IO) {
             val (user, token) = credentials()
             val url = calendarUrl(user, token)
-            caldav.fetchEvents(url, user, token).mapNotNull { IcsMapper.fromIcs(it) }
+            val calendars = caldav.fetchEvents(url, user, token)
+            val parsed = calendars.mapNotNull { IcsMapper.fromIcs(it) }
+            RemoteFetch(
+                events = parsed,
+                presentRemoteIds = if (parsed.size == calendars.size) {
+                    parsed.mapTo(mutableSetOf()) { it.remoteId }
+                } else {
+                    null
+                },
+            )
         }
 
     override suspend fun insert(event: Event): String = withContext(Dispatchers.IO) {

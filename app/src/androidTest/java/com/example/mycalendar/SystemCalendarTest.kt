@@ -191,7 +191,7 @@ class SystemCalendarTest {
         )
 
         // ---------- FETCH ----------
-        val pulled = dataSource.fetchUpdatedSince(sinceMillis = 0L)
+        val pulled = dataSource.fetchUpdatedSince(sinceMillis = 0L).events
         val matched = pulled.firstOrNull { it.remoteId == newId }
         assertNotNull("fetchUpdatedSince не вернул вставленное событие", matched)
         assertEquals(event.title, matched!!.title)
@@ -271,7 +271,7 @@ class SystemCalendarTest {
         )
 
         // ---------- FETCH: заметки остаются локальными ----------
-        val pulled: List<RemoteEvent> = dataSource.fetchUpdatedSince(sinceMillis = 0L)
+        val pulled: List<RemoteEvent> = dataSource.fetchUpdatedSince(sinceMillis = 0L).events
         val matched = pulled.firstOrNull { it.remoteId == newId }
         assertNotNull("fetchUpdatedSince не вернул вставленное событие", matched)
         assertEquals(event.title, matched!!.title)

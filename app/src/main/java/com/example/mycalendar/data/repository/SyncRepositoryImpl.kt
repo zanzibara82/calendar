@@ -2,6 +2,8 @@ package com.example.mycalendar.data.repository
 
 import com.example.mycalendar.data.remote.RemoteCalendarDataSource
 import com.example.mycalendar.data.remote.RemoteDataSourceProvider
+import com.example.mycalendar.data.remote.RemoteEvent
+import com.example.mycalendar.data.remote.RemoteFetch
 import com.example.mycalendar.domain.model.CalendarProvider
 import com.example.mycalendar.domain.model.SyncConflict
 import com.example.mycalendar.domain.model.scheduleChangedFrom
@@ -13,6 +15,7 @@ import com.example.mycalendar.domain.repository.SettingsRepository
 import com.example.mycalendar.domain.repository.SyncRepository
 import com.example.mycalendar.domain.repository.SyncResult
 import com.example.mycalendar.work.ReminderScheduler
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -33,6 +36,11 @@ import javax.inject.Singleton
  *  - правки не пересекаются              -> объединяем, предок ждёт успешного push;
  *  - пересечение по полю                 -> строка в sync_conflicts, локальное значение в силе;
  *  - удаление на одной из сторон с правками на другой -> тоже конфликт (см. design §3).
+ *
+ *  УДАЛЕНИЯ БЕЗ TOMBSTONE'ОВ: провайдер, перечисливший коллекцию целиком
+ *  ([RemoteFetch.presentRemoteIds]), удаляет событие без отдельной строки — оно просто
+ *  исчезает из выборки. Такие записи проходят через тот же [SyncConflictResolver.decide]
+ *  с признаком `deleted`: без локальных правок строка вычищается, с ними — конфликт.
  *
  *  PUSH: локальные записи с pendingSync = этого провайдера; события с открытым
  *  конфликтом пропускаются. После успешной отправки syncBase догоняет отправленное.
@@ -114,6 +122,9 @@ class SyncRepositoryImpl @Inject constructor(
                 val result = doSync(remote, provider)
                 settingsRepository.setLastSyncTime(provider, System.currentTimeMillis())
                 result
+            } catch (e: CancellationException) {
+                // Отмена (уход с экрана, остановка WorkManager) — не ошибка синхронизации.
+                throw e
             } catch (e: Exception) {
                 SyncResult.failure(provider, e.message ?: e.javaClass.simpleName)
             }
@@ -131,7 +142,9 @@ class SyncRepositoryImpl @Inject constructor(
         // Время последней синхронизации ИМЕННО этого провайдера
         val since = settingsRepository.lastSyncTime(provider).first()
 
-        for (remoteEvent in remote.fetchUpdatedSince(if (since > 0) since else 0L)) {
+        val fetch = remote.fetchUpdatedSince(if (since > 0) since else 0L)
+
+        for (remoteEvent in fetch.events) {
             val record = eventRepository.findSyncedRecord(provider, remoteEvent.remoteId)
             when (val decision = conflictResolver.decide(record, remoteEvent, provider)) {
                 PullDecision.Skip, PullDecision.PushDelete -> Unit
@@ -182,6 +195,10 @@ class SyncRepositoryImpl @Inject constructor(
             }
         }
 
+        val (purgedVanished, vanishedConflicts) = handleVanished(fetch.presentRemoteIds, provider)
+        pulled += purgedVanished
+        conflicts += vanishedConflicts
+
         val pushed = push(remote, provider)
 
         // Перепланирование напоминаний для событий, которым pull двигал содержимое
@@ -193,6 +210,64 @@ class SyncRepositoryImpl @Inject constructor(
             success = true, pushed = pushed, pulled = pulled,
             conflicts = conflicts, provider = provider,
         )
+    }
+
+    /**
+     * Удаления, о которых провайдер не сообщает: события нет в полной выборке коллекции.
+     * Запись проходит через общий [SyncConflictResolver.decide] с признаком `deleted`,
+     * поэтому неотправленные локальные правки дают конфликт, а не молчаливую потерю.
+     *
+     * @return вычищено строк и заведено конфликтов; обе величины нулевые, если
+     *         выборка неполна ([presentIds] == null) или не пересекается с локальными привязками.
+     */
+    private suspend fun handleVanished(
+        presentIds: Set<String>?,
+        provider: CalendarProvider,
+    ): Pair<Int, Int> {
+        if (presentIds == null) return 0 to 0
+        val attached = eventRepository.getAttachedRecords(provider)
+        // Хотя бы одна привязка обязана найтись в выборке. Иначе это ответ не по этой
+        // коллекции (другой календарь, пустой REPORT), и удалять по нему весь набор нельзя.
+        if (attached.none { it.event.remoteId in presentIds }) return 0 to 0
+
+        var purged = 0
+        var conflicts = 0
+        for (record in attached) {
+            val remoteId = record.event.remoteId ?: continue
+            if (remoteId in presentIds) continue
+            // Облачной копии нет, поэтому её «последней версией» служит предок —
+            // последнее согласованное состояние. Пустой снимок сделал бы «создать
+            // заново» пустым событием (экран разбора показывает этот снимок).
+            val last = record.base ?: SyncSnapshot.of(record.event)
+            val gone = RemoteEvent(
+                remoteId = remoteId,
+                title = last.title,
+                description = last.description,
+                startTime = last.startTime,
+                endTime = last.endTime,
+                reminderMinutes = last.reminderMinutes,
+                repeatRule = last.repeatRule,
+                updatedAt = 0L,
+                deleted = true,
+            )
+            when (val decision = conflictResolver.decide(record, gone, provider)) {
+                PullDecision.Purge -> {
+                    eventRepository.purge(record.event.id)
+                    reminderScheduler.cancel(record.event)
+                    purged++
+                }
+
+                is PullDecision.Conflict -> {
+                    conflictRepository.save(decision.toConflict(provider, remoteId))
+                    conflicts++
+                }
+
+                // Для отсутствующего события других решений быть не может; трактовать
+                // их как вставку или слияние значило бы подменить удаление правкой.
+                else -> Unit
+            }
+        }
+        return purged to conflicts
     }
 
     private fun PullDecision.Conflict.toConflict(

@@ -1,6 +1,7 @@
 package com.example.mycalendar.data.repository
 
 import com.example.mycalendar.data.local.EventDao
+import com.example.mycalendar.data.local.EventEntity
 import com.example.mycalendar.data.local.toDomain
 import com.example.mycalendar.data.local.toEntity
 import com.example.mycalendar.domain.model.CalendarProvider
@@ -85,14 +86,10 @@ class EventRepositoryImpl @Inject constructor(
     ) = eventDao.attachToProvider(id, remoteId, provider.name.lowercase(), syncBase?.toJson())
 
     override suspend fun findSyncedRecord(provider: CalendarProvider, remoteId: String): SyncedRecord? =
-        eventDao.findByRemoteId(provider.name.lowercase(), remoteId)?.let {
-            SyncedRecord(
-                event = it.toDomain(),
-                isDeleted = it.isDeleted,
-                pendingSync = it.pendingSync,
-                base = SyncSnapshot.fromJson(it.syncBase),
-            )
-        }
+        eventDao.findByRemoteId(provider.name.lowercase(), remoteId)?.toSyncedRecord()
+
+    override suspend fun getAttachedRecords(provider: CalendarProvider): List<SyncedRecord> =
+        eventDao.getAttached(provider.name.lowercase()).map { it.toSyncedRecord() }
 
     override suspend fun saveResolved(event: Event, syncBase: SyncSnapshot) {
         // Выбранное пользователем состояние и есть новый предок: следующий pull
@@ -112,4 +109,11 @@ class EventRepositoryImpl @Inject constructor(
         eventDao.getEvent(id)?.voiceNotePath?.let { voiceNotes.deleteFile(it) }
         eventDao.hardDelete(id)
     }
+
+    private fun EventEntity.toSyncedRecord() = SyncedRecord(
+        event = toDomain(),
+        isDeleted = isDeleted,
+        pendingSync = pendingSync,
+        base = SyncSnapshot.fromJson(syncBase),
+    )
 }

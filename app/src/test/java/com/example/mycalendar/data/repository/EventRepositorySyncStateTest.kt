@@ -183,6 +183,8 @@ private class FakeEventDao : EventDao {
     }
     override suspend fun findByRemoteId(provider: String, remoteId: String): EventEntity? =
         rows.values.firstOrNull { it.calendarProvider == provider && it.remoteId == remoteId }
+    override suspend fun getAttached(provider: String): List<EventEntity> =
+        rows.values.filter { it.calendarProvider == provider && it.remoteId != null }
     override suspend fun getSyncState(id: String): EventSyncState? =
         rows[id]?.let { EventSyncState(it.syncBase, it.updatedAt) }
 }

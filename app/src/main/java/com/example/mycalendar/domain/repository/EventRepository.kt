@@ -80,6 +80,12 @@ interface EventRepository {
     suspend fun findSyncedRecord(provider: CalendarProvider, remoteId: String): SyncedRecord?
 
     /**
+     * Все строки, привязанные к календарю [provider] (remoteId не пуст).
+     * Нужны для детекта удалений по отсутствию события в полной облачной выборке.
+     */
+    suspend fun getAttachedRecords(provider: CalendarProvider): List<SyncedRecord>
+
+    /**
      * Разбор конфликта: [event] с выбранными значениями становится локальной записью,
      * а [syncBase] — новым предком. Разобранное состояние ещё не в облаке,
      * поэтому флаг неотправленного включается обязательно.

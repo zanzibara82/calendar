@@ -14,6 +14,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.example.mycalendar.data.remote.RemoteCalendarDataSource
 import com.example.mycalendar.data.remote.RemoteEvent
+import com.example.mycalendar.data.remote.RemoteFetch
 import com.example.mycalendar.di.IoDispatcher
 import com.example.mycalendar.domain.model.Event
 import com.example.mycalendar.domain.model.RepeatRule
@@ -46,10 +47,9 @@ data class SystemCalendar(
  *
  * ОСОБЕННОСТИ (важно для синхронизации):
  *  - у [CalendarContract.Events] НЕТ колонки «время изменения», поэтому
- *    [hasReliableUpdatedAt] = false и инкрементальный pull по updatedMin
- *    невозможен: каждая синхронизация читает все события выбранного календаря,
- *    а решение о слиянии сравнивает снимок-предок (`SyncConflictResolver.decide`),
- *    а не время изменения;
+ *    инкрементальный pull по updatedMin невозможен: каждая синхронизация читает
+ *    все события выбранного календаря, а решение о слиянии сравнивает
+ *    снимок-предок (`SyncConflictResolver.decide`), а не время изменения;
  *  - удалённые события приходят со флагом DELETED=1: строка вычищается локально
  *    только когда неотправленных правок на ней нет, иначе удаление становится
  *    конфликтом;
@@ -74,9 +74,6 @@ class SystemCalendarDataSource @Inject constructor(
         const val NO_PERMISSION = "Нет доступа к календарю телефона. " +
             "Разрешите чтение и запись календаря при подключении Google Календаря."
     }
-
-    /** Системный календарь не отдаёт время изменения события. */
-    override val hasReliableUpdatedAt: Boolean get() = false
 
     // ---------- Выбор календаря ----------
 
@@ -127,7 +124,11 @@ class SystemCalendarDataSource @Inject constructor(
 
     // ---------- RemoteCalendarDataSource ----------
 
-    override suspend fun fetchUpdatedSince(sinceMillis: Long): List<RemoteEvent> =
+    /**
+     * Удаления CalendarProvider отдаёт явными строками DELETED=1, поэтому состав
+     * коллекции не нужен: `presentRemoteIds = null` отключает детект по отсутствию.
+     */
+    override suspend fun fetchUpdatedSince(sinceMillis: Long): RemoteFetch =
         withContext(ioDispatcher) {
             ensurePermission()
             val calendar = currentCalendar()
@@ -135,11 +136,13 @@ class SystemCalendarDataSource @Inject constructor(
 
             val events = queryEvents(calendar.id, observedAt)
             val reminders = queryReminders(events.mapNotNull { it.remoteId.toLongOrNull() }.toSet())
-            events.map { event ->
-                val id = event.remoteId.toLongOrNull() ?: return@map event
-                val minutes = reminders[id] ?: return@map event
-                event.copy(reminderMinutes = minutes)
-            }
+            RemoteFetch(
+                events = events.map { event ->
+                    val id = event.remoteId.toLongOrNull() ?: return@map event
+                    val minutes = reminders[id] ?: return@map event
+                    event.copy(reminderMinutes = minutes)
+                },
+            )
         }
 
     override suspend fun insert(event: Event): String = withContext(ioDispatcher) {

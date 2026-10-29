@@ -9,6 +9,7 @@ import com.example.mycalendar.data.local.MyCalendarDatabase
 import com.example.mycalendar.data.remote.RemoteCalendarDataSource
 import com.example.mycalendar.data.remote.RemoteDataSourceProvider
 import com.example.mycalendar.data.remote.RemoteEvent
+import com.example.mycalendar.data.remote.RemoteFetch
 import com.example.mycalendar.data.repository.ConflictRepositoryImpl
 import com.example.mycalendar.data.repository.EventRepositoryImpl
 import com.example.mycalendar.data.repository.SyncConflictResolver
@@ -132,6 +133,25 @@ class SyncConflictEndToEndTest {
             syncBase = base,
         )
         events.saveFromUser(events.getEvent("e1")!!.copy(title = title))
+    }
+
+    /** Синхронизированное событие с предком и без локальных правок. */
+    private suspend fun seedSynced(id: String, remoteId: String) {
+        events.saveFromRemote(
+            Event(
+                id = id,
+                title = base.title,
+                description = base.description,
+                startTime = base.startTime,
+                endTime = base.endTime,
+                reminderMinutes = base.reminderMinutes,
+                repeatRule = base.repeatRule,
+                calendarProvider = CalendarProvider.GOOGLE,
+                remoteId = remoteId,
+                updatedAt = 10L,
+            ),
+            syncBase = base,
+        )
     }
 
     private fun remoteEvent(snapshot: SyncSnapshot) = RemoteEvent(
@@ -430,20 +450,100 @@ class SyncConflictEndToEndTest {
         assertTrue(db.eventDao().getEvent("e1")?.isDeleted == true)
         assertEquals(1, conflicts.observeOpenCount().first())
     }
+
+    /** CalDAV не присылает tombstone'ов: отсутствие id в полной выборке — это удаление. */
+    @Test
+    fun event_absent_from_full_report_is_purged() = runBlocking {
+        seedSynced("e1", "r1")
+        seedSynced("e2", "r2")
+        cloud.events += remoteEvent(base).copy(remoteId = "r2")
+        cloud.presentRemoteIds = setOf("r2")
+
+        val result = sync.syncProvider(CalendarProvider.GOOGLE)
+
+        assertEquals(1, result.pulled)
+        assertEquals(0, result.conflicts)
+        assertNull(events.getEvent("e1"))
+        assertNotNull(events.getEvent("e2"))
+    }
+
+    /** Исчезновение с локальными правками — не молчаливая потеря, а конфликт удаления. */
+    @Test
+    fun absent_event_with_local_edits_becomes_deletion_conflict() = runBlocking {
+        seedLocallyEdited("Моя правка")
+        seedSynced("e2", "r2")
+        cloud.events += remoteEvent(base).copy(remoteId = "r2")
+        cloud.presentRemoteIds = setOf("r2")
+
+        val result = sync.syncProvider(CalendarProvider.GOOGLE)
+
+        assertEquals(1, result.conflicts)
+        assertEquals("Моя правка", events.getEvent("e1")?.title)
+        assertEquals(ConflictKind.REMOTE_DELETED, conflicts.observeConflicts().first().single().kind)
+    }
+
+    /** «Создать заново» по исчезнувшему событию берёт последний согласованный снимок, не пустоту. */
+    @Test
+    fun restore_of_vanished_event_uses_last_known_snapshot() = runBlocking {
+        seedLocallyEdited("Моя правка")
+        seedSynced("e2", "r2")
+        cloud.events += remoteEvent(base).copy(remoteId = "r2")
+        cloud.presentRemoteIds = setOf("r2")
+        sync.syncProvider(CalendarProvider.GOOGLE)
+        val open = conflicts.observeConflicts().first().single()
+
+        resolve.resolveDeletion(open, DeletionChoice.RESTORE_FROM_CLOUD)
+
+        val restored = events.getEvent("e1")
+        assertNotNull(restored)
+        assertEquals("Общее название", restored!!.title)
+        assertEquals(base.description, restored.description)
+        assertEquals(base.startTime, restored.startTime)
+        // В облаке строки нет: push создаст её заново.
+        assertNull(restored.remoteId)
+        assertEquals(0, conflicts.observeOpenCount().first())
+    }
+
+    /** Выборка не пересекается с привязками — это чужая коллекция, а не удаление всего. */
+    @Test
+    fun disjoint_report_does_not_purge_anything() = runBlocking {
+        seedSynced("e1", "r1")
+        cloud.presentRemoteIds = setOf("r-other")
+
+        val result = sync.syncProvider(CalendarProvider.GOOGLE)
+
+        assertEquals(0, result.pulled)
+        assertEquals(0, result.conflicts)
+        assertNotNull(events.getEvent("e1"))
+    }
+
+    /** Провайдер не гарантирует полноту выборки — детект по отсутствию выключен. */
+    @Test
+    fun null_collection_composition_disables_absence_detection() = runBlocking {
+        seedSynced("e1", "r1")
+        cloud.presentRemoteIds = null
+
+        val result = sync.syncProvider(CalendarProvider.GOOGLE)
+
+        assertEquals(0, result.pulled)
+        assertNotNull(events.getEvent("e1"))
+    }
 }
 
 /** Облако-фикс: список событий и счётчики вызовов — без сети и без системного календаря. */
 private class FakeRemote : RemoteCalendarDataSource {
     val events = mutableListOf<RemoteEvent>()
+
+    /** Состав коллекции для детекта удалений по отсутствию; null — провайдер его не отдаёт. */
+    var presentRemoteIds: Set<String>? = null
     var updateCount = 0
     var insertCount = 0
     var deletedRemoteId: String? = null
     var lastUpdated: Event? = null
     var lastInserted: Event? = null
 
-    override val hasReliableUpdatedAt: Boolean get() = false
-
-    override suspend fun fetchUpdatedSince(sinceMillis: Long): List<RemoteEvent> = events.toList()
+    override suspend fun fetchUpdatedSince(sinceMillis: Long): RemoteFetch =
+        RemoteFetch(events.toList(), presentRemoteIds)
 
     override suspend fun insert(event: Event): String {
         insertCount++

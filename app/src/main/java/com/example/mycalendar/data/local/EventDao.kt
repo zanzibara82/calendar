@@ -86,6 +86,10 @@ interface EventDao {
 
     @Query("SELECT * FROM events WHERE calendarProvider = :provider AND remoteId = :remoteId LIMIT 1")
     suspend fun findByRemoteId(provider: String, remoteId: String): EventEntity?
+
+    /** Все привязанные к провайдеру строки: по ним сверяется полнота облачной выборки. */
+    @Query("SELECT * FROM events WHERE calendarProvider = :provider AND remoteId IS NOT NULL")
+    suspend fun getAttached(provider: String): List<EventEntity>
 }
 
 /** Две служебные колонки одной строки (запрос [EventDao.getSyncState]). */
