@@ -54,6 +54,33 @@ class CalDavClientIntegrationTest {
         }
     }
 
+    /**
+     * caldav.yandex.ru отдаёт href в multistatus как путь (`/calendars/...`), а не
+     * полный URL. Клиент обязан разрешить его от baseUrl, иначе OkHttp падает с
+     * "Expected URL scheme 'http' or 'https'" ещё до запроса.
+     */
+    @Test
+    fun `path-absolute hrefs from Yandex are resolved to absolute URLs`() {
+        val captured = mutableListOf<MiniCalDavServer.Request>()
+        yandexMockServer(captured, relativeHrefs = true).use { server ->
+            val base = server.baseUrl
+            val client = CalDavClient(OkHttpClient(), baseUrl = base)
+
+            val cal = client.discoverAndPickCalendar(USER, TOKEN)
+            assertEquals("$base/dav/calendars/primary/", cal.url)
+
+            val events = client.fetchEvents(cal.url, USER, TOKEN)
+            assertEquals(1, events.size)
+
+            val uid = "uid-relative"
+            val ics = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:$uid\r\nEND:VEVENT\r\nEND:VCALENDAR"
+            client.putEvent(cal.url, USER, TOKEN, uid, ics)
+            client.deleteEvent(cal.url, USER, TOKEN, uid)
+            assertTrue(captured.any { it.method == "PUT" && it.path == "/dav/calendars/primary/$uid.ics" })
+            assertTrue(captured.any { it.method == "DELETE" && it.path == "/dav/calendars/primary/$uid.ics" })
+        }
+    }
+
     @Test
     fun `REPORT with a failed propstat aborts instead of returning a partial list`() {
         yandexMockServer(mutableListOf(), report = { base -> failedEventsXml(base, "HTTP/1.1 404 Not Found") }).use { server ->

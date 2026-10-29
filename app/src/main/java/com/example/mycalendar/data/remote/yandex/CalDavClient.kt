@@ -71,7 +71,16 @@ class CalDavClient(
         val calendars = parseMultiStatus(
             propfind(resolve(home), user, token, depth = "1", body = calendarsBody)
         ).filter { it.isCalendar }
-            .map { Calendar(url = it.href ?: throw CalDavException("Календарь без URL"), displayName = it.displayName, ctag = it.ctag) }
+            // href в multistatus — путь (`/calendars/...`), а не URL: без resolve
+            // окно получило бы «Expected URL scheme» вместо запроса (проверено на
+            // настоящем caldav.yandex.ru).
+            .map {
+                Calendar(
+                    url = resolve(it.href ?: throw CalDavException("Календарь без URL")),
+                    displayName = it.displayName,
+                    ctag = it.ctag,
+                )
+            }
 
         if (calendars.isEmpty()) {
             throw CalDavException("У аккаунта Яндекса не найдено ни одного календаря")
