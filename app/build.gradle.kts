@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -6,6 +7,24 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+}
+
+// Ключ подписи и пароли живут только на машине сборки: файл и сам ключ в .gitignore.
+// Формат: storeFile, storePassword, keyAlias, keyPassword.
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) keystorePropertiesFile.inputStream().use { load(it) }
+}
+val releaseKeystore = if (keystorePropertiesFile.exists()) {
+    val required = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+    require(required.all { !keystoreProperties.getProperty(it).isNullOrBlank() }) {
+        "keystore.properties должен содержать: ${required.joinToString()}"
+    }
+    val file = rootProject.file(keystoreProperties.getProperty("storeFile"))
+    require(file.isFile) { "keystore.properties указывает на несуществующий файл: ${file.path}" }
+    file
+} else {
+    null
 }
 
 android {
@@ -25,10 +44,14 @@ android {
     }
 
     signingConfigs {
-        // ВРЕМЕННО: release подписан debug-ключом, чтобы сборку можно было
-        // установить на эмулятор и замерить холодный старт. Для публикации
-        // замените на реальный keystore (versionCode уже пора поднять выше 1).
-        getByName("debug")
+        if (releaseKeystore != null) {
+            create("release") {
+                storeFile = releaseKeystore
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
@@ -36,7 +59,9 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("debug")
+            // Без keystore.properties release собирается неподписанным: debug-ключ
+            // для публикации не годится, а подставлять его молча нельзя.
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 
