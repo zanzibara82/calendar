@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import retrofit2.HttpException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -109,10 +110,29 @@ class AuthRepositoryImpl @Inject constructor(
                         "в data/auth/OAuthConfig.kt (Callback URI: mycalendar://oauth)."
                 )
             }
-            yandexAuthDataSource.startAuth()
-            val token = yandexAuthDataSource.awaitAccessToken()
-                ?: error("Вход через Яндекс отменён или токен не получен")
-            val info = yandexLoginApi.getUserInfo(token = token)
+            // Сохранённый токен — след опоздавшего OAuth-редиректа: вход в браузере
+            // завершился после таймаута, токен лёг в хранилище, аккаунт не создан.
+            // Повторный вход не нужен — доигрываем подключение с этим токеном.
+            val info = yandexAuthDataSource.getAccessToken()?.let { saved ->
+                try {
+                    yandexLoginApi.getUserInfo(token = saved)
+                } catch (e: HttpException) {
+                    // Заново входим, только если Яндекс отверг сам токен: сетевая
+                    // ошибка не должна выбрасывать рабочий токен.
+                    if (e.code() != 401 && e.code() != 403) throw e
+                    yandexAuthDataSource.reset()
+                    null
+                }
+            } ?: run {
+                yandexAuthDataSource.startAuth()
+                val token = yandexAuthDataSource.awaitAccessToken()
+                    ?: error(
+                        "Вход через Яндекс не завершён. Если вы уже вошли в браузере, " +
+                            "нажмите «Подключить» ещё раз — сохранённый токен подхватится " +
+                            "без повторного входа."
+                    )
+                yandexLoginApi.getUserInfo(token = token)
+            }
             val account = UserAccount(
                 provider = CalendarProvider.YANDEX,
                 email = info.defaultEmail ?: info.login ?: "yandex-user",
