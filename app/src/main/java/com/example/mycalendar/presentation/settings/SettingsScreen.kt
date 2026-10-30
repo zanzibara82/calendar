@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -56,6 +58,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.example.mycalendar.R
@@ -277,6 +280,11 @@ private fun CalendarCard(
     onDisconnect: () -> Unit,
     onSync: () -> Unit,
 ) {
+    // Длинное «Синхронизировать» в половине карточки рвётся посреди слова,
+    // поэтому подпись держим в одну строку и ужимаем шрифт. Нижняя граница 7sp
+    // при системном масштабе 2× даёт те же 14sp — текст остаётся читаемым,
+    // а не обрезается.
+    val buttonLabelAutoSize = TextAutoSize.StepBased(minFontSize = 7.sp, maxFontSize = 14.sp)
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -336,10 +344,13 @@ private fun CalendarCard(
             Spacer(modifier = Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (state.isConnected) {
+                    // «Синхронизировать» — главное действие карточки, поэтому кнопка
+                    // шире «Отключить»: при равных долях подпись не влезает в строку.
                     OutlinedButton(
                         onClick = onSync,
                         enabled = !state.isBusy && state.syncAvailable,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1.5f),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     ) {
                         if (state.isSyncing) {
                             CircularProgressIndicator(
@@ -347,16 +358,31 @@ private fun CalendarCard(
                                 strokeWidth = 2.dp,
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(R.string.sync_in_progress))
+                            Text(
+                                text = stringResource(R.string.sync_in_progress),
+                                maxLines = 1,
+                                autoSize = buttonLabelAutoSize,
+                            )
                         } else {
-                            Text(stringResource(R.string.sync_now))
+                            Text(
+                                text = stringResource(R.string.sync_now),
+                                maxLines = 1,
+                                autoSize = buttonLabelAutoSize,
+                            )
                         }
                     }
                     OutlinedButton(
                         onClick = onDisconnect,
                         enabled = !state.isBusy,
                         modifier = Modifier.weight(1f),
-                    ) { Text(stringResource(R.string.disconnect)) }
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.disconnect),
+                            maxLines = 1,
+                            autoSize = buttonLabelAutoSize,
+                        )
+                    }
                 } else {
                     Button(
                         onClick = onConnect,
