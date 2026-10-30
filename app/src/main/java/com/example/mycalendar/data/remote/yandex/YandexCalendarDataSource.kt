@@ -74,6 +74,7 @@ class YandexCalendarDataSource @Inject constructor(
                 } else {
                     null
                 },
+                collectionUrl = url,
             )
         }
 

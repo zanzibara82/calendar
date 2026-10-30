@@ -63,6 +63,11 @@ class SyncConflictEndToEndTest {
     private lateinit var voiceNotes: VoiceNoteStorage
     private lateinit var scheduler: ReminderScheduler
     private val cloud = FakeRemote()
+    private val settings = FakeSettings()
+
+    private companion object {
+        const val COLLECTION = "https://caldav.example/events-1/"
+    }
 
     private val base = SyncSnapshot(
         title = "Общее название",
@@ -86,7 +91,7 @@ class SyncConflictEndToEndTest {
         sync = SyncRepositoryImpl(
             eventRepository = events,
             authRepository = FakeAuth(),
-            settingsRepository = FakeSettings(),
+            settingsRepository = settings,
             conflictResolver = SyncConflictResolver(),
             conflictRepository = conflicts,
             dataSourceProvider = RemoteDataSourceProvider { provider ->
@@ -504,6 +509,58 @@ class SyncConflictEndToEndTest {
         assertEquals(0, conflicts.observeOpenCount().first())
     }
 
+    /** Удаление последнего события: пустая выборка той же коллекции — это «удалено всё». */
+    @Test
+    fun empty_report_of_same_collection_purges_last_event() = runBlocking {
+        seedSynced("e1", "r1")
+        cloud.collectionUrl = COLLECTION
+        settings.storedCollectionUrl = COLLECTION
+        cloud.presentRemoteIds = emptySet()
+
+        val result = sync.syncProvider(CalendarProvider.GOOGLE)
+
+        assertEquals(1, result.pulled)
+        assertNull(events.getEvent("e1"))
+    }
+
+    /**
+     * Сценарий живого прогона: первый проход после подключения лишь запоминает коллекцию
+     * и пустому ответу не верит, второй — вычищает событие, удалённое на сервере.
+     */
+    @Test
+    fun first_sync_after_connect_pins_collection_and_second_purges_absent_event() = runBlocking {
+        seedSynced("e1", "r1")
+        cloud.collectionUrl = COLLECTION
+        settings.storedCollectionUrl = null
+        cloud.presentRemoteIds = emptySet()
+
+        val first = sync.syncProvider(CalendarProvider.GOOGLE)
+
+        assertEquals(0, first.pulled)
+        assertNotNull(events.getEvent("e1"))
+        assertEquals(COLLECTION, settings.storedCollectionUrl)
+
+        val second = sync.syncProvider(CalendarProvider.GOOGLE)
+
+        assertEquals(1, second.pulled)
+        assertNull(events.getEvent("e1"))
+    }
+
+    /** Пустой ответ ДРУГОЙ коллекции (сменился аккаунт) не трогает привязки и не переписывает URL. */
+    @Test
+    fun empty_report_of_other_collection_keeps_rows() = runBlocking {
+        seedSynced("e1", "r1")
+        cloud.collectionUrl = "https://caldav.example/other/"
+        settings.storedCollectionUrl = COLLECTION
+        cloud.presentRemoteIds = emptySet()
+
+        val result = sync.syncProvider(CalendarProvider.GOOGLE)
+
+        assertEquals(0, result.pulled)
+        assertNotNull(events.getEvent("e1"))
+        assertEquals(COLLECTION, settings.storedCollectionUrl)
+    }
+
     /** Выборка не пересекается с привязками — это чужая коллекция, а не удаление всего. */
     @Test
     fun disjoint_report_does_not_purge_anything() = runBlocking {
@@ -536,6 +593,9 @@ private class FakeRemote : RemoteCalendarDataSource {
 
     /** Состав коллекции для детекта удалений по отсутствию; null — провайдер его не отдаёт. */
     var presentRemoteIds: Set<String>? = null
+
+    /** Коллекция, из которой пришла выборка; null — провайдер URL не сообщает. */
+    var collectionUrl: String? = null
     var updateCount = 0
     var insertCount = 0
     var deletedRemoteId: String? = null
@@ -543,7 +603,7 @@ private class FakeRemote : RemoteCalendarDataSource {
     var lastInserted: Event? = null
 
     override suspend fun fetchUpdatedSince(sinceMillis: Long): RemoteFetch =
-        RemoteFetch(events.toList(), presentRemoteIds)
+        RemoteFetch(events.toList(), presentRemoteIds, collectionUrl)
 
     override suspend fun insert(event: Event): String {
         insertCount++
@@ -602,4 +662,16 @@ private class FakeSettings : SettingsRepository {
 
     override fun lastSyncTime(provider: CalendarProvider): Flow<Long> = flowOf(0L)
     override suspend fun setLastSyncTime(provider: CalendarProvider, timeMillis: Long) {}
+
+    /** Что помнит приложение о коллекции провайдера между проходами. */
+    var storedCollectionUrl: String? = null
+
+    override fun collectionUrl(provider: CalendarProvider): Flow<String?> = flowOf(storedCollectionUrl)
+    override suspend fun setCollectionUrl(provider: CalendarProvider, url: String) {
+        storedCollectionUrl = url
+    }
+
+    override suspend fun clearCollectionUrl(provider: CalendarProvider) {
+        storedCollectionUrl = null
+    }
 }

@@ -33,6 +33,10 @@ class SettingsRepositoryImpl @Inject constructor(
         /** Время последней синхронизации провайдера: last_sync_time_google / _yandex. */
         fun lastSync(provider: CalendarProvider) =
             longPreferencesKey("last_sync_time_${provider.name.lowercase()}")
+
+        /** Коллекция, с которой сверяемся: collection_url_google / _yandex. */
+        fun collection(provider: CalendarProvider) =
+            stringPreferencesKey("collection_url_${provider.name.lowercase()}")
     }
 
     override val themeMode: Flow<ThemeMode> = dataStore.data.map { prefs ->
@@ -88,5 +92,17 @@ class SettingsRepositoryImpl @Inject constructor(
             // Агрегат обновляем тоже — по нему SyncWorker и общий статус
             prefs[Keys.LAST_SYNC] = timeMillis
         }
+    }
+
+    override fun collectionUrl(provider: CalendarProvider): Flow<String?> = dataStore.data.map { prefs ->
+        prefs[Keys.collection(provider)]
+    }
+
+    override suspend fun setCollectionUrl(provider: CalendarProvider, url: String) {
+        dataStore.edit { it[Keys.collection(provider)] = url }
+    }
+
+    override suspend fun clearCollectionUrl(provider: CalendarProvider) {
+        dataStore.edit { it.remove(Keys.collection(provider)) }
     }
 }

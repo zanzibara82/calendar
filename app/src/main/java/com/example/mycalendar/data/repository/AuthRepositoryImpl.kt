@@ -13,6 +13,7 @@ import com.example.mycalendar.domain.model.CalendarProvider
 import com.example.mycalendar.domain.model.UserAccount
 import com.example.mycalendar.domain.repository.AuthRepository
 import com.example.mycalendar.domain.repository.CalendarConnection
+import com.example.mycalendar.domain.repository.SettingsRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -38,6 +39,7 @@ import javax.inject.Singleton
 @Singleton
 class AuthRepositoryImpl @Inject constructor(
     private val dataStore: DataStore<Preferences>,
+    private val settingsRepository: SettingsRepository,
     private val yandexAuthDataSource: YandexAuthDataSource,
     private val yandexLoginApi: YandexLoginApi,
     private val systemCalendarDataSource: SystemCalendarDataSource,
@@ -177,5 +179,8 @@ class AuthRepositoryImpl @Inject constructor(
             account.displayName?.let { prefs[Keys.displayName(account.provider)] = it }
             // legacy-ключи больше не пишем: они только читаются для совместимости
         }
+        // Новое подключение открывает новую эпоху доверия: привязка к коллекции прежней
+        // учётной записи не должна решать, что считать удалённым на сервере.
+        settingsRepository.clearCollectionUrl(account.provider)
     }
 }

@@ -97,6 +97,8 @@ class YandexCalendarDataSourceTest {
             assertEquals("Тестовое событие", fetch.events[0].title)
             // Полная выборка обязана назвать состав коллекции: по нему вычисляются удаления.
             assertEquals(setOf("event1"), fetch.presentRemoteIds)
+            // И назвать саму коллекцию: движок верит пустому ответу только «своему» URL.
+            assertEquals("${server.baseUrl}/dav/calendars/primary/", fetch.collectionUrl)
             assertTrue("должен быть отправлен REPORT calendar-query", captured.any { it.method == "REPORT" })
         }
     }

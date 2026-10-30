@@ -34,6 +34,12 @@ data class RemoteEvent(
 data class RemoteFetch(
     val events: List<RemoteEvent>,
     val presentRemoteIds: Set<String>? = null,
+    /**
+     * URL коллекции, из которой получена выборка (CalDAV). По нему движок отличает ту же
+     * коллекцию от «чужой»: пустая выборка из первого же запроса после смены аккаунта
+     * не должна вычищать все локальные привязки.
+     */
+    val collectionUrl: String? = null,
 )
 
 /**

@@ -195,11 +195,21 @@ class SyncRepositoryImpl @Inject constructor(
             }
         }
 
-        val (purgedVanished, vanishedConflicts) = handleVanished(fetch.presentRemoteIds, provider)
+        // Пустой выборке верим только как продолжению той же коллекции: первый ответ после
+        // смены аккаунта не должен вычищать привязки старого календаря.
+        val pinnedUrl = settingsRepository.collectionUrl(provider).first()
+        val sameCollection = fetch.collectionUrl != null && fetch.collectionUrl == pinnedUrl
+        val (purgedVanished, vanishedConflicts) =
+            handleVanished(fetch.presentRemoteIds, provider, sameCollection)
         pulled += purgedVanished
         conflicts += vanishedConflicts
 
         val pushed = push(remote, provider)
+
+        // Сменившийся URL не подменяем: иначе защита от чужой коллекции отключилась бы сама.
+        if (sameCollection || pinnedUrl == null) {
+            fetch.collectionUrl?.let { settingsRepository.setCollectionUrl(provider, it) }
+        }
 
         // Перепланирование напоминаний для событий, которым pull двигал содержимое
         rescheduleIds.distinct().forEach { id ->
@@ -217,18 +227,23 @@ class SyncRepositoryImpl @Inject constructor(
      * Запись проходит через общий [SyncConflictResolver.decide] с признаком `deleted`,
      * поэтому неотправленные локальные правки дают конфликт, а не молчаливую потерю.
      *
+     * @param sameCollection выборка пришла из той же коллекции, что и прошлая успешная
+     *        синхронизация: только тогда пустой ответ — доказательство удаления.
      * @return вычищено строк и заведено конфликтов; обе величины нулевые, если
      *         выборка неполна ([presentIds] == null) или не пересекается с локальными привязками.
      */
     private suspend fun handleVanished(
         presentIds: Set<String>?,
         provider: CalendarProvider,
+        sameCollection: Boolean,
     ): Pair<Int, Int> {
         if (presentIds == null) return 0 to 0
         val attached = eventRepository.getAttachedRecords(provider)
         // Хотя бы одна привязка обязана найтись в выборке. Иначе это ответ не по этой
         // коллекции (другой календарь, пустой REPORT), и удалять по нему весь набор нельзя.
-        if (attached.none { it.event.remoteId in presentIds }) return 0 to 0
+        // Для той же коллекции проверка снята: там пустая выборка — законное «удалено всё»,
+        // иначе последнее событие не вычистилось бы никогда.
+        if (!sameCollection && attached.none { it.event.remoteId in presentIds }) return 0 to 0
 
         var purged = 0
         var conflicts = 0
