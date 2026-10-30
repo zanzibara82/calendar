@@ -204,8 +204,14 @@ class YandexAuthDataSource @Inject constructor(
         }.toMap()
     }
 
-    /** Ожидание токена после запуска браузера (с таймаутом). */
-    suspend fun awaitAccessToken(timeoutMillis: Long = 180_000): String? =
+    /**
+     * Ожидание токена после запуска браузера (с таймаутом).
+     *
+     * Десять минут, а не три: живой вход в Яндекс (пароль + подтверждение по SMS)
+     * занял 8,5 минуты, и redirect с токеном приходил уже после таймаута — оставалась
+     * ошибка «Вход отменён», хотя токен получен.
+     */
+    suspend fun awaitAccessToken(timeoutMillis: Long = 600_000): String? =
         withTimeoutOrNull(timeoutMillis) {
             tokenFlow.filterNotNull().first()
         }
