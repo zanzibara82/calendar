@@ -9,6 +9,7 @@ import com.example.mycalendar.domain.model.CalendarProvider
 import com.example.mycalendar.domain.model.Event
 import com.example.mycalendar.domain.repository.EventRepository
 import com.example.mycalendar.notifications.NotificationHelper
+import com.example.mycalendar.work.ReminderScheduler
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import kotlinx.coroutines.runBlocking
@@ -40,6 +41,7 @@ class NotificationActionsTest {
 
     @Inject lateinit var notificationHelper: NotificationHelper
     @Inject lateinit var eventRepository: EventRepository
+    @Inject lateinit var reminderScheduler: ReminderScheduler
 
     private lateinit var context: Context
     private lateinit var manager: NotificationManager
@@ -72,6 +74,10 @@ class NotificationActionsTest {
 
     @After
     fun tearDown() {
+        // «Отложить» ставит настоящий будильник на десять минут вперёд. Без отмены
+        // он переживает тест и срабатывает во время чужого: ReminderActivity
+        // поднимается, когда Hilt-компонент уже закрыт, и процесс падает.
+        runCatching { reminderScheduler.cancel(event) }
         runCatching { manager.cancel(event.id.hashCode()) }
         runCatching { runBlocking { eventRepository.hardDelete(event.id) } }
     }
