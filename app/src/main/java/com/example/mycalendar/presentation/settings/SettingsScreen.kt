@@ -27,6 +27,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -46,6 +47,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -86,6 +88,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val updateState by viewModel.updateState.collectAsState()
 
     val context = LocalContext.current
 
@@ -245,6 +248,17 @@ fun SettingsScreen(
 
             HorizontalDivider()
 
+            // ---------- Обновления ----------
+            SectionHeader(stringResource(R.string.updates_section))
+            UpdateCard(
+                state = updateState,
+                onCheck = viewModel::checkForUpdates,
+                onInstall = viewModel::downloadAndInstall,
+                onOpenInstallSettings = viewModel::openInstallPermissionSettings,
+            )
+
+            HorizontalDivider()
+
             // ---------- Разрешения ----------
             Card(modifier = Modifier.fillMaxWidth()) {
                 TextButton(onClick = onOpenPermissions, modifier = Modifier.padding(4.dp)) {
@@ -263,9 +277,127 @@ fun SettingsScreen(
         }
     }
 
+    // Системный интент (установщик или экран разрешения) запускает экран:
+    // у ViewModel нет доступа к Activity.
+    val pendingIntent by viewModel.pendingIntent.collectAsState()
+    LaunchedEffect(pendingIntent) {
+        val intent = pendingIntent ?: return@LaunchedEffect
+        try {
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            viewModel.onPendingIntentFailed(e.message)
+        } finally {
+            viewModel.consumePendingIntent()
+        }
+    }
+
     val showHelp by viewModel.showHelp.collectAsState()
     if (showHelp) {
         OAuthSetupDialog(onDismiss = { viewModel.dismissSetupHelp() })
+    }
+}
+
+/**
+ * Карточка «Обновления»: текущая версия, проверка GitHub Releases и установка.
+ *
+ * Проверка идёт разово по кнопке — фонового автообновления нет: приложение
+ * не должно само ходить в сеть без действия пользователя.
+ */
+@Composable
+private fun UpdateCard(
+    state: UpdateUiState,
+    onCheck: () -> Unit,
+    onInstall: () -> Unit,
+    onOpenInstallSettings: () -> Unit,
+) {
+    val busy = state.status == UpdateUiState.UpdateStatus.CHECKING ||
+        state.status == UpdateUiState.UpdateStatus.DOWNLOADING
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.SystemUpdate, contentDescription = null)
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.app_name),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = stringResource(
+                            R.string.update_current_version,
+                            state.currentVersion,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (busy) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                }
+            }
+
+            val statusText = when (state.status) {
+                UpdateUiState.UpdateStatus.IDLE,
+                UpdateUiState.UpdateStatus.CHECKING -> null
+
+                UpdateUiState.UpdateStatus.UP_TO_DATE ->
+                    stringResource(R.string.update_up_to_date)
+
+                UpdateUiState.UpdateStatus.AVAILABLE ->
+                    state.info?.let { stringResource(R.string.update_available, it.versionName) }
+
+                UpdateUiState.UpdateStatus.DOWNLOADING ->
+                    stringResource(R.string.update_downloading)
+
+                UpdateUiState.UpdateStatus.NO_RELEASES ->
+                    stringResource(R.string.update_no_releases)
+
+                UpdateUiState.UpdateStatus.NEEDS_PERMISSION ->
+                    stringResource(R.string.update_install_permission)
+
+                UpdateUiState.UpdateStatus.BAD_SIGNATURE ->
+                    stringResource(R.string.update_signature_mismatch)
+
+                UpdateUiState.UpdateStatus.FAILED ->
+                    stringResource(R.string.update_check_failed, state.message.orEmpty())
+            }
+            val isError = state.status == UpdateUiState.UpdateStatus.FAILED ||
+                state.status == UpdateUiState.UpdateStatus.BAD_SIGNATURE
+            statusText?.let { text ->
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isError) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            when (state.status) {
+                UpdateUiState.UpdateStatus.AVAILABLE,
+                UpdateUiState.UpdateStatus.DOWNLOADING -> Button(
+                    onClick = onInstall,
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(stringResource(R.string.update_download_install)) }
+
+                UpdateUiState.UpdateStatus.NEEDS_PERMISSION -> Button(
+                    onClick = onOpenInstallSettings,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(stringResource(R.string.update_allow_install)) }
+
+                else -> OutlinedButton(
+                    onClick = onCheck,
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(stringResource(R.string.update_check)) }
+            }
+        }
     }
 }
 

@@ -1,11 +1,18 @@
 package com.example.mycalendar.presentation.settings
 
+import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.mycalendar.data.auth.OAuthConfig
 import com.example.mycalendar.data.remote.yandex.YandexCalendarDataSource
+import com.example.mycalendar.data.update.ApkInstaller
+import com.example.mycalendar.data.update.ApkSignatureMismatchException
+import com.example.mycalendar.data.update.AppVersion
+import com.example.mycalendar.data.update.GitHubReleasesDataSource
 import com.example.mycalendar.domain.model.CalendarProvider
 import com.example.mycalendar.domain.model.ThemeMode
+import com.example.mycalendar.domain.model.UpdateCheck
+import com.example.mycalendar.domain.model.UpdateInfo
 import com.example.mycalendar.domain.repository.AuthRepository
 import com.example.mycalendar.domain.repository.CalendarConnection
 import com.example.mycalendar.domain.repository.ConflictRepository
@@ -13,6 +20,7 @@ import com.example.mycalendar.domain.repository.SettingsRepository
 import com.example.mycalendar.domain.repository.SyncResult
 import com.example.mycalendar.domain.usecase.SyncEventsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -68,6 +76,30 @@ data class SettingsUiState(
     val conflictCount: Int = 0,
 )
 
+/** Состояние карточки «Обновления». */
+data class UpdateUiState(
+    val currentVersion: String = "",
+    val status: UpdateStatus = UpdateStatus.IDLE,
+    /** Найденный релиз: присутствует при AVAILABLE и DOWNLOADING. */
+    val info: UpdateInfo? = null,
+    /** Текст сетевой ошибки — только для FAILED. */
+    val message: String? = null,
+) {
+    enum class UpdateStatus {
+        IDLE,
+        CHECKING,
+        UP_TO_DATE,
+        AVAILABLE,
+        DOWNLOADING,
+        NO_RELEASES,
+        /** Система не разрешает установку из этого источника. */
+        NEEDS_PERMISSION,
+        /** Подпись скачанного APK не совпадает с установленным приложением. */
+        BAD_SIGNATURE,
+        FAILED,
+    }
+}
+
 /**
  * ViewModel настроек: тема + подключение календарей Google/Яндекс.
  *
@@ -85,6 +117,9 @@ class SettingsViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val syncEvents: SyncEventsUseCase,
     private val conflictRepository: ConflictRepository,
+    private val appVersion: AppVersion,
+    private val releases: GitHubReleasesDataSource,
+    private val apkInstaller: ApkInstaller,
 ) : ViewModel() {
 
     /**
@@ -262,6 +297,92 @@ class SettingsViewModel @Inject constructor(
         val providers = uiState.value.calendars.filter { it.isConnected }.map { it.provider }
         if (providers.isEmpty()) return
         providers.forEach { sync(it) }
+    }
+
+    // ---------- Обновления ----------
+
+    private val _update = MutableStateFlow(UpdateUiState(currentVersion = appVersion.versionName))
+    val updateState: StateFlow<UpdateUiState> = _update.asStateFlow()
+
+    /**
+     * Интент, который должен запустить экран: системный установщик или настройки
+     * разрешения. ViewModel не может стартовать активити сам и не знает Activity.
+     */
+    private val _pendingIntent = MutableStateFlow<Intent?>(null)
+    val pendingIntent: StateFlow<Intent?> = _pendingIntent.asStateFlow()
+
+    fun consumePendingIntent() {
+        _pendingIntent.value = null
+    }
+
+    /** Проверка последнего релиза на GitHub. */
+    fun checkForUpdates() {
+        val status = _update.value.status
+        if (status == UpdateUiState.UpdateStatus.CHECKING ||
+            status == UpdateUiState.UpdateStatus.DOWNLOADING
+        ) {
+            return
+        }
+        _update.update { it.copy(status = UpdateUiState.UpdateStatus.CHECKING, message = null) }
+        viewModelScope.launch {
+            val check = releases.checkLatest(appVersion.versionName)
+            _update.update {
+                it.copy(
+                    status = when (check) {
+                        is UpdateCheck.UpToDate -> UpdateUiState.UpdateStatus.UP_TO_DATE
+                        is UpdateCheck.Available -> UpdateUiState.UpdateStatus.AVAILABLE
+                        is UpdateCheck.NoReleases -> UpdateUiState.UpdateStatus.NO_RELEASES
+                        is UpdateCheck.Failed -> UpdateUiState.UpdateStatus.FAILED
+                    },
+                    info = (check as? UpdateCheck.Available)?.info,
+                    message = (check as? UpdateCheck.Failed)?.message,
+                )
+            }
+        }
+    }
+
+    /** Скачать APK последнего релиза и открыть системный установщик. */
+    fun downloadAndInstall() {
+        val info = _update.value.info ?: return
+        if (_update.value.status == UpdateUiState.UpdateStatus.DOWNLOADING) return
+        if (!apkInstaller.canInstallPackages()) {
+            _update.update { it.copy(status = UpdateUiState.UpdateStatus.NEEDS_PERMISSION) }
+            return
+        }
+        _update.update { it.copy(status = UpdateUiState.UpdateStatus.DOWNLOADING, message = null) }
+        viewModelScope.launch {
+            try {
+                val apk = apkInstaller.download(info)
+                _pendingIntent.value = apkInstaller.installIntent(apk)
+                _update.update { it.copy(status = UpdateUiState.UpdateStatus.AVAILABLE) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: ApkSignatureMismatchException) {
+                _update.update {
+                    it.copy(status = UpdateUiState.UpdateStatus.BAD_SIGNATURE, message = null)
+                }
+            } catch (e: Exception) {
+                _update.update {
+                    it.copy(status = UpdateUiState.UpdateStatus.FAILED, message = e.message)
+                }
+            }
+        }
+    }
+
+    /** Открыть системный экран «Установка неизвестных приложений». */
+    fun openInstallPermissionSettings() {
+        _pendingIntent.value = apkInstaller.installSettingsIntent()
+        // Пользователь вернётся уже с выданным разрешением, поэтому карточка снова
+        // предлагает установку; если разрешение так и не дали, повторный клик вернёт
+        // NEEDS_PERMISSION.
+        if (_update.value.info != null) {
+            _update.update { it.copy(status = UpdateUiState.UpdateStatus.AVAILABLE) }
+        }
+    }
+
+    /** Экран не смог запустить системный интент — показываем причину в карточке. */
+    fun onPendingIntentFailed(message: String?) {
+        _update.update { it.copy(status = UpdateUiState.UpdateStatus.FAILED, message = message) }
     }
 
     // ---------- Вспомогательное ----------

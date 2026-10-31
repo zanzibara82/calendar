@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Путь для FileProvider: только каталог скачанных обновлений в кэше. -->
+<paths>
+    <cache-path name="updates" path="updates/" />
+</paths>

@@ -348,6 +348,10 @@ class AppUiTest {
             nodeWithText(res.getString(R.string.provider_yandex)).assertExists()
         }
         nodesWithText(res.getString(R.string.connect)).assertCountEquals(expectedCards)
+
+        // Карточка обновлений: раздел, версия установленного APK и кнопка проверки.
+        nodeWithText(res.getString(R.string.updates_section)).assertExists()
+        nodeWithText(res.getString(R.string.update_check)).assertExists()
     }
 
     /**

@@ -120,6 +120,20 @@
         к календарю. Созданные в приложении события попадают в этот календарь и уходят
         в Google сами.</string>
 
+    <!-- Обновления через GitHub Releases -->
+    <string name="updates_section">Обновления</string>
+    <string name="update_current_version">Версия %1$s</string>
+    <string name="update_check">Проверить обновления</string>
+    <string name="update_up_to_date">Установлена последняя версия</string>
+    <string name="update_available">Доступна версия %1$s</string>
+    <string name="update_downloading">Загрузка обновления…</string>
+    <string name="update_download_install">Скачать и установить</string>
+    <string name="update_no_releases">Опубликованных релизов пока нет</string>
+    <string name="update_check_failed">Не удалось проверить обновления: %1$s</string>
+    <string name="update_install_permission">Разрешите установку приложений из этого источника</string>
+    <string name="update_allow_install">Открыть разрешение</string>
+    <string name="update_signature_mismatch">Подпись загруженного APK не совпадает с установленным приложением — установка отменена</string>
+
     <!-- Настройка OAuth: точные значения для этого проекта -->
     <string name="oauth_setup_title">Настройка входа</string>
     <string name="oauth_setup_google">Google — БЕЗ OAuth:\n1) Аккаунт Google уже добавлен на телефон (Настройки → Аккаунты)\n2) В его настройках включите синхронизацию «Календарь»\n3) В настройках приложения нажмите «Подключить» и разрешите доступ к календарю\n\nНи client_id, ни SHA-1, ни регистрация в Google Cloud Console не требуются.</string>
