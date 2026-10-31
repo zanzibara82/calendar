@@ -20,6 +20,27 @@ captures/
 .navigation/
 .playground/
 
+### Сборка .NET / WinUI (windows/) ###
+[Bb]in/
+[Oo]bj/
+.vs/
+TestResults/
+artifacts/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.appx
+*.appxbundle
+*.msix
+*.msixbundle
+*.msixupload
+*.nupkg
+AppPackages/
+BundleArtifacts/
+Package.StoreAssociation.xml
+_pkginfo.txt
+
 ### Локальная конфигурация окружения ###
 local.properties
 signing_report.json
