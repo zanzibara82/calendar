@@ -2,8 +2,8 @@ package com.example.mycalendar.data.update
 
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
+import android.content.pm.Signature
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -78,39 +78,62 @@ class ApkInstaller @Inject constructor(
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
     }
 
-    private fun verifySignature(apk: File) {
-        val manager = context.packageManager
-        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            PackageManager.GET_SIGNING_CERTIFICATES
-        } else {
-            @Suppress("DEPRECATION")
-            PackageManager.GET_SIGNATURES
-        }
-        val downloaded = manager.getPackageArchiveInfo(apk.absolutePath, flags)
-            ?: throw ApkSignatureMismatchException()
-        val installed = manager.getPackageInfo(context.packageName, flags)
-        if (certificates(downloaded) != certificates(installed)) {
-            throw ApkSignatureMismatchException()
-        }
+    /**
+     * Сверяет подпись файла с установленным приложением.
+     *
+     * @throws ApkSignatureMismatchException если наборы сертификатов различаются.
+     */
+    internal fun verifySignature(apk: File) {
+        val archive = archiveCertificates(apk)
+        val installed = installedCertificates()
+        if (archive.isEmpty() || archive != installed) throw ApkSignatureMismatchException()
     }
 
-    private fun certificates(info: PackageInfo): Set<String> =
+    /**
+     * Сертификаты из APK-архива.
+     *
+     * На Android 9 (API 28) `getPackageArchiveInfo` с `GET_SIGNING_CERTIFICATES`
+     * возвращает `signingInfo = null` (issuetracker.google.com/159537841), поэтому
+     * для архива нужен откат на устаревший `GET_SIGNATURES`. Без отката проверка
+     * сравнивала пустой набор с подписью установленного приложения и отвергала
+     * любой корректно подписанный APK.
+     */
+    private fun archiveCertificates(apk: File): Set<String> {
+        val manager = context.packageManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            info.signingInfo?.apkContentsSigners
-                ?.map { sha256(it.toByteArray()) }
-                ?.toSet()
-                .orEmpty()
-        } else {
-            @Suppress("DEPRECATION")
-            info.signatures
-                ?.map { sha256(it.toByteArray()) }
-                ?.toSet()
-                .orEmpty()
+            val signingInfo = manager.getPackageArchiveInfo(
+                apk.absolutePath,
+                PackageManager.GET_SIGNING_CERTIFICATES,
+            )?.signingInfo
+            signingInfo?.apkContentsSigners?.let { return it.map(::hash).toSet() }
         }
+        @Suppress("DEPRECATION")
+        val legacy = manager.getPackageArchiveInfo(apk.absolutePath, PackageManager.GET_SIGNATURES)
+            ?: return emptySet()
+        @Suppress("DEPRECATION")
+        return legacy.signatures?.map(::hash)?.toSet().orEmpty()
+    }
 
-    private fun sha256(bytes: ByteArray): String =
+    private fun installedCertificates(): Set<String> {
+        val manager = context.packageManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val signingInfo = manager.getPackageInfo(
+                context.packageName,
+                PackageManager.GET_SIGNING_CERTIFICATES,
+            ).signingInfo
+            val signers = signingInfo?.apkContentsSigners
+                ?: signingInfo?.signingCertificateHistory
+            signers?.let { return it.map(::hash).toSet() }
+        }
+        @Suppress("DEPRECATION")
+        val legacy = manager.getPackageInfo(context.packageName, PackageManager.GET_SIGNATURES)
+        @Suppress("DEPRECATION")
+        return legacy.signatures?.map(::hash)?.toSet().orEmpty()
+    }
+
+    private fun hash(signature: Signature): String =
         MessageDigest.getInstance("SHA-256")
-            .digest(bytes)
+            .digest(signature.toByteArray())
             .joinToString("") { "%02x".format(it.toInt() and 0xFF) }
 
     private companion object {
