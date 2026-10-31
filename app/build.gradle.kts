@@ -36,8 +36,8 @@ android {
         applicationId = "com.example.mycalendar"
         minSdk = 26          // по требованиям ТЗ
         targetSdk = 37
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 3
+        versionName = "1.1.1"
 
         testInstrumentationRunner = "com.example.mycalendar.HiltTestRunner"
         vectorDrawables { useSupportLibrary = true }
