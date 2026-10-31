@@ -1,5 +1,7 @@
 package com.example.mycalendar.presentation.navigation
 
+import java.time.LocalDate
+
 /**
  * Маршруты приложения (Navigation Compose).
  */
@@ -11,10 +13,20 @@ sealed class Screen(val route: String) {
     data object Settings : Screen("settings")
     data object Permissions : Screen("permissions")
 
-    /** Создание/редактирование события. eventId = null — создание нового. */
-    data object CreateEditEvent : Screen("edit_event?eventId={eventId}") {
-        fun create(eventId: String? = null): String =
-            if (eventId == null) "edit_event" else "edit_event?eventId=$eventId"
+    /**
+     * Создание/редактирование события. eventId = null — создание нового.
+     *
+     * @param date день, выбранный в календаре: подставляется в даты начала и
+     *  конца нового события (ISO-8601, в маршруте безопасен).
+     */
+    data object CreateEditEvent : Screen("edit_event?eventId={eventId}&date={date}") {
+        fun create(eventId: String? = null, date: LocalDate? = null): String {
+            val params = listOfNotNull(
+                eventId?.let { "eventId=$it" },
+                date?.let { "date=$it" },
+            )
+            return if (params.isEmpty()) "edit_event" else "edit_event?" + params.joinToString("&")
+        }
     }
 
     /** Детали события. */

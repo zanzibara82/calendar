@@ -83,10 +83,23 @@ class CreateEditEventViewModel @Inject constructor(
 
     private val eventId: String? = savedStateHandle["eventId"]
 
+    /**
+     * День, выбранный в календаре перед нажатием «Новое событие».
+     * Подставляется в даты нового события; при редактировании даты берутся
+     * из самого события.
+     */
+    private val preselectedDate: LocalDate? = savedStateHandle.get<String>("date")
+        ?.let { LocalDate.parse(it) }
+
     /** Оригинал события при редактировании: сохраняем provider/remoteId для синхронизации. */
     private var originalEvent: Event? = null
 
-    private val _uiState = MutableStateFlow(EditEventUiState())
+    private val _uiState = MutableStateFlow(
+        EditEventUiState(
+            startDate = preselectedDate ?: LocalDate.now(),
+            endDate = preselectedDate ?: LocalDate.now(),
+        )
+    )
     val uiState: StateFlow<EditEventUiState> = _uiState.asStateFlow()
 
     private var recordingTicker: Job? = null

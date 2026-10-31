@@ -38,6 +38,9 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import javax.inject.Inject
 
 /**
@@ -289,6 +292,45 @@ class AppUiTest {
         }
         composeRule.waitUntil(10_000) {
             runCatching { eventCard().assertDoesNotExist() }.isSuccess
+        }
+    }
+
+    /**
+     * Тап по дню в сетке выбирает его, а FAB «Новое событие» открывает редактор,
+     * где этот день уже стоит в полях начала и конца.
+     */
+    @Test
+    fun calendar_fabPrefillsSelectedDay() {
+        val res = composeRule.activity.resources
+        reachCalendar(res)
+
+        // Activity переиспользуется между тестами: возвращаем текущий месяц,
+        // чтобы сетка гарантированно содержала дни 11..24.
+        composeRule.onNodeWithContentDescription(res.getString(R.string.today)).performClick()
+
+        // Дни 11..24 в сетке уникальны: соседние месяцы дают только хвост 1..10
+        // и начало 25..31, поэтому клик попадёт именно в день текущего месяца.
+        val today = LocalDate.now()
+        val selected = today.withDayOfMonth((11..24).first { it != today.dayOfMonth })
+
+        clickWithRetry(selected.dayOfMonth.toString())
+        clickWithRetry(res.getString(R.string.new_event))
+        composeRule.waitUntil(10_000) {
+            nodesWithText(res.getString(R.string.event_title_hint))
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+
+        // Поля дат два — начало и конец; оба заполнены выбранным днём,
+        // а не сегодняшней датой по умолчанию.
+        val expected = selected.format(
+            DateTimeFormatter.ofPattern("d MMM yyyy", Locale.forLanguageTag("ru"))
+        )
+        nodesWithText(expected).assertCountEquals(2)
+
+        // Возвращаемся в календарь: следующие тесты стартуют с reachCalendar.
+        composeRule.onNodeWithContentDescription(res.getString(R.string.back)).performClick()
+        composeRule.waitUntil(10_000) {
+            nodesWithText(res.getString(R.string.view_month)).fetchSemanticsNodes().isNotEmpty()
         }
     }
 

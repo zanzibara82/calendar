@@ -2,13 +2,17 @@ package com.example.mycalendar
 
 import android.app.Notification
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationManagerCompat
 import androidx.test.filters.LargeTest
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
+import androidx.test.runner.lifecycle.Stage
 import com.example.mycalendar.data.audio.VoiceRecorder
 import com.example.mycalendar.domain.model.Event
 import com.example.mycalendar.domain.repository.EventRepository
 import com.example.mycalendar.notifications.NotificationHelper
+import com.example.mycalendar.notifications.ReminderActivity
 import com.example.mycalendar.work.ReminderScheduler
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
@@ -45,6 +49,10 @@ class SchedulerAndMediaTest {
     @Inject lateinit var voiceRecorder: VoiceRecorder
 
     private val createdIds = mutableListOf<String>()
+
+    private companion object {
+        private const val TAG = "SchedulerAndMediaTest"
+    }
 
     @Before
     fun setUp() {
@@ -116,6 +124,34 @@ class SchedulerAndMediaTest {
             Thread.sleep(500)
         }
         assertTrue("Уведомление не появилось ${api()}", posted)
+
+        // AlarmReceiver сразу после уведомления поднимает ReminderActivity.
+        // Дожидаемся её ДО конца теста: MonitoringInstrumentation закрывает только
+        // те активности, которые успел увидеть. Иначе активность создаётся уже после
+        // уничтожения Hilt-компонента и падает в onCreate — так упал
+        // SyncConflictEndToEndTest 2026-10-31 (всплытие пришло через 1.2 с).
+        // На части версий Android фоновый старт активности подавлен: тогда всплытия
+        // нет вовсе и «позднего» старта тоже не будет — это не провал теста.
+        if (!awaitReminderActivityResumed()) {
+            Log.i(TAG, "ReminderActivity не появилась за 15 с: платформа подавила фон-старт")
+        }
+    }
+
+    /** Ждёт, пока ReminderActivity дойдёт до RESUMED (видна системе тестов). */
+    private fun awaitReminderActivityResumed(timeoutMs: Long = 15_000): Boolean {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            var found = false
+            instrumentation.runOnMainSync {
+                found = ActivityLifecycleMonitorRegistry.getInstance()
+                    .getActivitiesInStage(Stage.RESUMED)
+                    .any { it is ReminderActivity }
+            }
+            if (found) return true
+            Thread.sleep(250)
+        }
+        return false
     }
 
     @Test

@@ -60,11 +60,14 @@ import java.time.temporal.WeekFields
 
 /**
  * Главный экран календаря: виды Месяц/Неделя/День, список событий, FAB создания.
+ *
+ * @param onCreateEvent создание события: FAB передаёт выбранный день ([CalendarUiState.selectedDate]),
+ *  чтобы поля дат в редакторе были уже заполнены.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CalendarScreen(
-    onCreateEvent: () -> Unit,
+    onCreateEvent: (LocalDate) -> Unit,
     onEventClick: (String) -> Unit,
     onOpenSettings: () -> Unit,
     viewModel: CalendarViewModel = hiltViewModel(),
@@ -91,7 +94,7 @@ fun CalendarScreen(
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = onCreateEvent,
+                onClick = { onCreateEvent(state.selectedDate) },
                 icon = { Icon(Icons.Filled.Add, contentDescription = null) },
                 text = { Text(stringResource(R.string.new_event)) },
             )

@@ -84,7 +84,9 @@ fun AppNavGraph(
 
         composable(Screen.Calendar.route) {
             CalendarScreen(
-                onCreateEvent = { navController.navigate(Screen.CreateEditEvent.create()) },
+                onCreateEvent = { date ->
+                    navController.navigate(Screen.CreateEditEvent.create(date = date))
+                },
                 onEventClick = { eventId -> navController.navigate(Screen.EventDetails.create(eventId)) },
                 onOpenSettings = { navController.navigate(Screen.Settings.route) },
             )
@@ -92,11 +94,18 @@ fun AppNavGraph(
 
         composable(
             route = Screen.CreateEditEvent.route,
-            arguments = listOf(navArgument("eventId") {
-                type = NavType.StringType
-                nullable = true
-                defaultValue = null
-            }),
+            arguments = listOf(
+                navArgument("eventId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument("date") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+            ),
         ) { backStackEntry ->
             val eventId = backStackEntry.arguments?.getString("eventId")
             CreateEditEventScreen(
