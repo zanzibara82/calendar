@@ -43,7 +43,7 @@ Windows-приложение позже скопирует значения 1:1;
 | `surfaceVariant` (карточка) | `#1B2A44` | `#EAF0FA` | фон `EventCard`, ячейки сетки |
 | `onSurface` | `#E8EEF9` | `#0F1B2D` | заголовок события, день |
 | `onSurfaceVariant` | `#9FB0CC` | `#4A5A73` | время, подписи, «Нет событий» |
-| `primary` | `#3D8BFF` | `#2C6FE0` | FAB, выбранный день, сегменты |
+| `primary` | `#3D8BFF` | `#2766D6` | FAB, выбранный день, сегменты |
 | `onPrimary` | `#04122B` | `#FFFFFF` | текст на акценте |
 | `primaryContainer` / `on…` | `#16345F` / `#BBD8FF` | `#DCE8FF` / `#06234F` | чип «Сегодня», выделение |
 | `outline` | `#2C3C58` | `#C6D2E4` | границы карточек и сетки |
@@ -62,8 +62,9 @@ WCAG AA 4.5:1; пары проверяются замером, а не «на г
 несут смысл вместе с текстом-подписью, поэтому контраст 3:1 к ним не применяется — но чип целиком
 (текст на `primaryContainer`-подобном фоне) под AA попадает.
 
-`providerColor()` в `components/EventListItem.kt` получает параметр схемы и возвращает цвет из
-нужного набора; вызовы в `CalendarScreen`, `EventDetailsScreen` обновляются.
+`providerColor()` в `components/EventListItem.kt` становится `@Composable` и сам читает схему через
+`LocalIsDarkTheme` — вызовы в `CalendarScreen` и `EventDetailsScreen` не меняются; наружная
+граница светлой схемы — тоже через `LocalIsDarkTheme`.
 
 ## Раздел 2. Токены и типографика
 
@@ -72,11 +73,13 @@ WCAG AA 4.5:1; пары проверяются замером, а не «на г
 Windows-версия читала те же значения.
 
 ```
-Shapes:   card = 18dp, chip = 999dp (пилюля), calendarCell = 12dp
+Shapes:   card = 18dp, chip = 50 % (пилюля), calendarCell = 12dp, dayMarker = круг
 Spacing:  screen = 16dp, cardGap = 10dp, dayGap = 20dp
           cardHPad = 14dp, cardVPad = 12dp, providerStripe = 4dp
-Sizes:    timeColumn = 56dp, segmentedHeight = 40dp, minTouch = 48dp
+Sizes:    timeColumn = 56dp, segmentedHeight = 40dp, minTouch = 48dp, stroke = 1dp
 ```
+
+Чип — пилюля через `RoundedCornerShape(percent = 50)`, а не фиксированным радиусом: высота чипа зависит от текста, и постоянный радиус на разных длинах подписи дал бы разные «скругления».
 
 Шкала `Type.kt` (Roboto, новых ассетов нет):
 
