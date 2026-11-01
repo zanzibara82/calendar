@@ -20,6 +20,7 @@
 - Тексты интерфейса — по-русски; в новых строках и в комментариях эмодзи не используем.
 - Git config не меняем, force-push не делаем.
 - `./gradlew :app:connectedDebugAndroidTest` снимает приложение и стирает его данные: вход в Яндекс и подключённые календари после прогона приходится повторять, а сами `@HiltAndroidTest`-тесты этому не мешают (они сбрасывают онбординг и провайдеры сами).
+- Имена методов в инструментальных тестах (набор `androidTest`) пишутся без пробелов в стиле `префик_camelCase`, как в существующих тестах: dex не принимает имя метода с пробелом. В JVM-тестах имена с пробелами разрешены и остаются как есть.
 - Ожидаемый зелёный результат suite: JVM 97 + новые тесты, lint 0 ошибок (10 предупреждений), connected — одно падение `SchedulerAndMediaTest.voiceRecorder_recordsM4aFile` (`AssumptionViolatedException`, нет микрофона).
 - Структура экранов, навигация, ViewModel'и и слои данных не меняются: правим только presentation и связанные с ним строки/настройки.
 
@@ -330,7 +331,7 @@ class ThemePaletteTest {
     val rule = createComposeRule()
 
     @Test
-    fun `dark mode uses the navy palette`() {
+    fun theme_darkModeUsesNavyPalette() {
         rule.setContent {
             MyCalendarTheme(themeMode = ThemeMode.DARK) {
                 assertEquals(DarkPrimary, MaterialTheme.colorScheme.primary)
@@ -343,7 +344,7 @@ class ThemePaletteTest {
     }
 
     @Test
-    fun `light mode uses the derived palette`() {
+    fun theme_lightModeUsesDerivedPalette() {
         rule.setContent {
             MyCalendarTheme(themeMode = ThemeMode.LIGHT) {
                 assertEquals(LightCard, MaterialTheme.colorScheme.surfaceVariant)
@@ -354,7 +355,7 @@ class ThemePaletteTest {
     }
 
     @Test
-    fun `provider color follows the scheme`() {
+    fun theme_providerColorFollowsScheme() {
         rule.setContent {
             MyCalendarTheme(themeMode = ThemeMode.DARK) {
                 assertEquals(EventLocalColorDark, providerColor(CalendarProvider.LOCAL))
@@ -643,7 +644,7 @@ class EventCardUiTest {
     }
 
     @Test
-    fun `card shows time, title and provider chip`() {
+    fun card_showsTimeTitleAndProviderChip() {
         show(occurrence())
         rule.onNodeWithText("Созвон с подрядчиком").assertExists()
         rule.onNodeWithText("09:30").assertExists()
@@ -652,20 +653,20 @@ class EventCardUiTest {
     }
 
     @Test
-    fun `card renders tag chips`() {
+    fun card_rendersTagChips() {
         show(occurrence(tags = listOf(EventTag.BIRTHDAY, EventTag.CINEMA)))
         rule.onNodeWithText("День рождения").assertExists()
         rule.onNodeWithText("Кино").assertExists()
     }
 
     @Test
-    fun `no tags means no tag chips`() {
+    fun card_withoutTagsHasNoTagChips() {
         show(occurrence(tags = emptyList()))
         rule.onNodeWithText("День рождения").assertDoesNotExist()
     }
 
     @Test
-    fun `title stays single line and card keeps click action`() {
+    fun card_titleSingleLineAndClickAction() {
         show(occurrence(title = "Очень длинное название события, которое не влезает в одну строку"))
         val card = rule.onNode(hasText("Очень длинное название события", substring = true) and hasClickAction())
         card.assertExists()
@@ -673,7 +674,7 @@ class EventCardUiTest {
     }
 
     @Test
-    fun `card is exactly one merged clickable node`() {
+    fun card_isSingleMergedClickableNode() {
         show(occurrence())
         val nodes = rule.onAllNodes(hasText("Созвон с подрядчиком") and hasClickAction())
             .fetchSemanticsNodes()
@@ -1201,7 +1202,7 @@ class WeekViewCardsUiTest {
     }
 
     @Test
-    fun `week view shows day header and event card`() {
+    fun weekView_showsDayHeaderAndEventCard() {
         val res = composeRule.activity.resources
         reachCalendar()
         composeRule.onNodeWithText(res.getString(R.string.view_week)).performClick()
@@ -1222,7 +1223,7 @@ class WeekViewCardsUiTest {
     }
 
     @Test
-    fun `empty day shows a quiet line instead of a card`() {
+    fun weekView_emptyDayShowsQuietLine() {
         val res = composeRule.activity.resources
         reachCalendar()
         composeRule.onNodeWithText(res.getString(R.string.view_week)).performClick()
