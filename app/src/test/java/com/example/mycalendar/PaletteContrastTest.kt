@@ -50,11 +50,8 @@ class PaletteContrastTest {
     @Test
     fun `accent stays readable as text on the card`() {
         // Заголовок «сегодня» и ссылки пишутся акцентом прямо на фоне карточки.
-        // Замер Task 1: светлый акцент на карточке даёт 4.64 — проходит по AA для обычного
-        // текста; тёмный акцент даёт 4.34 — до 4.5 не дотягивает, но остаётся выше порога
-        // 3.0 для крупного текста и нетекстовых элементов (кольцо «сегодня», рамка клетки).
+        assertAtLeast(AA, DarkPrimary, DarkCard)
         assertAtLeast(AA, LightPrimary, LightCard)
-        assertAtLeast(AA_LARGE, DarkPrimary, DarkCard)
     }
 
     private fun assertAtLeast(min: Double, fg: Color, bg: Color) {
@@ -64,9 +61,6 @@ class PaletteContrastTest {
 
     private companion object {
         const val AA = 4.5
-
-        // Порог WCAG AA для крупного текста и нетекстовых элементов.
-        const val AA_LARGE = 3.0
     }
 }
 
