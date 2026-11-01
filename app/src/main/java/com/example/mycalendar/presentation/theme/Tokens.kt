@@ -1,0 +1,39 @@
+package com.example.mycalendar.presentation.theme
+
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+
+/**
+ * Геометрия интерфейса. Единственное место, где в UI стоят числа: экраны и компоненты
+ * обязаны брать значения отсюда, иначе Windows-версия не сможет скопировать макет 1:1.
+ */
+
+object AppShapes {
+    val card: Shape = RoundedCornerShape(18.dp)
+    // Пилюля: 50 % высоты, а не фиксированный радиус — чип растёт вместе с текстом.
+    val chip: Shape = RoundedCornerShape(percent = 50)
+    val calendarCell: Shape = RoundedCornerShape(12.dp)
+    val dayMarker: Shape = CircleShape
+}
+
+object AppSpacing {
+    val screen: Dp = 16.dp
+    val cardGap: Dp = 10.dp
+    val dayGap: Dp = 20.dp
+    val cardHPad: Dp = 14.dp
+    val cardVPad: Dp = 12.dp
+    val providerStripe: Dp = 4.dp
+}
+
+object AppSizes {
+    val timeColumn: Dp = 56.dp
+    val segmentedHeight: Dp = 40.dp
+    val minTouch: Dp = 48.dp
+    val iconSmall: Dp = 16.dp
+    val iconMedium: Dp = 18.dp
+    val dayHeaderMinHeight: Dp = 28.dp
+    val stroke: Dp = 1.dp
+}
