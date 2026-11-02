@@ -1,7 +1,6 @@
 package com.example.mycalendar
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.mycalendar.domain.model.CalendarProvider
@@ -19,6 +18,7 @@ import com.example.mycalendar.presentation.theme.EventYandexColorDark
 import com.example.mycalendar.presentation.theme.EventYandexColorLight
 import com.example.mycalendar.presentation.theme.LightCard
 import com.example.mycalendar.presentation.theme.LightOnSurface
+import com.example.mycalendar.presentation.theme.LocalIsDarkTheme
 import com.example.mycalendar.presentation.theme.MyCalendarTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -45,7 +45,7 @@ class ThemePaletteTest {
                 assertEquals(DarkCard, MaterialTheme.colorScheme.surfaceVariant)
                 assertEquals(DarkOnSurface, MaterialTheme.colorScheme.onSurface)
                 assertEquals(DarkOnSurfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
-                assertTrue(LocalIsDarkThemeFlag())
+                assertTrue(LocalIsDarkTheme.current)
             }
         }
     }
@@ -56,7 +56,7 @@ class ThemePaletteTest {
             MyCalendarTheme(themeMode = ThemeMode.LIGHT) {
                 assertEquals(LightCard, MaterialTheme.colorScheme.surfaceVariant)
                 assertEquals(LightOnSurface, MaterialTheme.colorScheme.onSurface)
-                assertFalse(LocalIsDarkThemeFlag())
+                assertFalse(LocalIsDarkTheme.current)
             }
         }
     }
@@ -76,9 +76,4 @@ class ThemePaletteTest {
             }
         }
     }
-
-    /** Проверяет, что тема сама проставляет флаг схемы через CompositionLocal. */
-    @Composable
-    private fun LocalIsDarkThemeFlag(): Boolean =
-        com.example.mycalendar.presentation.theme.LocalIsDarkTheme.current
 }
