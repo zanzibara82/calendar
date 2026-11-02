@@ -52,7 +52,7 @@ import com.example.mycalendar.presentation.common.monthTitleFormatter
 import com.example.mycalendar.presentation.common.russianLocale
 import com.example.mycalendar.presentation.common.weekdayTitleFormatter
 import com.example.mycalendar.presentation.components.EmptyState
-import com.example.mycalendar.presentation.components.EventListItem
+import com.example.mycalendar.presentation.components.EventCard
 import com.example.mycalendar.presentation.components.EventOccurrence
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -299,7 +299,7 @@ private fun WeekView(
                 }
             } else {
                 items(dayEvents, key = { "${it.event.id}_${it.startMillis}" }) { occurrence ->
-                    EventListItem(occurrence = occurrence, onClick = { onEventClick(occurrence.event.id) })
+                    EventCard(occurrence = occurrence, onClick = { onEventClick(occurrence.event.id) })
                 }
             }
         }
@@ -337,7 +337,7 @@ private fun DayView(
             }
         } else {
             items(dayEvents, key = { "${it.event.id}_${it.startMillis}" }) { occurrence ->
-                EventListItem(occurrence = occurrence, onClick = { onEventClick(occurrence.event.id) })
+                EventCard(occurrence = occurrence, onClick = { onEventClick(occurrence.event.id) })
             }
         }
     }
@@ -358,7 +358,7 @@ private fun EventList(events: List<EventOccurrence>, onEventClick: (String) -> U
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             items(events, key = { "${it.event.id}_${it.startMillis}" }) { occurrence ->
-                EventListItem(occurrence = occurrence, onClick = { onEventClick(occurrence.event.id) })
+                EventCard(occurrence = occurrence, onClick = { onEventClick(occurrence.event.id) })
             }
         }
     }

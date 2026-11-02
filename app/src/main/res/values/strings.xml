@@ -109,6 +109,9 @@
     <string name="provider_google">Google Календарь</string>
     <string name="provider_yandex">Яндекс Календарь</string>
     <string name="provider_local">Локальный календарь</string>
+    <string name="provider_short_local">Локальный</string>
+    <string name="provider_short_google">Google</string>
+    <string name="provider_short_yandex">Яндекс</string>
     <string name="calendar_not_connected">Не подключён</string>
     <string name="connect">Подключить</string>
     <string name="disconnect">Отключить</string>

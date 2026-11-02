@@ -13,8 +13,8 @@ val Typography = Typography(
     headlineMedium = TextStyle(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 28.sp,
-        lineHeight = 36.sp,
+        fontSize = 26.sp,
+        lineHeight = 34.sp,
     ),
     titleLarge = TextStyle(
         fontFamily = FontFamily.Default,
@@ -25,9 +25,9 @@ val Typography = Typography(
     titleMedium = TextStyle(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 16.sp,
-        lineHeight = 24.sp,
-        letterSpacing = 0.15.sp,
+        fontSize = 15.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.1.sp,
     ),
     bodyLarge = TextStyle(
         fontFamily = FontFamily.Default,
@@ -39,8 +39,8 @@ val Typography = Typography(
     bodyMedium = TextStyle(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Normal,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
+        fontSize = 13.sp,
+        lineHeight = 18.sp,
         letterSpacing = 0.25.sp,
     ),
     labelLarge = TextStyle(
@@ -58,3 +58,29 @@ val Typography = Typography(
         letterSpacing = 0.5.sp,
     ),
 )
+
+/** Стили карточки события: название, колонка времени, чип. */
+object CardTypography {
+    val title: TextStyle = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Medium,
+        fontSize = 15.sp,
+        lineHeight = 20.sp,
+    )
+
+    // Табличные цифры: без tnum колонка времени «прыгает» и карточки не выравниваются.
+    val time: TextStyle = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Medium,
+        fontSize = 13.sp,
+        lineHeight = 17.sp,
+        fontFeatureSettings = "tnum",
+    )
+
+    val chip: TextStyle = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Medium,
+        fontSize = 11.sp,
+        lineHeight = 14.sp,
+    )
+}
