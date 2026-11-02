@@ -92,8 +92,6 @@
     <string name="theme_system">Системная</string>
     <string name="theme_light">Светлая</string>
     <string name="theme_dark">Тёмная</string>
-    <string name="dynamic_color">Динамические цвета</string>
-    <string name="dynamic_color_desc">Цвета из обоев (Android 12+)</string>
     <string name="sync_now">Синхронизировать</string>
     <string name="sync_all">Синхронизировать все календари</string>
     <string name="sync_in_progress">Синхронизация…</string>

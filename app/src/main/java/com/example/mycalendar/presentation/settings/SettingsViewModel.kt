@@ -69,7 +69,6 @@ data class CalendarConnectionState(
 
 data class SettingsUiState(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
-    val dynamicColor: Boolean = true,
     /** Всегда две карточки — подключённые и нет. */
     val calendars: List<CalendarConnectionState> = emptyList(),
     /** Открытые конфликты синхронизации; 0 — строку не показываем. */
@@ -162,14 +161,12 @@ class SettingsViewModel @Inject constructor(
 
     val uiState: StateFlow<SettingsUiState> = combine(
         settingsRepository.themeMode,
-        settingsRepository.dynamicColor,
         authRepository.connections,
         lastSyncTimes,
         combine(connecting, syncing, results, conflictCount, ::SyncFlags),
-    ) { themeMode, dynamicColor, connections, syncTimes, flags ->
+    ) { themeMode, connections, syncTimes, flags ->
         SettingsUiState(
             themeMode = themeMode,
-            dynamicColor = dynamicColor,
             calendars = connections.map { connection ->
                 CalendarConnectionState(
                     provider = connection.provider,
@@ -188,10 +185,6 @@ class SettingsViewModel @Inject constructor(
 
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { settingsRepository.setThemeMode(mode) }
-    }
-
-    fun setDynamicColor(enabled: Boolean) {
-        viewModelScope.launch { settingsRepository.setDynamicColor(enabled) }
     }
 
     /** Открыть/закрыть пошаговую инструкцию регистрации OAuth-клиентов. */

@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.Flow
  */
 interface SettingsRepository {
     val themeMode: Flow<ThemeMode>
-    val dynamicColor: Flow<Boolean>
     val lastSyncTime: Flow<Long>
     /** Запрашивали ли уже разрешение на уведомления (чтобы не спрашивать повторно). */
     val notificationsAsked: Flow<Boolean>
@@ -22,7 +21,6 @@ interface SettingsRepository {
     val onboardingCompleted: Flow<Boolean>
 
     suspend fun setThemeMode(mode: ThemeMode)
-    suspend fun setDynamicColor(enabled: Boolean)
     suspend fun setLastSyncTime(timeMillis: Long)
     suspend fun setNotificationsAsked()
     suspend fun setOnboardingCompleted(completed: Boolean = true)

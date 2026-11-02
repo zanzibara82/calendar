@@ -28,9 +28,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.mycalendar.domain.model.CalendarProvider
 import com.example.mycalendar.presentation.common.timeFormatter
-import com.example.mycalendar.presentation.theme.EventGoogleColor
-import com.example.mycalendar.presentation.theme.EventLocalColor
-import com.example.mycalendar.presentation.theme.EventYandexColor
+import com.example.mycalendar.presentation.theme.EventGoogleColorDark
+import com.example.mycalendar.presentation.theme.EventGoogleColorLight
+import com.example.mycalendar.presentation.theme.EventLocalColorDark
+import com.example.mycalendar.presentation.theme.EventLocalColorLight
+import com.example.mycalendar.presentation.theme.EventYandexColorDark
+import com.example.mycalendar.presentation.theme.EventYandexColorLight
+import com.example.mycalendar.presentation.theme.LocalIsDarkTheme
 import java.time.Instant
 import java.time.ZoneId
 
@@ -43,11 +47,12 @@ data class EventOccurrence(
     val isRecurring: Boolean get() = event.repeatRule != null
 }
 
+/** Цвет провайдера: полоса и точка карточки. Берётся из схемы, поэтому composable. */
 @Composable
 fun providerColor(provider: CalendarProvider): Color = when (provider) {
-    CalendarProvider.LOCAL -> EventLocalColor
-    CalendarProvider.GOOGLE -> EventGoogleColor
-    CalendarProvider.YANDEX -> EventYandexColor
+    CalendarProvider.LOCAL -> if (LocalIsDarkTheme.current) EventLocalColorDark else EventLocalColorLight
+    CalendarProvider.GOOGLE -> if (LocalIsDarkTheme.current) EventGoogleColorDark else EventGoogleColorLight
+    CalendarProvider.YANDEX -> if (LocalIsDarkTheme.current) EventYandexColorDark else EventYandexColorLight
 }
 
 /**

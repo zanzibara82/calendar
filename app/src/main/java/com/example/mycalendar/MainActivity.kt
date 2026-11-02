@@ -49,10 +49,7 @@ class MainActivity : ComponentActivity() {
             val settings by settingsViewModel.uiState.collectAsState()
             val startEventId by pendingEventId.collectAsState()
 
-            MyCalendarTheme(
-                themeMode = settings.themeMode,
-                dynamicColor = settings.dynamicColor,
-            ) {
+            MyCalendarTheme(themeMode = settings.themeMode) {
                 AppNavGraph(
                     startEventId = startEventId,
                     onEventOpened = { pendingEventId.value = null },

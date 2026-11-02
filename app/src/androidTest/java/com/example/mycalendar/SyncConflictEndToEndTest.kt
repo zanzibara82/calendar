@@ -649,13 +649,11 @@ private class FakeAuth : AuthRepository {
 
 private class FakeSettings : SettingsRepository {
     override val themeMode: Flow<ThemeMode> = flowOf(ThemeMode.SYSTEM)
-    override val dynamicColor: Flow<Boolean> = flowOf(false)
     override val lastSyncTime: Flow<Long> = flowOf(0L)
     override val notificationsAsked: Flow<Boolean> = flowOf(false)
     override val onboardingCompleted: Flow<Boolean> = flowOf(true)
 
     override suspend fun setThemeMode(mode: ThemeMode) {}
-    override suspend fun setDynamicColor(enabled: Boolean) {}
     override suspend fun setLastSyncTime(timeMillis: Long) {}
     override suspend fun setNotificationsAsked() {}
     override suspend fun setOnboardingCompleted(completed: Boolean) {}

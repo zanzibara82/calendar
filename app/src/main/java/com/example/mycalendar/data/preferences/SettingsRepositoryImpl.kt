@@ -15,7 +15,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Настройки пользователя (тема, динамические цвета, время последней синхронизации)
+ * Настройки пользователя (тема и время последней синхронизации)
  * в DataStore Preferences.
  */
 @Singleton
@@ -25,7 +25,6 @@ class SettingsRepositoryImpl @Inject constructor(
 
     private object Keys {
         val THEME_MODE = stringPreferencesKey("theme_mode")
-        val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val LAST_SYNC = longPreferencesKey("last_sync_time")
         val NOTIFICATIONS_ASKED = booleanPreferencesKey("notification_permission_asked")
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
@@ -45,11 +44,6 @@ class SettingsRepositoryImpl @Inject constructor(
         } ?: ThemeMode.SYSTEM
     }
 
-    override val dynamicColor: Flow<Boolean> = dataStore.data.map { prefs ->
-        // Динамические цвета включены по умолчанию на Android 12+
-        prefs[Keys.DYNAMIC_COLOR] ?: true
-    }
-
     override val lastSyncTime: Flow<Long> = dataStore.data.map { prefs ->
         prefs[Keys.LAST_SYNC] ?: 0L
     }
@@ -64,10 +58,6 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override suspend fun setThemeMode(mode: ThemeMode) {
         dataStore.edit { it[Keys.THEME_MODE] = mode.name }
-    }
-
-    override suspend fun setDynamicColor(enabled: Boolean) {
-        dataStore.edit { it[Keys.DYNAMIC_COLOR] = enabled }
     }
 
     override suspend fun setLastSyncTime(timeMillis: Long) {
