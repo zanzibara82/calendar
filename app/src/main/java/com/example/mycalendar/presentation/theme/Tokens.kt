@@ -26,6 +26,11 @@ object AppSpacing {
     val cardHPad: Dp = 14.dp
     val cardVPad: Dp = 12.dp
     val providerStripe: Dp = 4.dp
+    val chipHPad: Dp = 8.dp
+    val chipVPad: Dp = 3.dp
+    val rowGap: Dp = 6.dp
+    val dotGap: Dp = 5.dp
+    val headerVPad: Dp = 4.dp
 }
 
 object AppSizes {
@@ -35,5 +40,6 @@ object AppSizes {
     val iconSmall: Dp = 16.dp
     val iconMedium: Dp = 18.dp
     val dayHeaderMinHeight: Dp = 28.dp
+    val dot: Dp = 6.dp
     val stroke: Dp = 1.dp
 }

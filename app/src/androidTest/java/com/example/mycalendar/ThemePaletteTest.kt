@@ -22,7 +22,9 @@ import com.example.mycalendar.presentation.theme.EventYandexColorLight
 import com.example.mycalendar.presentation.theme.LightBackground
 import com.example.mycalendar.presentation.theme.LightCard
 import com.example.mycalendar.presentation.theme.LightOnSurface
+import com.example.mycalendar.presentation.theme.LightOnSurfaceVariant
 import com.example.mycalendar.presentation.theme.LightOutline
+import com.example.mycalendar.presentation.theme.LightPrimary
 import com.example.mycalendar.presentation.theme.LightSurface
 import com.example.mycalendar.presentation.theme.LocalIsDarkTheme
 import com.example.mycalendar.presentation.theme.MyCalendarTheme
@@ -51,7 +53,8 @@ class ThemePaletteTest {
                 assertEquals(DarkCard, MaterialTheme.colorScheme.surfaceVariant)
                 assertEquals(DarkOnSurface, MaterialTheme.colorScheme.onSurface)
                 assertEquals(DarkOnSurfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
-                // Карточка и чип метки опираются на эти три роли: фон экрана, фон чипа и граница.
+                // Роль surface нужна уже не чипу метки (тот перешёл на surfaceVariant), а ячейкам
+                // сетки месяца: карточка и чипы живут на surfaceVariant, фон и сетка — на этих трёх.
                 assertEquals(DarkBackground, MaterialTheme.colorScheme.background)
                 assertEquals(DarkSurface, MaterialTheme.colorScheme.surface)
                 assertEquals(DarkOutline, MaterialTheme.colorScheme.outline)
@@ -64,8 +67,10 @@ class ThemePaletteTest {
     fun theme_lightModeUsesDerivedPalette() {
         rule.setContent {
             MyCalendarTheme(themeMode = ThemeMode.LIGHT) {
+                assertEquals(LightPrimary, MaterialTheme.colorScheme.primary)
                 assertEquals(LightCard, MaterialTheme.colorScheme.surfaceVariant)
                 assertEquals(LightOnSurface, MaterialTheme.colorScheme.onSurface)
+                assertEquals(LightOnSurfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
                 assertEquals(LightBackground, MaterialTheme.colorScheme.background)
                 assertEquals(LightSurface, MaterialTheme.colorScheme.surface)
                 assertEquals(LightOutline, MaterialTheme.colorScheme.outline)

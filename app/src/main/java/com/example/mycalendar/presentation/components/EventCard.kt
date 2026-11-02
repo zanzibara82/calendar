@@ -3,6 +3,7 @@ package com.example.mycalendar.presentation.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.StickyNote2
 import androidx.compose.material.icons.filled.Mic
@@ -30,7 +32,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.example.mycalendar.R
 import com.example.mycalendar.presentation.common.labelRes
 import com.example.mycalendar.presentation.common.timeFormatter
 import com.example.mycalendar.presentation.theme.AppShapes
@@ -93,7 +94,7 @@ fun EventCard(
                 Text(
                     text = timeText(occurrence.endMillis),
                     style = CardTypography.time,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             Column(
@@ -109,7 +110,8 @@ fun EventCard(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.rowGap),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (showProviderChip) ProviderChip(event.calendarProvider)
@@ -120,7 +122,7 @@ fun EventCard(
             }
             Row(
                 modifier = Modifier.padding(end = AppSpacing.cardHPad),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(AppSpacing.rowGap),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (event.reminderMinutes.isNotEmpty()) {

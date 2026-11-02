@@ -1,6 +1,6 @@
 package com.example.mycalendar
 
-import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -15,7 +15,6 @@ import com.example.mycalendar.presentation.components.EventCard
 import com.example.mycalendar.presentation.components.EventOccurrence
 import com.example.mycalendar.presentation.theme.MyCalendarTheme
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -94,11 +93,33 @@ class EventCardUiTest {
     }
 
     @Test
-    fun card_titleSingleLineAndClickAction() {
-        show(occurrence(title = "Очень длинное название события, которое не влезает в одну строку"))
-        val card = rule.onNode(hasText("Очень длинное название события", substring = true) and hasClickAction())
-        card.assertExists()
-        assertTrue(card.fetchSemanticsNode().config.contains(SemanticsActions.OnClick))
+    fun card_longTitleIsOneLineAndCardClickable() {
+        val longTitle = "Очень длинное название события, которое не влезает в одну строку"
+        rule.setContent {
+            MyCalendarTheme(themeMode = ThemeMode.DARK) {
+                Column {
+                    EventCard(occurrence = occurrence(title = "Короткое"), onClick = { })
+                    EventCard(occurrence = occurrence(title = longTitle), onClick = { })
+                }
+            }
+        }
+        val short = rule.onNode(hasText("Короткое") and hasClickAction()).fetchSemanticsNode()
+        val long = rule.onNode(
+            hasText(longTitle, substring = true) and hasClickAction(),
+        ).fetchSemanticsNode()
+        // Перенос заголовка на вторую строку сделал бы карточку выше. Равные высоты — это и есть
+        // проверка maxLines = 1; отдельная проверка config.contains(OnClick) была бы тавтологией:
+        // матчер hasClickAction() читает ровно тот же ключ SemanticsActions.OnClick.
+        assertEquals(short.boundsInRoot.height, long.boundsInRoot.height, 0.5f)
+    }
+
+    @Test
+    fun card_threeTagsStillRendersProviderChip() {
+        show(occurrence(tags = EventTag.entries))
+        rule.onNodeWithText("Яндекс").assertExists()
+        rule.onNodeWithText("День рождения").assertExists()
+        rule.onNodeWithText("Свидание").assertExists()
+        rule.onNodeWithText("Кино").assertExists()
     }
 
     @Test
