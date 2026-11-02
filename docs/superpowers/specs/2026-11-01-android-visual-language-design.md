@@ -89,7 +89,9 @@ Windows-версия читала те же значения.
 Shapes:   card = 18dp, chip = 50 % (пилюля), calendarCell = 12dp, dayMarker = круг
 Spacing:  screen = 16dp, cardGap = 10dp, dayGap = 20dp
           cardHPad = 14dp, cardVPad = 12dp, providerStripe = 4dp
+          chipHPad = 8dp, chipVPad = 3dp, rowGap = 6dp, dotGap = 5dp, headerVPad = 4dp
 Sizes:    timeColumn = 56dp, segmentedHeight = 40dp, minTouch = 48dp, stroke = 1dp
+          iconSmall = 16dp, iconMedium = 18dp, dayHeaderMinHeight = 28dp, dot = 6dp
 ```
 
 Чип — пилюля через `RoundedCornerShape(percent = 50)`, а не фиксированным радиусом: высота чипа зависит от текста, и постоянный радиус на разных длинах подписи дал бы разные «скругления».
@@ -122,12 +124,18 @@ Sizes:    timeColumn = 56dp, segmentedHeight = 40dp, minTouch = 48dp, stroke = 1
 | –10:15     * Яндекс        метка: День рождения
 ```
 
-- слева полоса 4 dp в цвет провайдера, на всю высоту карточки;
+- слева полоса 4 dp в цвет провайдера, на всю высоту карточки (ряд карточки — `Modifier.height(IntrinsicSize.Min)`, иначе полоса схлопывается в нулевую высоту);
 - колонка времени 56 dp: начало и конец в две строки (одна строка `09:30 – 10:15` в 13sp не
-  влезает рядом с заголовком и ломает выравнивание между карточками);
+  влезает рядом с заголовком и ломает выравнивание между карточками); обе строки одним цветом
+  `onSurfaceVariant` — вторая строка не «второстепенный» текст, а время окончания, и затемнять его
+  альфой нельзя: `onSurfaceVariant` с `alpha = 0.7` на фоне карточки даёт 3.99 и 3.18, то есть
+  не проходит AA 4.5;
 - заголовок — `onSurface`, 15sp Medium, `maxLines = 1` + ellipsis;
 - строка чипов: `ProviderChip` (точка цвета провайдера + короткое имя «Яндекс»/«Google»/
-  «Локальный») и по чипу на каждую метку из `event.tags` (`EventTag` уже есть в доменной модели);
+  «Локальный») и по чипу на каждую метку из `event.tags` (`EventTag` уже есть в доменной модели).
+  Меток может быть три сразу, и на экране 360 dp они не влезают в ширину, поэтому строка чипов
+  прокручивается по горизонтали (`Modifier.horizontalScroll(rememberScrollState())`), а каждый чип
+  держит `maxLines = 1`: перенос на вторую строку растянул бы чип и карточку по высоте;
 - правый блок иконок, как сейчас: `Icons.Filled.Notifications` если
   `event.reminderMinutes.isNotEmpty()`, `Repeat` при `repeatRule != null`, `Mic` при
   `voiceNotePath != null`, `StickyNote2` при непустой `textNote`;
@@ -137,8 +145,10 @@ Sizes:    timeColumn = 56dp, segmentedHeight = 40dp, minTouch = 48dp, stroke = 1
   семантика остаётся «кликабельный узел с текстом названия», поэтому `eventCard()` в
   `AppUiTest.kt:223` (`hasText("Test event") and hasClickAction()`) продолжает находиться узел.
 
-`DayHeader(date, isToday)`: `titleMedium` + точка `primary` у сегодняшнего дня; высота не
-фиксирована, минимум 28 dp. `ProviderChip`/чип метки — общий `Chip` на `primaryContainer`
+`DayHeader(date, modifier = Modifier, isToday = date == LocalDate.now())`: `titleMedium` + точка
+`primary` у сегодняшнего дня; высота — `heightIn(min = AppSizes.dayHeaderMinHeight)` (28 dp это
+нижняя граница, а не точная высота: при системном «Крупный текст» заголовок обязан вырасти, иначе
+обрежется). `ProviderChip`/чип метки — общий `Chip` на `primaryContainer`
 (провайдер) или `surfaceVariant` с `outline` (метка).
 
 ## Раздел 4. Экраны, вырезание Material You, проверка

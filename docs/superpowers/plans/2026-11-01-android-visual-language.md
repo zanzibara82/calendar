@@ -37,7 +37,7 @@
 - Consumes: ничего (первые файлы).
 - Produces:
   - `Palette.kt` — `val DarkBackground/DarkSurface/DarkCard/DarkOnSurface/DarkOnSurfaceVariant/DarkPrimary/DarkOnPrimary/DarkPrimaryContainer/DarkOnPrimaryContainer/DarkOutline/DarkError/DarkSecondary/DarkSecondaryContainer/DarkTertiary: Color`, симметричный набор `Light…`, и `EventLocalColorDark/EventGoogleColorDark/EventYandexColorDark/EventLocalColorLight/EventGoogleColorLight/EventYandexColorLight: Color`.
-  - `Tokens.kt` — `object AppShapes { card, chip, calendarCell, dayMarker: Shape }`, `object AppSpacing { screen, cardGap, dayGap, cardHPad, cardVPad, providerStripe: Dp }`, `object AppSizes { timeColumn, segmentedHeight, minTouch, iconSmall, iconMedium, dayHeaderMinHeight, stroke: Dp }`.
+  - `Tokens.kt` — `object AppShapes { card, chip, calendarCell, dayMarker: Shape }`, `object AppSpacing { screen, cardGap, dayGap, cardHPad, cardVPad, providerStripe, chipHPad, chipVPad, rowGap, dotGap, headerVPad: Dp }`, `object AppSizes { timeColumn, segmentedHeight, minTouch, iconSmall, iconMedium, dayHeaderMinHeight, dot, stroke: Dp }`.
   - `PaletteContrastTest` — ничего в продакшен-код не экспортирует: проверка чисел палитры на этапе сборки.
 
 - [ ] **Step 1: Написать падающий тест контраста**
@@ -232,6 +232,11 @@ object AppSpacing {
     val cardHPad: Dp = 14.dp
     val cardVPad: Dp = 12.dp
     val providerStripe: Dp = 4.dp
+    val chipHPad: Dp = 8.dp
+    val chipVPad: Dp = 3.dp
+    val rowGap: Dp = 6.dp
+    val dotGap: Dp = 5.dp
+    val headerVPad: Dp = 4.dp
 }
 
 object AppSizes {
@@ -241,6 +246,7 @@ object AppSizes {
     val iconSmall: Dp = 16.dp
     val iconMedium: Dp = 18.dp
     val dayHeaderMinHeight: Dp = 28.dp
+    val dot: Dp = 6.dp
     val stroke: Dp = 1.dp
 }
 ```
@@ -558,7 +564,7 @@ git commit -m "feat(theme): тема собрана из палитры navy, д
   - `@Composable fun EventCard(occurrence: EventOccurrence, onClick: () -> Unit, modifier: Modifier = Modifier, showProviderChip: Boolean = true)`
   - `@Composable fun ProviderChip(provider: CalendarProvider, modifier: Modifier = Modifier)`
   - `@Composable fun TagChip(label: String, modifier: Modifier = Modifier)`
-  - `@Composable fun DayHeader(date: LocalDate, isToday: Boolean = date == LocalDate.now(), modifier: Modifier = Modifier)`
+  - `@Composable fun DayHeader(date: LocalDate, modifier: Modifier = Modifier, isToday: Boolean = date == LocalDate.now())`
   - `object CardTypography { val title: TextStyle; val time: TextStyle; val chip: TextStyle }` в `Type.kt`
   - `val EventTag.labelRes: Int` в `presentation/common/EventTagLabels.kt`
   - строки `provider_short_local` («Локальный»), `provider_short_google` («Google»), `provider_short_yandex` («Яндекс»).
@@ -570,12 +576,10 @@ git commit -m "feat(theme): тема собрана из палитры navy, д
 ```kotlin
 package com.example.mycalendar
 
-import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onAllNodes
-import androidx.compose.ui.test.onNode
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.mycalendar.domain.model.CalendarProvider
@@ -587,7 +591,6 @@ import com.example.mycalendar.presentation.components.EventCard
 import com.example.mycalendar.presentation.components.EventOccurrence
 import com.example.mycalendar.presentation.theme.MyCalendarTheme
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -666,11 +669,33 @@ class EventCardUiTest {
     }
 
     @Test
-    fun card_titleSingleLineAndClickAction() {
-        show(occurrence(title = "Очень длинное название события, которое не влезает в одну строку"))
-        val card = rule.onNode(hasText("Очень длинное название события", substring = true) and hasClickAction())
-        card.assertExists()
-        assertTrue(card.fetchSemanticsNode().config.contains(SemanticsActions.OnClick))
+    fun card_longTitleIsOneLineAndCardClickable() {
+        val longTitle = "Очень длинное название события, которое не влезает в одну строку"
+        rule.setContent {
+            MyCalendarTheme(themeMode = ThemeMode.DARK) {
+                Column {
+                    EventCard(occurrence = occurrence(title = "Короткое"), onClick = { })
+                    EventCard(occurrence = occurrence(title = longTitle), onClick = { })
+                }
+            }
+        }
+        val short = rule.onNode(hasText("Короткое") and hasClickAction()).fetchSemanticsNode()
+        val long = rule.onNode(
+            hasText(longTitle, substring = true) and hasClickAction(),
+        ).fetchSemanticsNode()
+        // Перенос заголовка на вторую строку сделал бы карточку выше. Равные высоты — это и есть
+        // проверка maxLines = 1; отдельная проверка config.contains(OnClick) была бы тавтологией:
+        // матчер hasClickAction() читает ровно тот же ключ SemanticsActions.OnClick.
+        assertEquals(short.boundsInRoot.height, long.boundsInRoot.height, 0.5f)
+    }
+
+    @Test
+    fun card_threeTagsStillRendersProviderChip() {
+        show(occurrence(tags = EventTag.entries))
+        rule.onNodeWithText("Яндекс").assertExists()
+        rule.onNodeWithText("День рождения").assertExists()
+        rule.onNodeWithText("Свидание").assertExists()
+        rule.onNodeWithText("Кино").assertExists()
     }
 
     @Test
@@ -795,19 +820,20 @@ fun ProviderChip(provider: CalendarProvider, modifier: Modifier = Modifier) {
         modifier = modifier
             .clip(AppShapes.chip)
             .background(MaterialTheme.colorScheme.primaryContainer)
-            .padding(horizontal = 8.dp, vertical = 3.dp),
+            .padding(horizontal = AppSpacing.chipHPad, vertical = AppSpacing.chipVPad),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        horizontalArrangement = Arrangement.spacedBy(AppSpacing.dotGap),
     ) {
         Spacer(
             modifier = Modifier
-                .size(6.dp)
+                .size(AppSizes.dot)
                 .background(providerColor(provider), AppShapes.dayMarker),
         )
         Text(
             text = providerShortName(provider),
             style = CardTypography.chip,
             color = MaterialTheme.colorScheme.onPrimaryContainer,
+            maxLines = 1,
         )
     }
 }
@@ -819,11 +845,12 @@ fun TagChip(label: String, modifier: Modifier = Modifier) {
         text = label,
         style = CardTypography.chip,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 1,
         modifier = modifier
             .clip(AppShapes.chip)
-            .background(MaterialTheme.colorScheme.surface)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .border(AppSizes.stroke, MaterialTheme.colorScheme.outline, AppShapes.chip)
-            .padding(horizontal = 8.dp, vertical = 3.dp),
+            .padding(horizontal = AppSpacing.chipHPad, vertical = AppSpacing.chipVPad),
     )
 }
 ```
@@ -840,16 +867,20 @@ package com.example.mycalendar.presentation.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.StickyNote2
 import androidx.compose.material.icons.filled.Mic
@@ -904,7 +935,10 @@ fun EventCard(
             BorderStroke(AppSizes.stroke, MaterialTheme.colorScheme.outline)
         },
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.height(IntrinsicSize.Min),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Spacer(
                 modifier = Modifier
                     .fillMaxHeight()
@@ -923,7 +957,7 @@ fun EventCard(
                 Text(
                     text = timeText(occurrence.endMillis),
                     style = CardTypography.time,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             Column(
@@ -939,7 +973,8 @@ fun EventCard(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.rowGap),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (showProviderChip) ProviderChip(event.calendarProvider)
@@ -950,7 +985,7 @@ fun EventCard(
             }
             Row(
                 modifier = Modifier.padding(end = AppSpacing.cardHPad),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(AppSpacing.rowGap),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (event.reminderMinutes.isNotEmpty()) {
@@ -1007,7 +1042,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
@@ -1041,15 +1076,15 @@ fun DayHeader(
         date.format(weekdayTitleFormatter).replaceFirstChar { it.uppercase(russianLocale) }
     }
     Row(
-        modifier = modifier.padding(vertical = 4.dp),
+        modifier = modifier.padding(vertical = AppSpacing.headerVPad),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(AppSpacing.rowGap),
         // minTouch высота не нужна: заголовок не кликабелен
     ) {
         if (isToday) {
             Spacer(
                 modifier = Modifier
-                    .size(6.dp)
+                    .size(AppSizes.dot)
                     .background(MaterialTheme.colorScheme.primary, AppShapes.dayMarker),
             )
         }
@@ -1057,7 +1092,7 @@ fun DayHeader(
             text = title,
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.height(AppSizes.dayHeaderMinHeight),
+            modifier = Modifier.heightIn(min = AppSizes.dayHeaderMinHeight),
         )
     }
 }
@@ -1067,13 +1102,13 @@ fun DayHeader(
 
 - [ ] **Step 8: Удалить старый компонент и подключить новый**
 
-В `components/EventListItem.kt` удалить composable `EventListItem` (строки 53-133) и ставшие ненужными импорты (`Card`, `CardDefaults`, `Icons`, `Icon`, `CircleShape`, `background`, `clickable`, `Text` — проверить по остатку файла). `EmptyState`, `EventOccurrence`, `providerColor`, `formatTimeRange` остаются (`formatTimeRange` остаётся, потому что его печатают детали события; если после правки Task 6 останется ноль вызовов — удалить).
+В `components/EventListItem.kt` удалить composable `EventListItem` (строки 53-133) и ставшие ненужными импорты (`Card`, `CardDefaults`, `Icons`, `Icon`, `CircleShape`, `background`, `clickable`, `Text` — проверить по остатку файла). `EmptyState`, `EventOccurrence`, `providerColor` остаются. `formatTimeRange` остаётся только потому, что план не правит чужие экраны вне очереди: вызовов у него уже ноль (детали события форматируют время сами, через `fullDateTimeFormatter`), поэтому Task 6 обязан удалить его вместе с прочим мёртвым кодом.
 В `presentation/calendar/CalendarScreen.kt`: импорт `EventListItem` → `EventCard` (строка 55), вызовы в `WeekView:302`, `DayView:340`, `EventList:361` — `EventCard(occurrence = occurrence, onClick = { onEventClick(occurrence.event.id) })`.
 
 - [ ] **Step 9: Прогнать тесты**
 
 Run: `./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.mycalendar.EventCardUiTest`
-Expected: PASS, 5 тестов.
+Expected: PASS, 6 тестов.
 
 Run: `./gradlew :app:testDebugUnitTest`
 Expected: PASS (100 тестов).
@@ -1560,7 +1595,7 @@ Run: `./gradlew :app:testDebugUnitTest :app:lintDebug`
 Expected: JVM PASS, 100 тестов (было 97, +3 контраста из Task 1; остальные новые тесты — instrumented). Lint: 0 ошибок, 10 предупреждений.
 
 Run: `./gradlew :app:connectedDebugAndroidTest`
-Expected: **51 тест** (41 прежних + 3 `ThemePaletteTest` + 5 `EventCardUiTest` + 2 `WeekViewCardsUiTest`). Число сверить с отчётом `app/build/reports/androidTests/connected/index.html` и записать фактическое; падает только `SchedulerAndMediaTest.voiceRecorder_recordsM4aFile` (assumption).
+Expected: **52 теста** (41 прежних + 3 `ThemePaletteTest` + 6 `EventCardUiTest` + 2 `WeekViewCardsUiTest`). Число сверить с отчётом `app/build/reports/androidTests/connected/index.html` и записать фактическое; падает только `SchedulerAndMediaTest.voiceRecorder_recordsM4aFile` (assumption).
 Помнить: прогон снимает приложение и стирает данные — после него вход в Яндекс и подключённые календари пользователь восстанавливает сам.
 
 - [ ] **Step 2: Пересъёмка скриншотов README**
