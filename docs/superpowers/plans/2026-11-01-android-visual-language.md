@@ -1417,7 +1417,7 @@ git commit -m "feat(calendar): недельный вид собран из за�
 
 - [ ] **Step 1: Сегменты, стрелки и FAB по токенам**
 
-`SingleChoiceSegmentedButtonRow` (строки 110-127, отступ на строке 113): `contentPadding` → `horizontal = AppSpacing.screen, vertical = AppSpacing.listVPad`, внутрь `SegmentedButton` добавить `modifier = Modifier.height(AppSizes.segmentedHeight)`. В `object AppSpacing` (`presentation/theme/Tokens.kt:22-34`) добавить `val listVPad: Dp = 8.dp` — вертикальный отступ списков и шапки видов; он же закрывает литерал `vertical = 8.dp` в `WeekView` (строка 282).
+`SingleChoiceSegmentedButtonRow` (строки 110-127, отступ на строке 113): `contentPadding` → `horizontal = AppSpacing.screen, vertical = AppSpacing.listVPad`, внутрь `SegmentedButton` добавить `modifier = Modifier.height(AppSizes.segmentedHeight)`. В `object AppSpacing` (`presentation/theme/Tokens.kt:22-34`) добавить `val listVPad: Dp = 8.dp` — вертикальный отступ списков и шапки видов; он же закрывает литерал `vertical = 8.dp` в `WeekView` (строка 282) — это единственное место недельного вида, куда заходит правка задачи 5; тело `WeekView` больше не переписывать.
 `ExtendedFloatingActionButton` (97-102): `shape = AppShapes.card`.
 Row со стрелками (130-144): `horizontal = 8.dp` остаётся, `IconButton`'ы не трогать (их размер 48 dp даёт Material).
 `TopAppBar` (81-96): `containerColor = MaterialTheme.colorScheme.surface`, заголовок — `style = MaterialTheme.typography.headlineMedium` внутри `Text(text = headerTitle(state), style = …)`.
@@ -1486,8 +1486,6 @@ Row со стрелками (130-144): `horizontal = 8.dp` остаётся, `Ic
 ```
 
 `fullDateTitle` остаётся в файле — его вызывают `headerTitle` и `DayView`.
-Заголовок выбранного дня (256-260): `DayHeader(date = state.selectedDate)` вместо `Text(fullDateTitle(...))`; `fullDateTitle` остаётся — его использует `headerTitle` и `DayView`.
-Импорт `androidx.compose.foundation.border`.
 
 - [ ] **Step 3: Список под сеткой и вид «День»**
 
