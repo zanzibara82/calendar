@@ -37,7 +37,7 @@
 - Consumes: ничего (первые файлы).
 - Produces:
   - `Palette.kt` — `val DarkBackground/DarkSurface/DarkCard/DarkOnSurface/DarkOnSurfaceVariant/DarkPrimary/DarkOnPrimary/DarkPrimaryContainer/DarkOnPrimaryContainer/DarkOutline/DarkError/DarkSecondary/DarkSecondaryContainer/DarkTertiary: Color`, симметричный набор `Light…`, и `EventLocalColorDark/EventGoogleColorDark/EventYandexColorDark/EventLocalColorLight/EventGoogleColorLight/EventYandexColorLight: Color`.
-  - `Tokens.kt` — `object AppShapes { card, chip, calendarCell, dayMarker: Shape }`, `object AppSpacing { screen, cardGap, dayGap, cardHPad, cardVPad, providerStripe, chipHPad, chipVPad, rowGap, dotGap, headerVPad: Dp }`, `object AppSizes { timeColumn, segmentedHeight, minTouch, iconSmall, iconMedium, dayHeaderMinHeight, dot, stroke: Dp }`.
+  - `Tokens.kt` — `object AppShapes { card, chip, calendarCell, dayMarker: Shape }`, `object AppSpacing { screen, cardGap, dayGap, cardHPad, cardVPad, providerStripe, chipHPad, chipVPad, rowGap, dotGap, headerVPad, listVPad: Dp }`, `object AppSizes { timeColumn, segmentedHeight, minTouch, iconSmall, iconMedium, dayHeaderMinHeight, dot, stroke: Dp }`.
   - `PaletteContrastTest` — ничего в продакшен-код не экспортирует: проверка чисел палитры на этапе сборки.
 
 - [ ] **Step 1: Написать падающий тест контраста**
@@ -237,6 +237,7 @@ object AppSpacing {
     val rowGap: Dp = 6.dp
     val dotGap: Dp = 5.dp
     val headerVPad: Dp = 4.dp
+    val listVPad: Dp = 8.dp
 }
 
 object AppSizes {
@@ -306,18 +307,27 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.mycalendar.domain.model.CalendarProvider
 import com.example.mycalendar.domain.model.ThemeMode
 import com.example.mycalendar.presentation.components.providerColor
+import com.example.mycalendar.presentation.theme.DarkBackground
 import com.example.mycalendar.presentation.theme.DarkCard
 import com.example.mycalendar.presentation.theme.DarkOnSurface
 import com.example.mycalendar.presentation.theme.DarkOnSurfaceVariant
+import com.example.mycalendar.presentation.theme.DarkOutline
 import com.example.mycalendar.presentation.theme.DarkPrimary
+import com.example.mycalendar.presentation.theme.DarkSurface
 import com.example.mycalendar.presentation.theme.EventGoogleColorDark
 import com.example.mycalendar.presentation.theme.EventGoogleColorLight
 import com.example.mycalendar.presentation.theme.EventLocalColorDark
 import com.example.mycalendar.presentation.theme.EventLocalColorLight
 import com.example.mycalendar.presentation.theme.EventYandexColorDark
 import com.example.mycalendar.presentation.theme.EventYandexColorLight
+import com.example.mycalendar.presentation.theme.LightBackground
 import com.example.mycalendar.presentation.theme.LightCard
 import com.example.mycalendar.presentation.theme.LightOnSurface
+import com.example.mycalendar.presentation.theme.LightOnSurfaceVariant
+import com.example.mycalendar.presentation.theme.LightOutline
+import com.example.mycalendar.presentation.theme.LightPrimary
+import com.example.mycalendar.presentation.theme.LightSurface
+import com.example.mycalendar.presentation.theme.LocalIsDarkTheme
 import com.example.mycalendar.presentation.theme.MyCalendarTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -344,7 +354,12 @@ class ThemePaletteTest {
                 assertEquals(DarkCard, MaterialTheme.colorScheme.surfaceVariant)
                 assertEquals(DarkOnSurface, MaterialTheme.colorScheme.onSurface)
                 assertEquals(DarkOnSurfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
-                assertTrue(LocalIsDarkThemeFlag())
+                // Роль surface нужна уже не чипу метки (тот перешёл на surfaceVariant), а ячейкам
+                // сетки месяца: карточка и чипы живут на surfaceVariant, фон и сетка — на этих трёх.
+                assertEquals(DarkBackground, MaterialTheme.colorScheme.background)
+                assertEquals(DarkSurface, MaterialTheme.colorScheme.surface)
+                assertEquals(DarkOutline, MaterialTheme.colorScheme.outline)
+                assertTrue(LocalIsDarkTheme.current)
             }
         }
     }
@@ -353,9 +368,14 @@ class ThemePaletteTest {
     fun theme_lightModeUsesDerivedPalette() {
         rule.setContent {
             MyCalendarTheme(themeMode = ThemeMode.LIGHT) {
+                assertEquals(LightPrimary, MaterialTheme.colorScheme.primary)
                 assertEquals(LightCard, MaterialTheme.colorScheme.surfaceVariant)
                 assertEquals(LightOnSurface, MaterialTheme.colorScheme.onSurface)
-                assertFalse(LocalIsDarkThemeFlag())
+                assertEquals(LightOnSurfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
+                assertEquals(LightBackground, MaterialTheme.colorScheme.background)
+                assertEquals(LightSurface, MaterialTheme.colorScheme.surface)
+                assertEquals(LightOutline, MaterialTheme.colorScheme.outline)
+                assertFalse(LocalIsDarkTheme.current)
             }
         }
     }
@@ -375,11 +395,6 @@ class ThemePaletteTest {
             }
         }
     }
-
-    /** Проверяет, что тема сама проставляет флаг схемы через CompositionLocal. */
-    @Composable
-    private fun LocalIsDarkThemeFlag(): Boolean =
-        com.example.mycalendar.presentation.theme.LocalIsDarkTheme.current
 }
 ```
 
@@ -1130,7 +1145,7 @@ git commit -m "feat(ui): карточка события с полосой пр�
 
 **Interfaces:**
 - Consumes: `EventCard`, `DayHeader`, `AppSpacing.dayGap`, `AppSpacing.screen` (Task 1/3).
-- Produces: `WeekView` с ключами элементов `header_<date>`, `empty_<date>`, `<eventId>_<startMillis>` — на них опирается тест из шага 1.
+- Produces: `WeekView` с ключами элементов `header_<date>`, `empty_<date>`, `<date>_<eventId>_<startMillis>` — на них опирается тест из шага 1. Дату в ключе снимать нельзя: `CalendarViewModel.eventsOn` отдаёт многосуточное событие в каждый перекрытый день, и без даты `LazyColumn` падает на дубликате ключа.
 
 - [ ] **Step 1: Написать падающий тест недельного вида**
 
@@ -1139,6 +1154,7 @@ git commit -m "feat(ui): карточка события с полосой пр�
 ```kotlin
 package com.example.mycalendar
 
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -1156,13 +1172,14 @@ import com.example.mycalendar.domain.repository.SettingsRepository
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.time.DayOfWeek
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.ZoneId
 import javax.inject.Inject
 
@@ -1188,6 +1205,8 @@ class WeekViewCardsUiTest {
     private val suffix = System.nanoTime().toString()
     private val title = "Недельная карточка $suffix"
     private val eventId = "week-card-$suffix"
+    private val spanTitle = "Многосуточная недельная $suffix"
+    private val spanEventId = "week-span-$suffix"
 
     @Before
     fun setUp() {
@@ -1215,6 +1234,31 @@ class WeekViewCardsUiTest {
                     calendarProvider = CalendarProvider.LOCAL,
                 )
             )
+        }
+
+        val weekMonday = LocalDate.now().with(DayOfWeek.MONDAY)
+        val monStart = weekMonday.atTime(23, 0).atZone(zone).toInstant().toEpochMilli()
+        runBlocking {
+            eventRepository.saveFromUser(
+                Event(
+                    id = spanEventId,
+                    title = spanTitle,
+                    startTime = monStart,
+                    endTime = monStart + 90 * 60 * 1_000L,
+                    reminderMinutes = emptyList(),
+                    calendarProvider = CalendarProvider.LOCAL,
+                )
+            )
+        }
+    }
+
+    @After
+    fun tearDown() {
+        // Засеянные события не должны пережить прогон: даже если тест упал посередине,
+        // висящая в базе карточка ломает ожидание пустого дня у следующих классов набора.
+        runBlocking {
+            eventRepository.hardDelete(eventId)
+            eventRepository.hardDelete(spanEventId)
         }
     }
 
@@ -1269,19 +1313,30 @@ class WeekViewCardsUiTest {
         composeRule.onAllNodes(hasText(res.getString(R.string.no_events)) and hasClickAction())
             .assertCountEquals(0)
     }
+
+    @Test
+    fun weekView_multiDayEventRendersUnderEachDay() {
+        val res = composeRule.activity.resources
+        reachCalendar()
+        composeRule.onNodeWithText(res.getString(R.string.view_week)).performClick()
+        composeRule.waitUntil(10_000) {
+            nodesWithText(spanTitle).fetchSemanticsNodes().size >= 2
+        }
+        composeRule.onAllNodes(hasText(spanTitle) and hasClickAction()).assertCountEquals(2)
+    }
 }
 ```
 
-Импорты для `assertCountEquals`/`onAllNodes`: `androidx.compose.ui.testassertCountEquals`, `androidx.compose.ui.test.onAllNodes`.
+Импорт `androidx.compose.ui.test.assertCountEquals` нужен. `onAllNodes` — метод правила `ComposeRule`, отдельного импорта не имеет; неиспользуемый импорт `java.time.LocalDateTime` из листинга снят.
 
 - [ ] **Step 2: Убедиться, что тест падает**
 
 Run: `./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.mycalendar.WeekViewCardsUiTest`
-Expected: FAILURE — «Сегодня» не находится (в `WeekView` сейчас `shortDateTitle(date)` без слова «Сегодня»).
+Expected: FAILURE — «Сегодня» не находится (в базе `WeekView` печатает `shortDateTitle(date)` без слова «Сегодня»). Тест многосуточного события из дополнения к шагу 3 падает по другой причине — дубликат ключа в `LazyColumn`; оба падения зафиксированы в логах задачи 4.
 
 - [ ] **Step 3: Переписать группировку в `WeekView`**
 
-Заменить тело `WeekView` (строки 267-307) на:
+Заменить тело `WeekView` (в базе — строки 267-307, в дереве после правки — 269-315) на:
 
 ```kotlin
 @Composable
@@ -1319,7 +1374,9 @@ private fun WeekView(
                     )
                 }
             } else {
-                items(dayEvents, key = { "${it.event.id}_${it.startMillis}" }) { occurrence ->
+                // Ключ с датой: многосуточное событие лежит в dayEvents каждого перекрытого дня,
+                // без даты вторая карточка дала бы дубликат ключа и обвалила список.
+                items(dayEvents, key = { "${date}_${it.event.id}_${it.startMillis}" }) { occurrence ->
                     EventCard(
                         occurrence = occurrence,
                         onClick = { onEventClick(occurrence.event.id) },
@@ -1333,10 +1390,12 @@ private fun WeekView(
 
 Добавить импорты: `com.example.mycalendar.presentation.components.DayHeader`, `com.example.mycalendar.presentation.theme.AppSpacing`. Удалить ставший неиспользуемым `shortDateTitle` (строка 395), если больше нигде не вызывается (`grep -n shortDateTitle` по файлу должен дать 0 совпадений).
 
+**Дополнение по решению контроллера после ревью.** Ключ элементов недели обязан содержать дату (см. `Produces`) — многосуточное событие рисуется карточкой под каждым перекрытым днём, а вариант «только в первом дне» отклонён: под висящим событием пустой день показал бы «Нет событий». Тест `weekView_multiDayEventRendersUnderEachDay` ловит дубликат ключа, а `tearDown` удаляет оба засеянных события через `eventRepository.hardDelete`, чтобы полный прогон задачи 7 не наследовал события сегодняшнего дня.
+
 - [ ] **Step 4: Прогнать тест недели**
 
 Run: `./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.mycalendar.WeekViewCardsUiTest`
-Expected: PASS, 2 теста.
+Expected: PASS, 3 теста.
 
 - [ ] **Step 5: Commit**
 
@@ -1350,22 +1409,22 @@ git commit -m "feat(calendar): недельный вид собран из за�
 ### Task 5: Месяц, день и шапка по токенам
 
 **Files:**
-- Modify: `app/src/main/java/com/example/mycalendar/presentation/calendar/CalendarScreen.kt:78-143` (шапка, сегменты, стрелки, FAB), `:174-263` (`MonthView`), `:311-365` (`DayView`, `EventList`)
+- Modify: `app/src/main/java/com/example/mycalendar/presentation/calendar/CalendarScreen.kt:79-144` (шапка, сегменты, стрелки, FAB), `:176-264` (`MonthView`), `:319-372` (`DayView`, `EventList`), `presentation/theme/Tokens.kt:22-34`
 
 **Interfaces:**
 - Consumes: `EventCard`, `DayHeader` (Task 3/4), `AppShapes/AppSpacing/AppSizes`, `LocalIsDarkTheme`.
-- Produces: ничего нового для других задач; поведение `viewModel::selectDate/goToday/goNext/goPrevious` не меняется.
+- Produces: ничего нового для других задач; поведение `viewModel::selectDate/goToday/goNext/goPrevious` не меняется. Схема ключа недельного списка из задачи 4 (дата в ключе) не меняется.
 
 - [ ] **Step 1: Сегменты, стрелки и FAB по токенам**
 
-`SingleChoiceSegmentedButtonRow` (строки 109-126): `contentPadding` → `horizontal = AppSpacing.screen, vertical = 8.dp`, внутрь `SegmentedButton` добавить `modifier = Modifier.height(AppSizes.segmentedHeight)`.
-`ExtendedFloatingActionButton` (95-100): `shape = AppShapes.card`.
-Row со стрелками (129-143): `horizontal = 8.dp` остаётся, `IconButton`'ы не трогать (их размер 48 dp даёт Material).
-`TopAppBar` (80-93): `containerColor = MaterialTheme.colorScheme.surface`, заголовок — `style = MaterialTheme.typography.headlineMedium` внутри `Text(text = headerTitle(state), style = …)`.
+`SingleChoiceSegmentedButtonRow` (строки 110-127, отступ на строке 113): `contentPadding` → `horizontal = AppSpacing.screen, vertical = AppSpacing.listVPad`, внутрь `SegmentedButton` добавить `modifier = Modifier.height(AppSizes.segmentedHeight)`. В `object AppSpacing` (`presentation/theme/Tokens.kt:22-34`) добавить `val listVPad: Dp = 8.dp` — вертикальный отступ списков и шапки видов; он же закрывает литерал `vertical = 8.dp` в `WeekView` (строка 282).
+`ExtendedFloatingActionButton` (97-102): `shape = AppShapes.card`.
+Row со стрелками (130-144): `horizontal = 8.dp` остаётся, `IconButton`'ы не трогать (их размер 48 dp даёт Material).
+`TopAppBar` (81-96): `containerColor = MaterialTheme.colorScheme.surface`, заголовок — `style = MaterialTheme.typography.headlineMedium` внутри `Text(text = headerTitle(state), style = …)`.
 
 - [ ] **Step 2: Сетка месяца**
 
-В `MonthView` заменить оформление клетки (строки 210-224, то есть модификатор `Column` вместе с `.clickable`/`.padding`) на:
+В `MonthView` заменить оформление клетки (строки 211-227, то есть модификатор `Column` вместе с `.clickable`/`.padding`) на:
 
 ```kotlin
                     Column(
@@ -1391,7 +1450,7 @@ Row со стрелками (129-143): `horizontal = 8.dp` остаётся, `Ic
                     ) {
 ```
 
-`isToday`, `isSelected` и `dayEvents` уже объявлены в строках 205-208 — переиспользуем, не объявляя повторно. Текст дня внутри той же `Column`:
+`isToday`, `isSelected` и `dayEvents` уже объявлены в строках 206-209 — переиспользуем, не объявляя повторно. Текст дня внутри той же `Column`:
 
 ```kotlin
                         Text(
@@ -1399,7 +1458,7 @@ Row со стрелками (129-143): `horizontal = 8.dp` остаётся, `Ic
                             style = MaterialTheme.typography.bodyMedium,
                             color = when {
                                 isSelected -> MaterialTheme.colorScheme.onPrimary
-                                !inMonth -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                                !inMonth -> MaterialTheme.colorScheme.onSurfaceVariant
                                 else -> MaterialTheme.colorScheme.onSurface
                             },
                         )
@@ -1420,7 +1479,7 @@ Row со стрелками (129-143): `horizontal = 8.dp` остаётся, `Ic
 
 Импорты: `androidx.compose.foundation.border`, `com.example.mycalendar.presentation.components.providerColor`, `com.example.mycalendar.presentation.theme.AppShapes`, `AppSizes`, `AppSpacing`.
 
-Заголовок выбранного дня (строки 256-260) заменяется целиком:
+Заголовок выбранного дня (строки 257-261) заменяется целиком:
 
 ```kotlin
         DayHeader(date = state.selectedDate)
@@ -1432,16 +1491,16 @@ Row со стрелками (129-143): `horizontal = 8.dp` остаётся, `Ic
 
 - [ ] **Step 3: Список под сеткой и вид «День»**
 
-`EventList` (348-365): `contentPadding` горизонталь → `AppSpacing.screen`, `verticalArrangement = Arrangement.spacedBy(AppSpacing.cardGap)`; вызов `EventCard` уже стоит после Task 3.
+`EventList` — отдельный абзац после листинга `DayView`: в нём точные строки и токен `listVPad`. Вызов `EventCard` там уже стоит со задачи 3.
 
-`DayView` (311-344): `contentPadding` горизонталь → `AppSpacing.screen`, `verticalArrangement = Arrangement.spacedBy(AppSpacing.cardGap)`; первый `item` с `Text(headerTitle(state), style = titleLarge)` заменяется на один `DayHeader` — две строки даты над списком не нужны:
+`DayView` (319-351): `contentPadding` (строка 329) → `horizontal = AppSpacing.screen, vertical = AppSpacing.listVPad`, `verticalArrangement = Arrangement.spacedBy(AppSpacing.cardGap)` (строка 330 вместо `12.dp`); первый `item` с `Text(headerTitle(state), style = titleLarge)` заменяется на один `DayHeader` — две строки даты над списком не нужны:
 
 ```kotlin
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
             horizontal = AppSpacing.screen,
-            vertical = 8.dp,
+            vertical = AppSpacing.listVPad,
         ),
         verticalArrangement = Arrangement.spacedBy(AppSpacing.cardGap),
     ) {
@@ -1466,12 +1525,14 @@ Row со стрелками (129-143): `horizontal = 8.dp` остаётся, `Ic
     }
 ```
 
+`EventList` (356-372) — список под месячной сеткой: `contentPadding` на строке 364 → `horizontal = AppSpacing.screen, vertical = AppSpacing.listVPad` (было `4.dp`; смена на `8.dp` отделяет карточки от сетки и закрывает литерал), `verticalArrangement` на строке 365 → `Arrangement.spacedBy(AppSpacing.cardGap)` (было `8.dp`). Ключ элементов там остаётся без даты: список однодневный, дубликата возникнуть не может.
+
 Чип провайдера в дне оставляем (`showProviderChip` по умолчанию `true`): больше о происхождении события в этом виде сказать нечего, а шапка экрана показывает только дату. `EmptyState` в пустом дне остаётся.
 
 - [ ] **Step 4: Регрессия UI-теста календаря**
 
 Run: `./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.mycalendar.AppUiTest,com.example.mycalendar.WeekViewCardsUiTest`
-Expected: PASS (7 + 2 теста). Именно здесь ловится, что FAB/сегменты остались кликабельными, а `calendar_fabPrefillsSelectedDay` находит выбранную дату.
+Expected: PASS (6 + 3 теста) — в `AppUiTest` шесть тестов, план был неточен. Именно здесь ловится, что FAB/сегменты остались кликабельными, а `calendar_fabPrefillsSelectedDay` находит выбранную дату.
 
 - [ ] **Step 5: Живой просмотр**
 

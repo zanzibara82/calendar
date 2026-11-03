@@ -90,6 +90,7 @@ Shapes:   card = 18dp, chip = 50 % (пилюля), calendarCell = 12dp, dayMarke
 Spacing:  screen = 16dp, cardGap = 10dp, dayGap = 20dp
           cardHPad = 14dp, cardVPad = 12dp, providerStripe = 4dp
           chipHPad = 8dp, chipVPad = 3dp, rowGap = 6dp, dotGap = 5dp, headerVPad = 4dp
+          listVPad = 8dp
 Sizes:    timeColumn = 56dp, segmentedHeight = 40dp, minTouch = 48dp, stroke = 1dp
           iconSmall = 16dp, iconMedium = 18dp, dayHeaderMinHeight = 28dp, dot = 6dp
 ```
@@ -155,10 +156,14 @@ Sizes:    timeColumn = 56dp, segmentedHeight = 40dp, minTouch = 48dp, stroke = 1
 
 **`CalendarScreen.kt`.** `WeekView` (`LazyColumn` с `Text`-заголовками и `EventListItem`) →
 `DayHeader` + `EventCard` на событие + `Tokens.dayGap` между днями; пустой день — тихая строка
-`Нет событий` тем же стилем, что и под месячной сеткой, отдельного макета не вводим.
+`Нет событий` в `bodyMedium` 13sp `onSurfaceVariant` (строка таблицы типографики), отдельного
+макета пустого дня не вводим: крупный `EmptyState` с заголовком `titleMedium` остаётся только под месячной сеткой и на экранах без данных.
 `MonthView`: сетка 7 колонок перекрашивается по токенам (сегодня = кольцо `primary`, выбранный день
-= залитый круг, точки провайдеров остаются), список под сеткой — `EventCard`. `DayView` —
-`EventCard` без заголовков дней. Шапка, сегменты `Месяц/Неделя/День` и FAB меняются только по
+= залитый круг, точки провайдеров остаются), дни соседних месяцев — `onSurfaceVariant` без альфы
+(7.00 и 7.84 против AA 4.5; затемнение альфой 0.4 даёт 1.89 и 2.35 и запрещено тем же правилом,
+что и время карточки), список под сеткой — `EventCard`. `DayView` —
+`EventCard` без заголовков дней. Многосуточное событие показывается карточкой под каждым
+перекрытым днём, поэтому ключ строки недельного списка обязан содержать дату. Шапка, сегменты `Месяц/Неделя/День` и FAB меняются только по
 токенам (`Sizes.segmentedHeight`, `Shapes.card` у FAB), поведение и навигация не трогаются.
 
 **Прочие экраны** (`event/`, `auth/`, `settings/`, `conflict/`) получают новую палитру через
