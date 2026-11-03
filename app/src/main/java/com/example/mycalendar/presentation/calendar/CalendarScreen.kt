@@ -300,7 +300,9 @@ private fun WeekView(
                     )
                 }
             } else {
-                items(dayEvents, key = { "${it.event.id}_${it.startMillis}" }) { occurrence ->
+                // Ключ с датой: многосуточное событие лежит в dayEvents каждого перекрытого дня,
+                // без даты второй карточка дала бы дубликат ключа и обвалила список.
+                items(dayEvents, key = { "${date}_${it.event.id}_${it.startMillis}" }) { occurrence ->
                     EventCard(
                         occurrence = occurrence,
                         onClick = { onEventClick(occurrence.event.id) },

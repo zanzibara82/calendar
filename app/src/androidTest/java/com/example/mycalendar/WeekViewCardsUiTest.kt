@@ -18,11 +18,13 @@ import com.example.mycalendar.domain.repository.SettingsRepository
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
@@ -49,6 +51,8 @@ class WeekViewCardsUiTest {
     private val suffix = System.nanoTime().toString()
     private val title = "Недельная карточка $suffix"
     private val eventId = "week-card-$suffix"
+    private val spanTitle = "Многосуточная недельная $suffix"
+    private val spanEventId = "week-span-$suffix"
 
     @Before
     fun setUp() {
@@ -76,6 +80,31 @@ class WeekViewCardsUiTest {
                     calendarProvider = CalendarProvider.LOCAL,
                 )
             )
+        }
+
+        val weekMonday = LocalDate.now().with(DayOfWeek.MONDAY)
+        val monStart = weekMonday.atTime(23, 0).atZone(zone).toInstant().toEpochMilli()
+        runBlocking {
+            eventRepository.saveFromUser(
+                Event(
+                    id = spanEventId,
+                    title = spanTitle,
+                    startTime = monStart,
+                    endTime = monStart + 90 * 60 * 1_000L,
+                    reminderMinutes = emptyList(),
+                    calendarProvider = CalendarProvider.LOCAL,
+                )
+            )
+        }
+    }
+
+    @After
+    fun tearDown() {
+        // Засеянные события не должны пережить прогон: даже если тест упал посередине,
+        // висящая в базе карточка ломает ожидание пустого дня у следующих классов набора.
+        runBlocking {
+            eventRepository.hardDelete(eventId)
+            eventRepository.hardDelete(spanEventId)
         }
     }
 
@@ -129,5 +158,16 @@ class WeekViewCardsUiTest {
         // «Нет событий» — текст без действия клика
         composeRule.onAllNodes(hasText(res.getString(R.string.no_events)) and hasClickAction())
             .assertCountEquals(0)
+    }
+
+    @Test
+    fun weekView_multiDayEventRendersUnderEachDay() {
+        val res = composeRule.activity.resources
+        reachCalendar()
+        composeRule.onNodeWithText(res.getString(R.string.view_week)).performClick()
+        composeRule.waitUntil(10_000) {
+            nodesWithText(spanTitle).fetchSemanticsNodes().size >= 2
+        }
+        composeRule.onAllNodes(hasText(spanTitle) and hasClickAction()).assertCountEquals(2)
     }
 }
