@@ -47,13 +47,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.example.mycalendar.R
-import com.example.mycalendar.presentation.common.dayTitleFormatter
 import com.example.mycalendar.presentation.common.monthTitleFormatter
 import com.example.mycalendar.presentation.common.russianLocale
 import com.example.mycalendar.presentation.common.weekdayTitleFormatter
+import com.example.mycalendar.presentation.components.DayHeader
 import com.example.mycalendar.presentation.components.EmptyState
 import com.example.mycalendar.presentation.components.EventCard
 import com.example.mycalendar.presentation.components.EventOccurrence
+import com.example.mycalendar.presentation.theme.AppSpacing
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.WeekFields
@@ -276,17 +277,18 @@ private fun WeekView(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            horizontal = AppSpacing.screen,
+            vertical = 8.dp,
+        ),
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.cardGap),
     ) {
         days.forEach { date ->
             val dayEvents = eventsOn(date, occurrences)
             item(key = "header_$date") {
-                Text(
-                    text = shortDateTitle(date),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = if (date == LocalDate.now()) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurface,
+                DayHeader(
+                    date = date,
+                    modifier = Modifier.padding(top = AppSpacing.dayGap - AppSpacing.cardGap),
                 )
             }
             if (dayEvents.isEmpty()) {
@@ -299,7 +301,10 @@ private fun WeekView(
                 }
             } else {
                 items(dayEvents, key = { "${it.event.id}_${it.startMillis}" }) { occurrence ->
-                    EventCard(occurrence = occurrence, onClick = { onEventClick(occurrence.event.id) })
+                    EventCard(
+                        occurrence = occurrence,
+                        onClick = { onEventClick(occurrence.event.id) },
+                    )
                 }
             }
         }
@@ -391,9 +396,6 @@ private fun dayShortName(dayOfWeek: DayOfWeek): String =
 
 private fun monthTitle(date: LocalDate): String =
     date.format(monthTitleFormatter).replaceFirstChar { it.uppercase(russianLocale) }
-
-private fun shortDateTitle(date: LocalDate): String =
-    date.format(dayTitleFormatter)
 
 private fun fullDateTitle(date: LocalDate): String =
     date.format(weekdayTitleFormatter).replaceFirstChar { it.uppercase(russianLocale) }
