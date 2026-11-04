@@ -1,6 +1,7 @@
 package com.example.mycalendar.presentation.calendar
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,7 +18,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -54,6 +54,9 @@ import com.example.mycalendar.presentation.components.DayHeader
 import com.example.mycalendar.presentation.components.EmptyState
 import com.example.mycalendar.presentation.components.EventCard
 import com.example.mycalendar.presentation.components.EventOccurrence
+import com.example.mycalendar.presentation.components.providerColor
+import com.example.mycalendar.presentation.theme.AppShapes
+import com.example.mycalendar.presentation.theme.AppSizes
 import com.example.mycalendar.presentation.theme.AppSpacing
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -79,7 +82,7 @@ fun CalendarScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(text = headerTitle(state)) },
+                title = { Text(text = headerTitle(state), style = MaterialTheme.typography.headlineMedium) },
                 actions = {
                     IconButton(onClick = viewModel::goToday) {
                         Icon(Icons.Filled.Today, contentDescription = stringResource(R.string.today))
@@ -98,6 +101,7 @@ fun CalendarScreen(
                 onClick = { onCreateEvent(state.selectedDate) },
                 icon = { Icon(Icons.Filled.Add, contentDescription = null) },
                 text = { Text(stringResource(R.string.new_event)) },
+                shape = AppShapes.card,
             )
         },
     ) { padding ->
@@ -110,7 +114,7 @@ fun CalendarScreen(
             SingleChoiceSegmentedButtonRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = AppSpacing.screen, vertical = AppSpacing.listVPad),
             ) {
                 val modes = listOf(
                     CalendarViewMode.MONTH to stringResource(R.string.view_month),
@@ -121,6 +125,7 @@ fun CalendarScreen(
                     SegmentedButton(
                         selected = state.viewMode == mode,
                         onClick = { viewModel.setViewMode(mode) },
+                        modifier = Modifier.height(AppSizes.segmentedHeight),
                         shape = SegmentedButtonDefaults.itemShape(index = index, count = modes.size),
                     ) { Text(label) }
                 }
@@ -216,10 +221,14 @@ private fun MonthView(
                             .background(
                                 color = when {
                                     isSelected -> MaterialTheme.colorScheme.primary
-                                    isToday -> MaterialTheme.colorScheme.primaryContainer
                                     else -> MaterialTheme.colorScheme.surface
                                 },
-                                shape = RoundedCornerShape(8.dp),
+                                shape = AppShapes.calendarCell,
+                            )
+                            .border(
+                                width = if (isToday && !isSelected) AppSizes.stroke else 0.dp,
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = AppShapes.calendarCell,
                             )
                             .clickable { onDayClick(date) }
                             .padding(4.dp),
@@ -230,7 +239,7 @@ private fun MonthView(
                             style = MaterialTheme.typography.bodyMedium,
                             color = when {
                                 isSelected -> MaterialTheme.colorScheme.onPrimary
-                                !inMonth -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                                !inMonth -> MaterialTheme.colorScheme.onSurfaceVariant
                                 else -> MaterialTheme.colorScheme.onSurface
                             },
                         )
@@ -241,8 +250,7 @@ private fun MonthView(
                                     modifier = Modifier
                                         .size(5.dp)
                                         .background(
-                                            com.example.mycalendar.presentation.components
-                                                .providerColor(occurrence.event.calendarProvider),
+                                            providerColor(occurrence.event.calendarProvider),
                                             CircleShape,
                                         ),
                                 )
@@ -254,10 +262,9 @@ private fun MonthView(
         }
 
         // События выбранного дня
-        Text(
-            text = fullDateTitle(state.selectedDate),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        DayHeader(
+            date = state.selectedDate,
+            modifier = Modifier.padding(horizontal = AppSpacing.screen),
         )
         EventList(events = selectedDayEvents, onEventClick = onEventClick)
     }
@@ -279,7 +286,7 @@ private fun WeekView(
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
             horizontal = AppSpacing.screen,
-            vertical = 8.dp,
+            vertical = AppSpacing.listVPad,
         ),
         verticalArrangement = Arrangement.spacedBy(AppSpacing.cardGap),
     ) {
@@ -301,7 +308,7 @@ private fun WeekView(
                 }
             } else {
                 // Ключ с датой: многосуточное событие лежит в dayEvents каждого перекрытого дня,
-                // без даты второй карточка дала бы дубликат ключа и обвалила список.
+                // без даты вторая карточка дала бы дубликат ключа и обвалила список.
                 items(dayEvents, key = { "${date}_${it.event.id}_${it.startMillis}" }) { occurrence ->
                     EventCard(
                         occurrence = occurrence,
@@ -326,14 +333,14 @@ private fun DayView(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            horizontal = AppSpacing.screen,
+            vertical = AppSpacing.listVPad,
+        ),
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.cardGap),
     ) {
-        item {
-            Text(
-                text = fullDateTitle(state.selectedDate),
-                style = MaterialTheme.typography.titleLarge,
-            )
+        item(key = "header_${state.selectedDate}") {
+            DayHeader(date = state.selectedDate)
         }
         if (dayEvents.isEmpty()) {
             item {
@@ -344,7 +351,10 @@ private fun DayView(
             }
         } else {
             items(dayEvents, key = { "${it.event.id}_${it.startMillis}" }) { occurrence ->
-                EventCard(occurrence = occurrence, onClick = { onEventClick(occurrence.event.id) })
+                EventCard(
+                    occurrence = occurrence,
+                    onClick = { onEventClick(occurrence.event.id) },
+                )
             }
         }
     }
@@ -361,8 +371,11 @@ private fun EventList(events: List<EventOccurrence>, onEventClick: (String) -> U
         )
     } else {
         LazyColumn(
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                horizontal = AppSpacing.screen,
+                vertical = AppSpacing.listVPad,
+            ),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.cardGap),
         ) {
             items(events, key = { "${it.event.id}_${it.startMillis}" }) { occurrence ->
                 EventCard(occurrence = occurrence, onClick = { onEventClick(occurrence.event.id) })

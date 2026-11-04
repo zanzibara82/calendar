@@ -31,6 +31,8 @@ object AppSpacing {
     val rowGap: Dp = 6.dp
     val dotGap: Dp = 5.dp
     val headerVPad: Dp = 4.dp
+    // Вертикальный отступ списков и шапки видов.
+    val listVPad: Dp = 8.dp
 }
 
 object AppSizes {
