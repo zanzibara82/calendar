@@ -9,6 +9,12 @@ import com.example.mycalendar.presentation.theme.DarkOnSurface
 import com.example.mycalendar.presentation.theme.DarkOnSurfaceVariant
 import com.example.mycalendar.presentation.theme.DarkPrimary
 import com.example.mycalendar.presentation.theme.DarkPrimaryContainer
+import com.example.mycalendar.presentation.theme.EventGoogleColorDark
+import com.example.mycalendar.presentation.theme.EventGoogleColorLight
+import com.example.mycalendar.presentation.theme.EventLocalColorDark
+import com.example.mycalendar.presentation.theme.EventLocalColorLight
+import com.example.mycalendar.presentation.theme.EventYandexColorDark
+import com.example.mycalendar.presentation.theme.EventYandexColorLight
 import com.example.mycalendar.presentation.theme.LightBackground
 import com.example.mycalendar.presentation.theme.LightCard
 import com.example.mycalendar.presentation.theme.LightOnPrimary
@@ -25,7 +31,8 @@ import kotlin.math.pow
  * Контраст новой палитры по WCAG 2.1 (relative luminance).
  *
  * Проверяем пары «текст на фоне», которые видит пользователь: текст карточки на фоне
- * карточки, подписи на фоне экрана, текст на акценте. Числа — из спека, секция 1.
+ * карточки, подписи на фоне экрана, текст на акценте. Отдельная проверка — плашка провайдера:
+ * она графика, поэтому у неё порог 3:1, а не AA. Числа — из спека, секция 1.
  */
 class PaletteContrastTest {
 
@@ -54,6 +61,19 @@ class PaletteContrastTest {
         assertAtLeast(AA, LightPrimary, LightCard)
     }
 
+    @Test
+    fun `provider plaque letter meets graphics contrast`() {
+        // Буква на плашке дублирует название провайдера в соседней строке, поэтому плашка —
+        // графика, а не текст: порог 3:1. Ниже AA эта пара сознательно, иначе единственный
+        // выход — двигать цвет провайдера, а он калиброван под полосу карточки события.
+        assertAtLeast(GRAPHICS, DarkOnPrimary, EventLocalColorDark)
+        assertAtLeast(GRAPHICS, DarkOnPrimary, EventGoogleColorDark)
+        assertAtLeast(GRAPHICS, DarkOnPrimary, EventYandexColorDark)
+        assertAtLeast(GRAPHICS, LightOnPrimary, EventLocalColorLight)
+        assertAtLeast(GRAPHICS, LightOnPrimary, EventGoogleColorLight)
+        assertAtLeast(GRAPHICS, LightOnPrimary, EventYandexColorLight)
+    }
+
     private fun assertAtLeast(min: Double, fg: Color, bg: Color) {
         val ratio = wcagRatio(fg, bg)
         assertTrue("Контраст $ratio < $min: fg=$fg bg=$bg", ratio >= min)
@@ -61,6 +81,7 @@ class PaletteContrastTest {
 
     private companion object {
         const val AA = 4.5
+        const val GRAPHICS = 3.0
     }
 }
 
