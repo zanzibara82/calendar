@@ -4,6 +4,7 @@ import android.os.Build
 import androidx.test.filters.LargeTest
 import androidx.test.platform.app.InstrumentationRegistry
 import com.example.mycalendar.domain.model.Event
+import com.example.mycalendar.domain.repository.EventRepository
 import com.example.mycalendar.domain.usecase.SaveEventUseCase
 import com.example.mycalendar.notifications.NotificationHelper
 import com.example.mycalendar.work.ReminderScheduler
@@ -38,6 +39,7 @@ class EndToEndReminderTest {
     @Inject lateinit var saveEventUseCase: SaveEventUseCase
     @Inject lateinit var reminderScheduler: ReminderScheduler
     @Inject lateinit var notificationHelper: NotificationHelper
+    @Inject lateinit var eventRepository: EventRepository
 
     private val createdIds = mutableListOf<String>()
 
@@ -68,6 +70,9 @@ class EndToEndReminderTest {
                         reminderMinutes = listOf(0),
                     )
                 )
+                // Событие лежит в общей файловой базе Room: без удаления строка переживает
+                // прогон и добавляет ряд в карточку дня у следующих UI-тестов.
+                eventRepository.hardDelete(id)
             }
         }
     }
