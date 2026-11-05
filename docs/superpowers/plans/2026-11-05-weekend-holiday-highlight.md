@@ -752,7 +752,7 @@ fun ProviderDot(
 }
 ```
 
-Импорты в `EventListItem.kt`: `androidx.compose.foundation.border`, `androidx.compose.foundation.layout.Spacer`, `androidx.compose.foundation.layout.size`, `androidx.compose.material3.MaterialTheme`, `androidx.compose.ui.unit.Dp`, `com.example.mycalendar.presentation.theme.AppShapes`, `com.example.mycalendar.presentation.theme.AppSizes`.
+Импорты в `EventListItem.kt`: `androidx.compose.foundation.background`, `androidx.compose.foundation.border`, `androidx.compose.foundation.layout.Spacer`, `androidx.compose.foundation.layout.size`, `androidx.compose.material3.MaterialTheme`, `androidx.compose.ui.unit.Dp`, `com.example.mycalendar.presentation.theme.AppShapes`, `com.example.mycalendar.presentation.theme.AppSizes`. Ни `background`, ни `size`, ни `Dp` в этом файле раньше нет — `ProviderDot` приносит их.
 
 - [ ] **Step 4: Три потребителя**
 
@@ -786,8 +786,10 @@ fun ProviderDot(
 | Файл | Удалить | Остаётся |
 | --- | --- | --- |
 | `ProviderChip.kt` | `androidx.compose.foundation.layout.Spacer`, `androidx.compose.foundation.layout.size` | `AppSizes` (нужен `AppSizes.stroke` в рамке чипа), `AppShapes`, `background` (фон чипа) |
-| `EventDetailsScreen.kt` | `androidx.compose.foundation.shape.CircleShape`, `androidx.compose.foundation.layout.size`, `androidx.compose.foundation.background` | `Spacer` (три других отступа), `AppSizes` |
-| `CalendarScreen.kt` | `androidx.compose.foundation.shape.CircleShape`, `androidx.compose.foundation.layout.size` | `background` (фон клетки), `AppShapes`, `dp` (отступы и стрелки) |
+| `EventDetailsScreen.kt` | `androidx.compose.foundation.shape.CircleShape`, `androidx.compose.foundation.layout.size`, `androidx.compose.foundation.background`, `androidx.compose.foundation.layout.Box`, `com.example.mycalendar.presentation.components.providerColor` | `Spacer` (три других отступа), `AppSizes` (`AppSizes.stroke` в рамке карточки), `AppShapes` (`AppShapes.card`) |
+| `CalendarScreen.kt` | `androidx.compose.foundation.shape.CircleShape`, `androidx.compose.foundation.layout.size`, `androidx.compose.foundation.layout.Box`, `com.example.mycalendar.presentation.components.providerColor` | `background` (фон клетки), `AppShapes`, `dp` (отступы и стрелки) |
+
+`providerColor` в этих двух файлах стоит ровно в одной точке — в заменяемой; функция остаётся нужной `EventCard.kt`, `WeekColumn.kt`, `SettingsScreen.kt` и `ProviderChip.kt`, поэтому её определение не трогаем, умирает только импорт. В `ProviderChip.kt` вызов `providerColor` был в том же пакете, импорта там нет и удалять нечего. Задаче 5 импорт `Box` в `CalendarScreen.kt` потребуется заново: клетка месяца снова станет `Box`.
 
 Если компилятор или линт укажет на другой неиспользуемый импорт — удалять по факту, но состав предупреждений линта (11) не должен вырасти из-за мёртвого импорта.
 
@@ -813,7 +815,7 @@ git commit -m "feat(ui): точка провайдера с обводкой и 
 ### Task 5: Сетка месяца — тон клетки, маркер и навигация по периодам
 
 **Files:**
-- Modify: `app/src/main/java/com/example/mycalendar/presentation/calendar/CalendarScreen.kt` (стрелки периодов — строки 136–150; `MonthView` — строки 215–265)
+- Modify: `app/src/main/java/com/example/mycalendar/presentation/calendar/CalendarScreen.kt` (стрелки периодов — строки 132–147; цикл `week.forEach` в `MonthView` — строки 212–258)
 - Create: `app/src/androidTest/java/com/example/mycalendar/DayViewHolidayUiTest.kt` (в этой задаче — тесты сетки месяца; Task 7 дополняет тот же файл шапкой дня, потому что и сетка, и шапка живут на одном экране)
 
 **Interfaces:**
@@ -838,7 +840,7 @@ git commit -m "feat(ui): точка провайдера с обводкой и 
 
 - [ ] **Step 2: Клетка месяца**
 
-В `MonthView` цикл `week.forEach { date -> … }` (строки 215–265) заменить целиком. `Column` становится содержимым `Box` — иначе маркеру в углу негде встать; модификаторы размера, фона, рамки и клика переходят на `Box`, поведение не меняется:
+В `MonthView` цикл `week.forEach { date -> … }` (строки 212–258 на дереве после задачи 4) заменить целиком. `Column` становится содержимым `Box` — иначе маркеру в углу негде встать; модификаторы размера, фона, рамки и клика переходят на `Box`, поведение не меняется:
 
 ```kotlin
                 week.forEach { date ->
@@ -906,7 +908,7 @@ git commit -m "feat(ui): точка провайдера с обводкой и 
                 }
 ```
 
-Импорты в `CalendarScreen.kt`: `com.example.mycalendar.domain.holiday.DayMark`, `com.example.mycalendar.presentation.components.HOLIDAY_MARKER_TAG`, `MONTH_CELL_TAG`, `dayMarkTag`, `com.example.mycalendar.presentation.theme.dayMarkColor`.
+Импорты в `CalendarScreen.kt`: `androidx.compose.foundation.layout.Box` (задача 4 удалила его как мёртвый — здесь он снова нужен), `com.example.mycalendar.domain.holiday.DayMark`, `com.example.mycalendar.presentation.components.HOLIDAY_MARKER_TAG`, `MONTH_CELL_TAG`, `dayMarkTag`, `com.example.mycalendar.presentation.theme.dayMarkColor`.
 
 - [ ] **Step 3: Тесты сетки месяца**
 
