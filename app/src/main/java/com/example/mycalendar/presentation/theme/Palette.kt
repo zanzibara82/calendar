@@ -43,6 +43,15 @@ val LightTertiary = Color(0xFF5B44D6)
 val LightOutline = Color(0xFFC6D2E4)
 val LightError = Color(0xFFB3261E)
 
+// ---------- Маркеры дня: тон карточки выходного и праздника ----------
+// Различаются только оттенком (бирюзовый против янтарного): по яркости разница
+// 1.06–1.11, поэтому у праздника есть ещё и форма-маркер — WCAG 1.4.1.
+
+val DarkDayWeekendContainer = Color(0xFF173F52)
+val DarkDayHolidayContainer = Color(0xFF4A2E10)
+val LightDayWeekendContainer = Color(0xFFB9DCC9)
+val LightDayHolidayContainer = Color(0xFFF3D6A2)
+
 // ---------- Провайдеры: полоса и точка карточки ----------
 // Разведены относительно primary, чтобы полоса не читалась как «выбрано».
 

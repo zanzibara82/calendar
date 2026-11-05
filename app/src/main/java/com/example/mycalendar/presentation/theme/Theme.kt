@@ -9,8 +9,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import com.example.mycalendar.domain.holiday.DayMark
 import com.example.mycalendar.domain.model.ThemeMode
 
 /** Светлая схема — производная от эталонной тёмной по тем же ролям. */
@@ -54,6 +56,23 @@ private val DarkColors = darkColorScheme(
  * схемы, а не только от ролей `ColorScheme`: граница карточки есть только в светлой.
  */
 val LocalIsDarkTheme = staticCompositionLocalOf { false }
+
+/**
+ * Тон поверхности дня по метке. Обычная функция, не composable: тест контраста и
+ * Windows-версия собирают цвета без CompositionLocal.
+ */
+fun dayMarkContainer(mark: DayMark, dark: Boolean): Color = when (mark) {
+    DayMark.WEEKEND -> if (dark) DarkDayWeekendContainer else LightDayWeekendContainer
+    DayMark.HOLIDAY -> if (dark) DarkDayHolidayContainer else LightDayHolidayContainer
+}
+
+/**
+ * Тон дня для текущей схемы. Нет метки — нет и тона: вызывающий компонент оставляет
+ * прежний фон (`?: colorScheme.surface`), поэтому поведение не меняется, пока реестр молчит.
+ */
+@Composable
+fun dayMarkColor(mark: DayMark?): Color? =
+    mark?.let { dayMarkContainer(it, LocalIsDarkTheme.current) }
 
 /**
  * Тема приложения. Схема цветов детерминирована палитрой: динамические цвета обоев

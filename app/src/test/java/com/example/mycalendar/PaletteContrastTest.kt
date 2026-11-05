@@ -1,6 +1,7 @@
 package com.example.mycalendar
 
 import androidx.compose.ui.graphics.Color
+import com.example.mycalendar.domain.holiday.DayMark
 import com.example.mycalendar.presentation.theme.DarkBackground
 import com.example.mycalendar.presentation.theme.DarkCard
 import com.example.mycalendar.presentation.theme.DarkOnPrimary
@@ -23,6 +24,7 @@ import com.example.mycalendar.presentation.theme.LightOnSurface
 import com.example.mycalendar.presentation.theme.LightOnSurfaceVariant
 import com.example.mycalendar.presentation.theme.LightPrimary
 import com.example.mycalendar.presentation.theme.LightPrimaryContainer
+import com.example.mycalendar.presentation.theme.dayMarkContainer
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.pow
@@ -72,6 +74,32 @@ class PaletteContrastTest {
         assertAtLeast(GRAPHICS, LightOnPrimary, EventLocalColorLight)
         assertAtLeast(GRAPHICS, LightOnPrimary, EventGoogleColorLight)
         assertAtLeast(GRAPHICS, LightOnPrimary, EventYandexColorLight)
+    }
+
+    @Test
+    fun `weekend tone keeps day text at AA`() {
+        assertAtLeast(AA, DarkOnSurface, dayMarkContainer(DayMark.WEEKEND, dark = true))
+        assertAtLeast(AA, LightOnSurface, dayMarkContainer(DayMark.WEEKEND, dark = false))
+        assertAtLeast(AA, DarkOnSurfaceVariant, dayMarkContainer(DayMark.WEEKEND, dark = true))
+        assertAtLeast(AA, LightOnSurfaceVariant, dayMarkContainer(DayMark.WEEKEND, dark = false))
+    }
+
+    @Test
+    fun `holiday tone keeps day text at AA`() {
+        assertAtLeast(AA, DarkOnSurface, dayMarkContainer(DayMark.HOLIDAY, dark = true))
+        assertAtLeast(AA, LightOnSurface, dayMarkContainer(DayMark.HOLIDAY, dark = false))
+        assertAtLeast(AA, DarkOnSurfaceVariant, dayMarkContainer(DayMark.HOLIDAY, dark = true))
+        assertAtLeast(AA, LightOnSurfaceVariant, dayMarkContainer(DayMark.HOLIDAY, dark = false))
+    }
+
+    @Test
+    fun `today outline on a tinted day meets graphics contrast`() {
+        // Рамка «сегодня» — графика, у неё порог 3.0. Она же эталон для обводки точки
+        // провайдера: onSurfaceVariant на обоих тонах даёт 4.7–5.7 и вписывается в AA.
+        assertAtLeast(GRAPHICS, DarkPrimary, dayMarkContainer(DayMark.WEEKEND, dark = true))
+        assertAtLeast(GRAPHICS, LightPrimary, dayMarkContainer(DayMark.WEEKEND, dark = false))
+        assertAtLeast(GRAPHICS, DarkPrimary, dayMarkContainer(DayMark.HOLIDAY, dark = true))
+        assertAtLeast(GRAPHICS, LightPrimary, dayMarkContainer(DayMark.HOLIDAY, dark = false))
     }
 
     private fun assertAtLeast(min: Double, fg: Color, bg: Color) {
