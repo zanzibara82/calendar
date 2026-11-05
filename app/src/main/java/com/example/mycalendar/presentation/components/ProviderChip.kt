@@ -4,9 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,11 +39,7 @@ fun ProviderChip(provider: CalendarProvider, modifier: Modifier = Modifier) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(AppSpacing.dotGap),
     ) {
-        Spacer(
-            modifier = Modifier
-                .size(AppSizes.dot)
-                .background(providerColor(provider), AppShapes.dayMarker),
-        )
+        ProviderDot(provider)
         Text(
             text = providerShortName(provider),
             style = CardTypography.chip,

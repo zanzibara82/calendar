@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,11 +12,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -54,8 +51,8 @@ import com.example.mycalendar.presentation.components.DayHeader
 import com.example.mycalendar.presentation.components.EmptyState
 import com.example.mycalendar.presentation.components.EventCard
 import com.example.mycalendar.presentation.components.EventOccurrence
+import com.example.mycalendar.presentation.components.ProviderDot
 import com.example.mycalendar.presentation.components.WeekDayColumn
-import com.example.mycalendar.presentation.components.providerColor
 import com.example.mycalendar.presentation.theme.AppShapes
 import com.example.mycalendar.presentation.theme.AppSizes
 import com.example.mycalendar.presentation.theme.AppSpacing
@@ -251,13 +248,9 @@ private fun MonthView(
                         // Точки событий (максимум 3)
                         Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                             dayEvents.take(3).forEach { occurrence ->
-                                Box(
-                                    modifier = Modifier
-                                        .size(5.dp)
-                                        .background(
-                                            providerColor(occurrence.event.calendarProvider),
-                                            CircleShape,
-                                        ),
+                                ProviderDot(
+                                    occurrence.event.calendarProvider,
+                                    size = AppSizes.gridDot,
                                 )
                             }
                         }

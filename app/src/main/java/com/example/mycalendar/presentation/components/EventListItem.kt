@@ -1,17 +1,23 @@
 package com.example.mycalendar.presentation.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.mycalendar.domain.model.CalendarProvider
+import com.example.mycalendar.presentation.theme.AppShapes
+import com.example.mycalendar.presentation.theme.AppSizes
 import com.example.mycalendar.presentation.theme.EventGoogleColorDark
 import com.example.mycalendar.presentation.theme.EventGoogleColorLight
 import com.example.mycalendar.presentation.theme.EventLocalColorDark
@@ -35,6 +41,27 @@ fun providerColor(provider: CalendarProvider): Color = when (provider) {
     CalendarProvider.LOCAL -> if (LocalIsDarkTheme.current) EventLocalColorDark else EventLocalColorLight
     CalendarProvider.GOOGLE -> if (LocalIsDarkTheme.current) EventGoogleColorDark else EventGoogleColorLight
     CalendarProvider.YANDEX -> if (LocalIsDarkTheme.current) EventYandexColorDark else EventYandexColorLight
+}
+
+/**
+ * Точка провайдера. Обводка нужна потому, что на тонированном фоне выходного или праздника
+ * часть цветов не держит порог графики 3.0: у локального календаря в тёмной схеме — 2.58 на
+ * бирюзовом и 2.86 на песочном, тогда как остальные провайдеры падают лишь до 3.03.
+ * Обводка стоит на всех фонах, а не только на тонированных: вид точек меняется
+ * единообразно, и компоненте не нужно знать, какой под ним тон.
+ */
+@Composable
+fun ProviderDot(
+    provider: CalendarProvider,
+    modifier: Modifier = Modifier,
+    size: Dp = AppSizes.dot,
+) {
+    Spacer(
+        modifier = modifier
+            .size(size)
+            .background(providerColor(provider), AppShapes.dayMarker)
+            .border(AppSizes.stroke, MaterialTheme.colorScheme.onSurfaceVariant, AppShapes.dayMarker),
+    )
 }
 
 /** Пустое состояние списка. */

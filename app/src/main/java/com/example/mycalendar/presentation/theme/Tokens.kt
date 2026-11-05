@@ -34,6 +34,8 @@ object AppSpacing {
     val listVPad: Dp = 8.dp
     // Промежуток между строками событий внутри карточки дня и отступ текста от полосы.
     val weekCellGap: Dp = 4.dp
+    // Отступ маркера праздника от угла: клетка месяца меньше карточки, но отступ один.
+    val markInset: Dp = 4.dp
 }
 
 object AppSizes {
@@ -44,6 +46,9 @@ object AppSizes {
     val iconMedium: Dp = 18.dp
     val dayHeaderMinHeight: Dp = 28.dp
     val dot: Dp = 6.dp
+    // Точки провайдера бывают трёх размеров; все три значения — токен, а не число по месту.
+    val gridDot: Dp = 5.dp
+    val detailsDot: Dp = 12.dp
     val stroke: Dp = 1.dp
     // Сколько строк событий помещается в карточке дня без «+N ещё».
     val weekVisibleCells: Int = 4
