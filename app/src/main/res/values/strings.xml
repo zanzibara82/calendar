@@ -16,6 +16,20 @@
     <string name="week_more_events">+%1$d ещё</string>
     <string name="no_events_hint">Нажмите «+», чтобы создать событие</string>
     <string name="new_event">Новое событие</string>
+    <!-- Названия праздников: вторая строка шапки дня (спека, §2) -->
+    <string name="holiday_new_year_holidays">Новогодние каникулы</string>
+    <string name="holiday_christmas_orthodox">Рождество</string>
+    <string name="holiday_defender_of_fatherland">День защитника Отечества</string>
+    <string name="holiday_womens_day">Международный женский день</string>
+    <string name="holiday_spring_labor">Праздник Весны и Труда</string>
+    <string name="holiday_victory_day">День Победы</string>
+    <string name="holiday_russia_day">День России</string>
+    <string name="holiday_national_unity">День народного единства</string>
+    <string name="holiday_valentines">День святого Валентина</string>
+    <string name="holiday_childrens_day">День защиты детей</string>
+    <string name="holiday_halloween">Хеллоуин</string>
+    <string name="holiday_christmas_west">Рождество</string>
+    <string name="holiday_new_year_eve">Канун Нового года</string>
     <string name="settings">Настройки</string>
     <string name="permissions">Разрешения</string>
     <string name="back">Назад</string>
