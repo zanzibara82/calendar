@@ -23,6 +23,7 @@
 - Имена методов в инструментальных тестах (набор `androidTest`) пишутся без пробелов в стиле `префик_camelCase`, как в существующих тестах: dex не принимает имя метода с пробелом. В JVM-тестах имена с пробелами разрешены и остаются как есть.
 - Ожидаемый зелёный результат suite: JVM 97 + новые тесты, lint 0 ошибок (10 предупреждений), connected — одно падение `SchedulerAndMediaTest.voiceRecorder_recordsM4aFile` (`AssumptionViolatedException`, нет микрофона).
 - Структура экранов, навигация, ViewModel'и и слои данных не меняются: правим только presentation и связанные с ним строки/настройки.
+- Числа в UI берутся из токенов. Исключения фиксируются списком по значению, а не по номеру строки (номера устаревают при каждом добавлении импорта): `0.dp` как «выключено» — ширина рамки и `defaultElevation`; `2.dp` — отступ клетки месяца снаружи и промежуток точек внутри; `4.dp` — внутренний отступ клетки месяца; `5.dp` — диаметр точки провайдера в клетке; `8.dp` — отступ ряда стрелок; `24.dp` — разбивка в шапке. Любое новое число — токен в `Tokens.kt`, а не литерал.
 
 ---
 
@@ -1677,13 +1678,462 @@ git add README.md docs
 git commit -m "docs: визуальный язык navy — скриншоты и актуальные счётчики тестов"
 ```
 
+---
+
+### Task 8: Недельные колонки-карточки с компактными строками
+
+**Files:**
+- Modify: `app/src/main/java/com/example/mycalendar/presentation/theme/Tokens.kt` (`AppShapes`, `AppSpacing`, `AppSizes`)
+- Modify: `app/src/main/java/com/example/mycalendar/presentation/theme/Type.kt` (новый `WeekColumnTypography`)
+- Modify: `app/src/main/java/com/example/mycalendar/presentation/common/DateFormats.kt` (новый `weekColDateFormatter`)
+- Create: `app/src/main/java/com/example/mycalendar/presentation/components/WeekColumn.kt`
+- Modify: `app/src/main/java/com/example/mycalendar/presentation/components/EventCard.kt` (`private fun timeText` → `internal fun timeText`)
+- Modify: `app/src/main/java/com/example/mycalendar/presentation/calendar/CalendarScreen.kt` (`WeekView`, его вызов, импорты)
+- Modify: `app/src/main/res/values/strings.xml` (новая строка `week_more_events`)
+- Modify: `app/src/androidTest/java/com/example/mycalendar/WeekViewCardsUiTest.kt` (переписанные ожидания + новый тест)
+
+**Interfaces:**
+- Consumes: `AppSizes.stroke`/`dot`, `AppShapes.dayMarker` (Task 1, 5), `AppSpacing.screen`/`listVPad`/`providerStripe` (Task 1, 5), `EventOccurrence` и `providerColor()` (Task 3), `dayShortName()` (уже в `CalendarScreen.kt`), `LocalIsDarkTheme` (Task 2), `CalendarViewModel.setViewMode`/`selectDate`.
+- Produces: `WeekDayColumn(date, dayLabel, events, onEventClick, onOpenDay, modifier, isToday)`, `WeekEventCell(occurrence, onClick, modifier)`, `AppShapes.weekColumn`, `AppSpacing.weekColGap/weekCellGap/weekCellPad`, `AppSizes.weekVisibleCells`, `WeekColumnTypography{dayLabel,date,cellTime,cellTitle}`, `weekColDateFormatter`, `R.string.week_more_events`, `internal fun timeText(millis: Long): String`.
+
+- [ ] **Step 1: Переписать инструментальный тест под колонки (красный)**
+
+В `WeekViewCardsUiTest.kt` тела трёх тестов переписываются, добавляется четвёртый. Хелперы `setUp`/`tearDown`/`reachCalendar`/`nodesWithText` остаются; посевы переводятся на накопленный список id, чтобы `tearDown` удалил все — засеянное «Много …» событие ломает ожидание пустой колонки у следующего теста.
+
+```kotlin
+    private val seededIds = mutableListOf<String>()
+
+    private fun seed(id: String, eventTitle: String, start: Long, durationMinutes: Long = 45) {
+        runBlocking {
+            eventRepository.saveFromUser(
+                Event(
+                    id = id,
+                    title = eventTitle,
+                    startTime = start,
+                    endTime = start + durationMinutes * 60 * 1_000L,
+                    reminderMinutes = emptyList(),
+                    calendarProvider = CalendarProvider.LOCAL,
+                )
+            )
+        }
+        seededIds += id
+    }
+```
+
+`setUp` переписать на `seed(...)` (оба текущих посева), `tearDown` — на `seededIds.forEach { eventRepository.hardDelete(it) }`. Тела тестов:
+
+```kotlin
+    @Test
+    fun weekView_showsColumnCardWithCompactCell() {
+        val res = composeRule.activity.resources
+        reachCalendar()
+        composeRule.onNodeWithText(res.getString(R.string.view_week)).performClick()
+
+        // Заголовок колонки сегодняшнего дня: дата «05.11»
+        val todayLabel = LocalDate.now().format(weekColDateFormatter)
+        composeRule.waitUntil(10_000) {
+            nodesWithText(todayLabel, substring = false).fetchSemanticsNodes().isNotEmpty()
+        }
+        // Компактная строка: название кликабельно, время начала на месте
+        composeRule.waitUntil(10_000) {
+            composeRule.onAllNodes(hasText(title) and hasClickAction())
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        assertTrue(nodesWithText("09:30").fetchSemanticsNodes().isNotEmpty())
+        // Чипов в колонке нет: это единственное отличие компактной строки от карточки
+        composeRule.onAllNodes(hasText(res.getString(R.string.provider_short_local)))
+            .assertCountEquals(0)
+    }
+
+    @Test
+    fun weekView_emptyColumnShowsNoQuietLine() {
+        val res = composeRule.activity.resources
+        reachCalendar()
+        composeRule.onNodeWithText(res.getString(R.string.view_week)).performClick()
+        composeRule.waitUntil(10_000) {
+            nodesWithText("09:30").fetchSemanticsNodes().isNotEmpty()
+        }
+        // Пустая колонка — пустая карточка: тихой строки в недельном виде больше нет
+        composeRule.onAllNodes(hasText(res.getString(R.string.no_events)))
+            .assertCountEquals(0)
+    }
+```
+
+`weekView_multiDayEventRendersUnderEachDay` не переименовывается и не меняется: `assertCountEquals(2)` по кликабельным узлам с `spanTitle` верно и для колонок (событие с 23:00 понедельника на 90 минут лежит в понедельнике и вторнике).
+
+```kotlin
+    @Test
+    fun weekView_moreThanFourEventsShowsMoreLineAndOpensDay() {
+        val zone = ZoneId.systemDefault()
+        val dayStart = LocalDate.now().atStartOfDay(zone).toInstant().toEpochMilli()
+        // Шесть событий с 6 до 11 часов: видны четыре, остаток — «+2 ещё»
+        repeat(6) { index ->
+            seed(
+                id = "week-many-$suffix-$index",
+                eventTitle = "Много $suffix $index",
+                start = dayStart + (6L + index) * 60 * 60 * 1_000L,
+            )
+        }
+        val res = composeRule.activity.resources
+        reachCalendar()
+        composeRule.onNodeWithText(res.getString(R.string.view_week)).performClick()
+
+        val moreText = res.getString(R.string.week_more_events, 2)
+        composeRule.waitUntil(10_000) {
+            composeRule.onAllNodes(hasText(moreText) and hasClickAction())
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onAllNodes(hasText(moreText) and hasClickAction()).assertCountEquals(1)
+        // Тап по «+N ещё» открывает вид «День» на этом же дне
+        composeRule.onAllNodes(hasText(moreText) and hasClickAction()).onFirst().performClick()
+        composeRule.waitUntil(10_000) {
+            nodesWithText(res.getString(R.string.today)).fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+```
+
+`weekColDateFormatter` — `internal` в `presentation/common/DateFormats.kt`; `androidTest` компилируется тем же модулем, поэтому доступен. Если компилятор откажет (проверить на красном прогоне), в тесте формровать дату локальным `DateTimeFormatter.ofPattern("dd.MM")` и записать это в отчёт.
+
+Run: `./gradlew :app:connectedDebugAndroidTest --tests "*WeekViewCardsUiTest"`
+Expected: FAIL — `weekView_showsColumnCardWithCompactCell` не находит подпись даты и находит чип провайдера, `weekView_emptyColumnShowsNoQuietLine` находит «Нет событий», `weekView_moreThanFourEventsShowsMoreLineAndOpensDay` не находит «+2 ещё».
+
+- [ ] **Step 2: Токены и шкала**
+
+`Tokens.kt` — значения ровно из спеки:
+
+```kotlin
+object AppShapes {
+    // ... card, chip, calendarCell, dayMarker
+    // Колонка шире ячейки, но 18 dp всё равно крупно для блока ~43 dp.
+    val weekColumn: Shape = RoundedCornerShape(12.dp)
+}
+
+object AppSpacing {
+    // ... screen, cardGap, dayGap, cardHPad, cardVPad, providerStripe, chipHPad, chipVPad,
+    //     rowGap, dotGap, headerVPad, listVPad
+    // Промежуток между колонками недельного ряда.
+    val weekColGap: Dp = 4.dp
+    // Промежуток между строками событий внутри колонки и отступ текста от полосы.
+    val weekCellGap: Dp = 4.dp
+    // Единственный отступ внутри карточки колонки: cardHPad = 14 dp съел бы ширину ~43 dp.
+    val weekCellPad: Dp = 4.dp
+}
+
+object AppSizes {
+    // ... timeColumn, segmentedHeight, minTouch, iconSmall, iconMedium, dayHeaderMinHeight, dot, stroke
+    // Сколько строк событий помещается в колонке без «+N ещё».
+    val weekVisibleCells: Int = 4
+}
+```
+
+`Type.kt` — после `CardTypography`:
+
+```kotlin
+/** Стили колонки недельного вида: кегли меньше карточных, иначе текст не влезает в ~43 dp. */
+object WeekColumnTypography {
+    val dayLabel: TextStyle = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Medium,
+        fontSize = 11.sp,
+        lineHeight = 15.sp,
+    )
+
+    val date: TextStyle = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Medium,
+        fontSize = 13.sp,
+        lineHeight = 17.sp,
+    )
+
+    // Табличные цифры, как у карточки: время разных дней обязано стоять в одну колонку.
+    val cellTime: TextStyle = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Medium,
+        fontSize = 11.sp,
+        lineHeight = 15.sp,
+        fontFeatureSettings = "tnum",
+    )
+
+    val cellTitle: TextStyle = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Medium,
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+    )
+}
+```
+
+`DateFormats.kt` — в конец файла:
+
+```kotlin
+/** «05.11» — вторая строка заголовка колонки недельного вида. */
+internal val weekColDateFormatter: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("dd.MM", russianLocale)
+```
+
+- [ ] **Step 3: Компонент колонки**
+
+Создать `presentation/components/WeekColumn.kt`:
+
+```kotlin
+package com.example.mycalendar.presentation.components
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.example.mycalendar.R
+import com.example.mycalendar.presentation.common.weekColDateFormatter
+import com.example.mycalendar.presentation.theme.AppShapes
+import com.example.mycalendar.presentation.theme.AppSizes
+import com.example.mycalendar.presentation.theme.AppSpacing
+import com.example.mycalendar.presentation.theme.LocalIsDarkTheme
+import com.example.mycalendar.presentation.theme.WeekColumnTypography
+import java.time.LocalDate
+
+/**
+ * Карточка дня в недельном ряду: заголовок, до AppSizes.weekVisibleCells строк событий
+ * и «+N ещё» с переходом в вид «День».
+ */
+@Composable
+fun WeekDayColumn(
+    date: LocalDate,
+    dayLabel: String,
+    events: List<EventOccurrence>,
+    onEventClick: (String) -> Unit,
+    onOpenDay: (LocalDate) -> Unit,
+    modifier: Modifier = Modifier,
+    isToday: Boolean = date == LocalDate.now(),
+) {
+    val dark = LocalIsDarkTheme.current
+    val visible = events.sortedBy { it.startMillis }.take(AppSizes.weekVisibleCells)
+    val extra = events.size - visible.size
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = AppShapes.weekColumn,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = if (dark) {
+            null
+        } else {
+            BorderStroke(AppSizes.stroke, MaterialTheme.colorScheme.outline)
+        },
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(AppSpacing.weekCellPad),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.weekCellGap),
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(AppSpacing.weekCellGap),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (isToday) {
+                    Spacer(
+                        modifier = Modifier
+                            .size(AppSizes.dot)
+                            .background(MaterialTheme.colorScheme.primary, AppShapes.dayMarker),
+                    )
+                }
+                Text(
+                    text = dayLabel,
+                    style = WeekColumnTypography.dayLabel,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                text = date.format(weekColDateFormatter),
+                style = WeekColumnTypography.date,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            visible.forEach { occurrence ->
+                WeekEventCell(
+                    occurrence = occurrence,
+                    onClick = { onEventClick(occurrence.event.id) },
+                )
+            }
+            if (extra > 0) {
+                Text(
+                    text = stringResource(R.string.week_more_events, extra),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = AppSizes.minTouch)
+                        .clickable { onOpenDay(date) },
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Компактная строка события: полоса провайдера, время начала и название в две строки.
+ * Своего фона и рамки у строки нет — контур принадлежит карточке дня.
+ */
+@Composable
+fun WeekEventCell(
+    occurrence: EventOccurrence,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min)
+            .clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Spacer(
+            modifier = Modifier
+                .fillMaxHeight()
+                .width(AppSpacing.providerStripe)
+                .background(providerColor(occurrence.event.calendarProvider)),
+        )
+        Column(modifier = Modifier.padding(start = AppSpacing.weekCellGap)) {
+            Text(
+                text = timeText(occurrence.startMillis),
+                style = WeekColumnTypography.cellTime,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = occurrence.event.title,
+                style = WeekColumnTypography.cellTitle,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+```
+
+В `EventCard.kt` заменить `private fun timeText` на `internal fun timeText` — тот же пакет, дублировать форматтер в `WeekColumn.kt` незачем.
+
+`strings.xml` — в блок календаря, сразу после `no_events`:
+
+```xml
+    <string name="week_more_events">+%1$d ещё</string>
+```
+
+- [ ] **Step 4: Недельный ряд в `CalendarScreen.kt`**
+
+Тело `WeekView` (сейчас `LazyColumn` со строками `header_`/`empty_`/событий, строки 275-321) целиком заменяется на `Row`:
+
+```kotlin
+@Composable
+private fun WeekView(
+    state: CalendarUiState,
+    occurrences: List<EventOccurrence>,
+    onEventClick: (String) -> Unit,
+    onOpenDay: (LocalDate) -> Unit,
+    eventsOn: (LocalDate, List<EventOccurrence>) -> List<EventOccurrence>,
+) {
+    val weekStart = state.selectedDate.with(DayOfWeek.MONDAY)
+    val days = remember(weekStart) { (0..6).map { weekStart.plusDays(it.toLong()) } }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = AppSpacing.screen, vertical = AppSpacing.listVPad),
+        horizontalArrangement = Arrangement.spacedBy(AppSpacing.weekColGap),
+        verticalAlignment = Alignment.Top,
+    ) {
+        days.forEach { date ->
+            WeekDayColumn(
+                modifier = Modifier.weight(1f),
+                date = date,
+                dayLabel = dayShortName(date.dayOfWeek),
+                events = eventsOn(date, occurrences),
+                onEventClick = onEventClick,
+                onOpenDay = onOpenDay,
+            )
+        }
+    }
+}
+```
+
+Вызов в `when (state.viewMode)` (строки 160-165) дополнить аргументом:
+
+```kotlin
+                CalendarViewMode.WEEK -> WeekView(
+                    state = state,
+                    occurrences = occurrences,
+                    onEventClick = onEventClick,
+                    onOpenDay = { date ->
+                        viewModel.selectDate(date)
+                        viewModel.setViewMode(CalendarViewMode.DAY)
+                    },
+                    eventsOn = viewModel::eventsOn,
+                )
+```
+
+Добавить импорт `com.example.mycalendar.presentation.components.WeekDayColumn`. `DayHeader` в недельном виде больше не вызывается, но компонент и его импорт остаются: его использует вид «День». Импорт `LazyColumn` остаётся — его используют `DayView` и `EventList`. Комментарий про ключ с датой (строки 310-311) удаляется вместе с телом: вертикального списка больше нет, dated-ключ был нужен только ему.
+
+- [ ] **Step 5: Прогон теста недели (зелёный)**
+
+Run: `./gradlew :app:assembleDebug`
+Run: `rm -rf app/build/outputs/androidTest-results/connected/debug && ./gradlew :app:connectedDebugAndroidTest --tests "*WeekViewCardsUiTest"`
+Expected: 4 теста, 0 падений; судить по XML `TEST-Medium_Phone(AVD) - 9.xml`, а не по надписи `BUILD SUCCESSFUL` (она печатается и когда APK не установился).
+
+- [ ] **Step 6: JVM и линт**
+
+Run: `./gradlew :app:testDebugUnitTest :app:lintDebug`
+Expected: JVM PASS, 100 тестов (новых JVM-тестов задача не добавляет); линт 0 ошибок, 10 предупреждений. Числа снять с отчётов, а не помнить наизусть.
+
+- [ ] **Step 7: Живой кадр**
+
+`./gradlew :app:installDebug`, затем снять: Неделя (тёмная), Неделя (светлая), Неделя с длинным названием и с «+N ещё», Месяц и День для контроля ритма. Команды `adb exec-out screencap -p > /tmp/redesign-week-*.png` — те же, что в Task 5 шаг 5. Проверить глазами: рамка и скругление колонки видны в обеих схемах, пустая колонка читается карточкой, «+N ещё» попадает пальцем, время не «прыгает», название не режет первую строку.
+
+- [ ] **Step 8: Счётчики и описание в доках**
+
+`docs/how-to-verify.md` и `README.md`: после Task 7 connected-набор — 52 теста, задача добавляет один (`weekView_moreThanFourEventsShowsMoreLineAndOpensDay`), значит 53; итоговую цифру взять из отчёта прогона шага 9, а не из этой строки. и записать цифру из отчёта; в блоке «Визуальный язык» заменить описание недельного вида на «семь колонок-карточек дней с компактными строками событий и «+N ещё»». Скриншот недельного вида в `docs/screenshots/` переснять из шага 7.
+
+- [ ] **Step 9: Полный connected-прогон**
+
+Run: `rm -rf app/build/outputs/androidTest-results/connected/debug && ./gradlew :app:connectedDebugAndroidTest`
+Expected: одно падение — `SchedulerAndMediaTest.voiceRecorder_recordsM4aFile` (нет микрофона). Прогон снимает приложение и стирает данные: вход в Яндекс пользователь восстанавливает сам.
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add app/src docs README.md
+git commit -m "feat(calendar): недельный вид собран из семи колонок-карточек с компактными строками"
+```
+
 ## Самопроверка плана по спеку
 
 - Раздел 1 (палитра, цвета провайдеров, контраст) → Task 1 + Task 2; значение светлого `primary` поправлено по замеру, сноска в спеке — Task 1 шаг 6.
 - Раздел 2 (токены, типографика, `tnum`) → Task 1 шаг 4 и Task 3 шаг 4.
-- Раздел 3 (`EventCard`, `DayHeader`, `ProviderChip`, сохранение semantics для `eventCard()` в `AppUiTest`) → Task 3; проверка мержа — тест `card is one merged clickable node`.
-- Раздел 4, `CalendarScreen` (неделя карточками, месяц/день/шапка по токенам) → Task 4 + Task 5.
+- Раздел 3 (`EventCard`, `DayHeader`, `ProviderChip`, сохранение semantics для `eventCard()` в `AppUiTest`) → Task 3; проверка мержа — тест `card is one merged clickable node`. Компактная строка недели (`WeekColumn.kt`, `WeekColumnTypography`, `weekColDateFormatter`, `week_more_events`) → Task 3 шаги и спека «Недельная колонка» → Task 8 шаги 2-3.
+- Раздел 4, `CalendarScreen` (неделя карточками, месяц/день/шапка по токенам) → Task 4 + Task 5; недельный ряд из семи колонок-карточек → Task 8 шаг 4.
 - Раздел 4, прочие экраны (`EventDetailsScreen.kt:249`, `SettingsScreen.kt:551`, подписи меток) → Task 6.
 - Раздел 4, таблица вырезания Material You (8 мест) → Task 2 шаг 5, контроль — `grep` шага 6.
-- Раздел 4, проверка (JVM / lint / connected / живой прогон / контраст / доки) → шаги 4-5 Task 5, шаг 5 Task 6, весь Task 7.
-- «Вне объёма» спека не нарушен: нижняя навигация, новые экраны и 7-колоночная сетка в задачах отсутствуют.
+- Раздел 4, проверка (JVM / lint / connected / живой прогон / контраст / доки) → шаги 4-5 Task 5, шаг 5 Task 6, весь Task 7, шаги 5-9 Task 8.
+- «Вне объёма» спека не нарушен: нижняя навигация, новые экраны и часовая сетка недели (колонки по часам) в задачах отсутствуют; семиколоночный ряд Task 8 — колонки по дням, он в объёме.
