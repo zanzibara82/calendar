@@ -542,7 +542,7 @@ Expected: пусто. Если найдётся — это недостающа�
 - [ ] **Step 7: JVM-тесты + сборка**
 
 Run: `./gradlew :app:testDebugUnitTest`
-Expected: PASS, 100 тестов (было 97, +3 из `PaletteContrastTest`).
+Expected: PASS, 101 тест (было 97, +4 из `PaletteContrastTest` — три пары текста плюс плашка провайдера с порогом 3:1).
 
 Run: `./gradlew :app:assembleDebug`
 Expected: BUILD SUCCESSFUL.
@@ -1127,7 +1127,7 @@ Run: `./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunn
 Expected: PASS, 6 тестов.
 
 Run: `./gradlew :app:testDebugUnitTest`
-Expected: PASS (100 тестов).
+Expected: PASS (101 тест).
 
 - [ ] **Step 10: Commit**
 
@@ -1657,7 +1657,7 @@ git commit -m "fix(ui): карточки деталей и настроек сн
 - [ ] **Step 1: Полный прогон**
 
 Run: `./gradlew :app:testDebugUnitTest :app:lintDebug`
-Expected: JVM PASS, 100 тестов (было 97, +3 контраста из Task 1; остальные новые тесты — instrumented). Lint: 0 ошибок; предупреждений — база окружения, состав id сверить с прогоном Task 6 (замер на вершине Task 6 — 11, из них 6 подсказок каталога версий, не правятся).
+Expected: JVM PASS, 101 тест (было 97, +4 контраста из Task 1 и доводки Task 6; остальные новые тесты — instrumented). Lint: 0 ошибок; предупреждений — база окружения, состав id сверить с прогоном Task 6 (замер на вершине Task 6 — 11, из них 6 подсказок каталога версий, не правятся).
 
 Run: `./gradlew :app:connectedDebugAndroidTest`
 Expected: **52 теста** (41 прежних + 3 `ThemePaletteTest` + 6 `EventCardUiTest` + 2 `WeekViewCardsUiTest`). Число сверить с отчётом `app/build/reports/androidTests/connected/index.html` и записать фактическое; падает только `SchedulerAndMediaTest.voiceRecorder_recordsM4aFile` (assumption).
@@ -1671,7 +1671,7 @@ Expected: **52 теста** (41 прежних + 3 `ThemePaletteTest` + 6 `Event
 
 В `README.md` — счётчики тестов и одна строка о новом визуальном языке («тёмно-синяя тема, карточки событий во всех видах; палитра и токены — единый источник для Windows-версии»). В `docs/how-to-verify.md` — блок «Визуальный язык»: команды прогонов, ожидаемые числа, ссылка на спец, и напоминание, что connected-прогон стирает данные.
 
-- [ ] **Step 4: Проверить цифры в доках against фактического вывода**
+- [ ] **Step 4: Сверить цифры в доках с фактическим выводом**
 
 Run: `grep -n "тест" README.md docs/how-to-verify.md | head -20`
 Expected: каждая строка со счётчиком совпадает с отчётом из шага 1; расхождение — править док, а не память.
@@ -2110,7 +2110,7 @@ Expected: 4 теста, 0 падений; судить по XML `TEST-Medium_Pho
 - [ ] **Step 6: JVM и линт**
 
 Run: `./gradlew :app:testDebugUnitTest :app:lintDebug`
-Expected: JVM PASS, 100 тестов (новых JVM-тестов задача не добавляет); линт 0 ошибок, предупреждения — база без роста против предыдущего прогона. Числа снять с отчётов, а не помнить наизусть.
+Expected: JVM PASS, 101 тест (новых JVM-тестов задача не добавляет); линт 0 ошибок, предупреждения — база без роста против предыдущего прогона. Числа снять с отчётов, а не помнить наизусть.
 
 - [ ] **Step 7: Живой кадр**
 
