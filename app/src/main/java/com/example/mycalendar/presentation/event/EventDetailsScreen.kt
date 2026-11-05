@@ -1,5 +1,6 @@
 package com.example.mycalendar.presentation.event
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,8 +51,12 @@ import com.example.mycalendar.R
 import com.example.mycalendar.domain.model.EventTag
 import com.example.mycalendar.domain.model.RepeatRule
 import com.example.mycalendar.presentation.common.fullDateTimeFormatter
+import com.example.mycalendar.presentation.common.labelRes
 import com.example.mycalendar.presentation.common.russianLocale
 import com.example.mycalendar.presentation.components.providerColor
+import com.example.mycalendar.presentation.theme.AppShapes
+import com.example.mycalendar.presentation.theme.AppSizes
+import com.example.mycalendar.presentation.theme.LocalIsDarkTheme
 import java.time.Instant
 import java.time.ZoneId
 
@@ -246,7 +251,18 @@ private fun VoicePlayerRow(
     onSeek: (Int) -> Unit,
     onDelete: () -> Unit,
 ) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+    Card(
+        shape = AppShapes.card,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = if (LocalIsDarkTheme.current) {
+            null
+        } else {
+            BorderStroke(AppSizes.stroke, MaterialTheme.colorScheme.outline)
+        },
+    ) {
         Row(
             modifier = Modifier.padding(8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -315,8 +331,4 @@ private fun repeatLabel(rule: RepeatRule): Int = when (rule) {
 }
 
 @Composable
-private fun tagLabel(tag: EventTag): Int = when (tag) {
-    EventTag.BIRTHDAY -> R.string.tag_birthday
-    EventTag.DATE -> R.string.tag_date
-    EventTag.CINEMA -> R.string.tag_cinema
-}
+private fun tagLabel(tag: EventTag): Int = tag.labelRes

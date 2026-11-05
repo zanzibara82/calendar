@@ -72,6 +72,7 @@ import com.example.mycalendar.R
 import com.example.mycalendar.domain.model.EventTag
 import com.example.mycalendar.domain.model.RepeatRule
 import com.example.mycalendar.domain.usecase.EventValidation
+import com.example.mycalendar.presentation.common.labelRes
 import com.example.mycalendar.presentation.common.russianLocale
 import com.example.mycalendar.presentation.common.shortDateFormatter
 import com.example.mycalendar.presentation.common.timeFormatter
@@ -91,11 +92,7 @@ private val reminderOptions: List<Pair<Int, Int>> = listOf(
 )
 
 /** Метки события: чекбоксы День рождения / Свидание / Кино. */
-private val tagOptions: List<Pair<EventTag, Int>> = listOf(
-    EventTag.BIRTHDAY to R.string.tag_birthday,
-    EventTag.DATE to R.string.tag_date,
-    EventTag.CINEMA to R.string.tag_cinema,
-)
+private val tagOptions: List<Pair<EventTag, Int>> = EventTag.entries.map { it to it.labelRes }
 
 /**
  * Экран создания/редактирования события.

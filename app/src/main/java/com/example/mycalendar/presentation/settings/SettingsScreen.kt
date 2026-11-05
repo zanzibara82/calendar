@@ -54,7 +54,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -506,27 +505,27 @@ private fun CalendarCard(
 }
 
 /**
- * Иконка провайдера: фирменный цвет бренда + первая буква.
+ * Иконка провайдера: цвет из схемы + первая буква.
  * Собственные vector-логотипы надёжнее, но брендовые знаки — торговая марка,
  * поэтому используем нейтральную цветную круглую плашку.
  */
 @Composable
 private fun ProviderIcon(provider: CalendarProvider, modifier: Modifier = Modifier) {
-    val (label, color) = when (provider) {
-        CalendarProvider.GOOGLE -> "G" to Color(0xFF4285F4) // Google Blue
-        CalendarProvider.YANDEX -> "Я" to Color(0xFFFF0000) // Yandex Red
-        CalendarProvider.LOCAL -> "Л" to Color(0xFF9E9E9E)
+    val label = when (provider) {
+        CalendarProvider.GOOGLE -> "G"
+        CalendarProvider.YANDEX -> "Я"
+        CalendarProvider.LOCAL -> "Л"
     }
     Box(
         modifier = modifier
             .size(40.dp)
             .clip(CircleShape)
-            .background(color),
+            .background(MaterialTheme.colorScheme.primary),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = label,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onPrimary,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
         )

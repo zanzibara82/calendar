@@ -46,6 +46,7 @@ import com.example.mycalendar.domain.model.SyncConflict
 import com.example.mycalendar.domain.model.SyncField
 import com.example.mycalendar.domain.usecase.DeletionChoice
 import com.example.mycalendar.presentation.common.fullDateTimeFormatter
+import com.example.mycalendar.presentation.common.labelRes
 import java.time.Instant
 import java.time.ZoneId
 
@@ -406,11 +407,7 @@ private fun tagsLabel(tags: List<EventTag>): String =
     tags.map { stringResource(tagLabel(it)) }.joinToString(", ")
 
 @Composable
-private fun tagLabel(tag: EventTag): Int = when (tag) {
-    EventTag.BIRTHDAY -> R.string.tag_birthday
-    EventTag.DATE -> R.string.tag_date
-    EventTag.CINEMA -> R.string.tag_cinema
-}
+private fun tagLabel(tag: EventTag): Int = tag.labelRes
 
 @Composable
 private fun remindersLabel(minutes: List<Int>): String {
