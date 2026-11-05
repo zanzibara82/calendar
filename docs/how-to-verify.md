@@ -125,6 +125,42 @@ Debug и release подписаны разными ключами, поэтом�
    встроенное обновление с установленной 1.1.1 всегда отклоняет скачанный APK. `releases/latest`
    pre-release игнорирует — проверка обновлений его не предложит. Первый корректный релиз — `v1.1.2`.
 
+## Визуальный язык
+
+Спека: [docs/superpowers/specs/2026-11-01-android-visual-language-design.md](superpowers/specs/2026-11-01-android-visual-language-design.md).
+Палитра navy и токены (`presentation/theme/Tokens.kt`, `Type.kt`) — единый источник стилей для
+Android и будущего Windows-приложения, поэтому динамические цвета Material You вырезаны: тема
+даёт ровно те цвета, что заданы токенами.
+
+Что смотреть руками (светлая и тёмная тема):
+
+- месяц, неделя и день — события в карточках с полосой провайдера слева; чипы провайдера и метки;
+- неделя — столбец из семи карточек дней: пустой день — карточка только с заголовком «пн 02.11»,
+  в занятом дне не больше четырёх строк, дальше — «+N ещё» по тапу;
+- название события в недельной строке не режется и не упирается в край карточки;
+- сегодня помечено точкой в заголовке карточки дня, а в месяце — рамкой ячейки; выбранный день
+  в месяце залит `primary` с тем же скруглением ячейки.
+
+Что прогонять:
+
+```bash
+./gradlew :app:testDebugUnitTest --tests '*PaletteContrastTest'  # контраст пар текст/поверхность
+adb shell am instrument -w -r -e class com.example.mycalendar.EventCardUiTest \
+    com.example.mycalendar.test/com.example.mycalendar.HiltTestRunner
+adb shell am instrument -w -r -e class com.example.mycalendar.ThemePaletteTest \
+    com.example.mycalendar.test/com.example.mycalendar.HiltTestRunner
+adb shell am instrument -w -r -e class com.example.mycalendar.WeekViewCardsUiTest \
+    com.example.mycalendar.test/com.example.mycalendar.HiltTestRunner
+```
+
+Ожидается: JVM — 101 тест, 0 падений; линт — 0 ошибок, 11 предупреждений (состав унаследованный);
+connected — 55 тестов, 1 падение-assumption. `WeekViewCardsUiTest` проверяет карточки и в
+понедельник, и в воскресенье: даты в нём считаются от текущего дня, а не зашиты.
+
+**Напоминание:** `connectedDebugAndroidTest` снимает приложение и стирает его данные, а заодно
+сбрасывает выбранную тему на системную. Для скриншотов после прогона нужно заново поставить APK
+(`adb install -r -t`), выбрать тему и засеять демо-события.
+
 ## Автоматические проверки
 
 ```bash

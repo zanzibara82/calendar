@@ -49,6 +49,7 @@ import com.example.mycalendar.presentation.common.fullDateTimeFormatter
 import com.example.mycalendar.presentation.common.labelRes
 import java.time.Instant
 import java.time.ZoneId
+import com.example.mycalendar.presentation.theme.AppSpacing
 
 /**
  * Разбор конфликта: по полям — локальное или облачное значение каждого спорного поля;
@@ -109,7 +110,7 @@ fun ConflictDetailScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .padding(16.dp),
+                    .padding(AppSpacing.screen),
             )
             return@Scaffold
         }
@@ -157,8 +158,8 @@ fun ConflictDetailScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(AppSpacing.screen),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.cardVPad),
         ) {
             Text(
                 text = kindHelp(conflict.kind),
@@ -228,7 +229,7 @@ private fun kindHelp(kind: ConflictKind): String = stringResource(
 private fun DeletionComparison(conflict: SyncConflict, local: Event) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(AppSpacing.screen),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
@@ -320,7 +321,7 @@ private fun FieldRow(
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(AppSpacing.screen),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(fieldLabel(field), style = MaterialTheme.typography.titleMedium)

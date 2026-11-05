@@ -22,7 +22,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.mycalendar.R
@@ -30,6 +29,7 @@ import com.example.mycalendar.domain.model.ConflictKind
 import com.example.mycalendar.presentation.common.shortDateTimeFormatter
 import java.time.Instant
 import java.time.ZoneId
+import com.example.mycalendar.presentation.theme.AppSpacing
 
 /**
  * Очередь конфликтов синхронизации: что столкнулось и сколько полей надо разобрать.
@@ -66,7 +66,7 @@ fun ConflictListScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .padding(16.dp),
+                    .padding(AppSpacing.screen),
             )
             return@Scaffold
         }
@@ -74,8 +74,8 @@ fun ConflictListScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(AppSpacing.screen),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.cardVPad),
         ) {
             items(count = conflicts.size, key = { conflicts[it].id }) { index ->
                 val conflict = conflicts[index]
@@ -85,7 +85,7 @@ fun ConflictListScreen(
                         .fillMaxWidth()
                         .clickable { onOpenConflict(conflict.id) },
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(modifier = Modifier.padding(AppSpacing.screen)) {
                         Text(title, style = MaterialTheme.typography.titleMedium)
                         Text(
                             text = formatDetectedAt(conflict.detectedAt),

@@ -22,7 +22,6 @@ object AppShapes {
 object AppSpacing {
     val screen: Dp = 16.dp
     val cardGap: Dp = 10.dp
-    val dayGap: Dp = 20.dp
     val cardHPad: Dp = 14.dp
     val cardVPad: Dp = 12.dp
     val providerStripe: Dp = 4.dp

@@ -70,6 +70,8 @@ import com.example.mycalendar.presentation.components.providerColor
 import com.example.mycalendar.presentation.common.shortDateTimeFormatter
 import java.time.Instant
 import java.time.ZoneId
+import com.example.mycalendar.presentation.theme.AppSizes
+import com.example.mycalendar.presentation.theme.AppSpacing
 
 /**
  * Экран настроек: тема, подключаемые календари (Google / Яндекс), разрешения.
@@ -125,8 +127,8 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(AppSpacing.screen),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.cardVPad),
         ) {
             // ---------- Оформление ----------
             SectionHeader(stringResource(R.string.appearance))
@@ -195,7 +197,7 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier.padding(AppSpacing.screen),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(Icons.Filled.Warning, contentDescription = null)
@@ -292,10 +294,10 @@ private fun UpdateCard(
         state.status == UpdateUiState.UpdateStatus.DOWNLOADING
 
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(AppSpacing.screen)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Filled.SystemUpdate, contentDescription = null)
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(AppSpacing.cardVPad))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = stringResource(R.string.app_name),
@@ -355,7 +357,7 @@ private fun UpdateCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(AppSpacing.cardVPad))
             when (state.status) {
                 UpdateUiState.UpdateStatus.AVAILABLE,
                 UpdateUiState.UpdateStatus.DOWNLOADING -> Button(
@@ -396,10 +398,10 @@ private fun CalendarCard(
     // а не обрезается.
     val buttonLabelAutoSize = TextAutoSize.StepBased(minFontSize = 7.sp, maxFontSize = 14.sp)
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(AppSpacing.screen)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 ProviderIcon(provider = state.provider)
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(AppSpacing.cardVPad))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = providerName(state.provider),
@@ -451,7 +453,7 @@ private fun CalendarCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(AppSpacing.cardVPad))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (state.isConnected) {
                     // «Синхронизировать» — главное действие карточки, поэтому кнопка
@@ -460,11 +462,11 @@ private fun CalendarCard(
                         onClick = onSync,
                         enabled = !state.isBusy && state.syncAvailable,
                         modifier = Modifier.weight(1.5f),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                        contentPadding = PaddingValues(horizontal = AppSpacing.cardVPad, vertical = 8.dp),
                     ) {
                         if (state.isSyncing) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
+                                modifier = Modifier.size(AppSizes.iconSmall),
                                 strokeWidth = 2.dp,
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -485,7 +487,7 @@ private fun CalendarCard(
                         onClick = onDisconnect,
                         enabled = !state.isBusy,
                         modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                        contentPadding = PaddingValues(horizontal = AppSpacing.cardVPad, vertical = 8.dp),
                     ) {
                         Text(
                             text = stringResource(R.string.disconnect),
@@ -580,7 +582,7 @@ private fun OAuthSetupDialog(onDismiss: () -> Unit) {
                     text = stringResource(R.string.oauth_setup_google),
                     style = MaterialTheme.typography.bodySmall,
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(AppSpacing.screen))
                 Text(
                     text = stringResource(R.string.provider_yandex),
                     style = MaterialTheme.typography.titleSmall,

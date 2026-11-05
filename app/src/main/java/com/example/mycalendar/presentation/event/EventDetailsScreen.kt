@@ -55,6 +55,7 @@ import com.example.mycalendar.presentation.common.russianLocale
 import com.example.mycalendar.presentation.components.providerColor
 import com.example.mycalendar.presentation.theme.AppShapes
 import com.example.mycalendar.presentation.theme.AppSizes
+import com.example.mycalendar.presentation.theme.AppSpacing
 import com.example.mycalendar.presentation.theme.LocalIsDarkTheme
 import java.time.Instant
 import java.time.ZoneId
@@ -129,8 +130,8 @@ fun EventDetailsScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(AppSpacing.screen),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.cardVPad),
         ) {
             // Заголовок + маркер провайдера
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -139,7 +140,7 @@ fun EventDetailsScreen(
                         .size(12.dp)
                         .background(providerColor(event.calendarProvider), CircleShape),
                 )
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(AppSpacing.cardVPad))
                 Text(
                     text = event.title,
                     style = MaterialTheme.typography.headlineMedium,

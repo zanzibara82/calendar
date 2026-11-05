@@ -51,7 +51,6 @@ fun EventCard(
     occurrence: EventOccurrence,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    showProviderChip: Boolean = true,
 ) {
     val event = occurrence.event
     val dark = LocalIsDarkTheme.current
@@ -114,7 +113,7 @@ fun EventCard(
                     horizontalArrangement = Arrangement.spacedBy(AppSpacing.rowGap),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (showProviderChip) ProviderChip(event.calendarProvider)
+                    ProviderChip(event.calendarProvider)
                     event.tags.forEach { tag ->
                         TagChip(stringResource(tag.labelRes))
                     }

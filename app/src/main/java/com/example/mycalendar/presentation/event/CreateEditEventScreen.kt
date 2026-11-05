@@ -80,6 +80,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
+import com.example.mycalendar.presentation.theme.AppSpacing
 
 /** Доступные отступы напоминаний (минуты -> строковый ресурс). */
 private val reminderOptions: List<Pair<Int, Int>> = listOf(
@@ -170,8 +171,8 @@ fun CreateEditEventScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(AppSpacing.screen),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.cardVPad),
         ) {
             OutlinedTextField(
                 value = state.title,
@@ -363,7 +364,7 @@ private fun VoiceNoteSection(
                     .size(14.dp)
                     .background(color, CircleShape),
             )
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(AppSpacing.cardVPad))
             Text(
                 text = stringResource(R.string.recording_in_progress, formatSeconds(state.recordSeconds)),
                 style = MaterialTheme.typography.bodyLarge,
