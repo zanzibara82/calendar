@@ -48,7 +48,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.example.mycalendar.R
-import com.example.mycalendar.domain.model.EventTag
 import com.example.mycalendar.domain.model.RepeatRule
 import com.example.mycalendar.presentation.common.fullDateTimeFormatter
 import com.example.mycalendar.presentation.common.labelRes
@@ -194,7 +193,7 @@ fun EventDetailsScreen(
                         event.tags.forEach { tag ->
                             AssistChip(
                                 onClick = {},
-                                label = { Text(stringResource(tagLabel(tag))) },
+                                label = { Text(stringResource(tag.labelRes)) },
                             )
                         }
                     }
@@ -329,6 +328,3 @@ private fun repeatLabel(rule: RepeatRule): Int = when (rule) {
     RepeatRule.MONTHLY -> R.string.repeat_monthly
     RepeatRule.YEARLY -> R.string.repeat_yearly
 }
-
-@Composable
-private fun tagLabel(tag: EventTag): Int = tag.labelRes

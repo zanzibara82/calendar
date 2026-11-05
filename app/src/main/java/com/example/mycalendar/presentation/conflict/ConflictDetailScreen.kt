@@ -404,10 +404,7 @@ private fun repeatLabel(rule: RepeatRule?): String = stringResource(
 
 @Composable
 private fun tagsLabel(tags: List<EventTag>): String =
-    tags.map { stringResource(tagLabel(it)) }.joinToString(", ")
-
-@Composable
-private fun tagLabel(tag: EventTag): Int = tag.labelRes
+    tags.map { stringResource(it.labelRes) }.joinToString(", ")
 
 @Composable
 private fun remindersLabel(minutes: List<Int>): String {
