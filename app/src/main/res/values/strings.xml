@@ -13,6 +13,7 @@
     <string name="view_day">День</string>
     <string name="today">Сегодня</string>
     <string name="no_events">Нет событий</string>
+    <string name="week_more_events">+%1$d ещё</string>
     <string name="no_events_hint">Нажмите «+», чтобы создать событие</string>
     <string name="new_event">Новое событие</string>
     <string name="settings">Настройки</string>

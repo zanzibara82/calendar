@@ -2,11 +2,15 @@ package com.example.mycalendar
 
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
 import androidx.test.platform.app.InstrumentationRegistry
@@ -15,6 +19,10 @@ import com.example.mycalendar.domain.model.Event
 import com.example.mycalendar.domain.repository.AuthRepository
 import com.example.mycalendar.domain.repository.EventRepository
 import com.example.mycalendar.domain.repository.SettingsRepository
+import com.example.mycalendar.presentation.common.russianLocale
+import com.example.mycalendar.presentation.common.weekColDateFormatter
+import com.example.mycalendar.presentation.common.weekdayTitleFormatter
+import com.example.mycalendar.presentation.theme.AppSizes
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import kotlinx.coroutines.runBlocking
@@ -30,8 +38,9 @@ import java.time.ZoneId
 import javax.inject.Inject
 
 /**
- * Недельный вид показывает карточки по дням, а не плоский список: заголовок дня,
- * карточка события, тихая строка в пустой день.
+ * Недельный вид — это семь карточек дней в одном столбце, а не плоский список: строка
+ * заголовка с датой, компактные строки событий в одну линию (без чипов), пустой день —
+ * карточка только с заголовком и «+N ещё» с переходом в вид «День».
  */
 @LargeTest
 @HiltAndroidTest
@@ -54,6 +63,32 @@ class WeekViewCardsUiTest {
     private val spanTitle = "Многосуточная недельная $suffix"
     private val spanEventId = "week-span-$suffix"
 
+    // Дата берётся один раз на экземпляр теста: setUp и тело теста обязаны смотреть в один и тот
+    // же день, иначе прогон через полночь разъедется с ожидаемым «+N ещё».
+    private val today = LocalDate.now()
+    private val weekMonday = today.with(DayOfWeek.MONDAY)
+
+    // Посевов стало больше (шесть событий на «+N ещё»), поэтому id накапливаются в списке:
+    // только так tearDown удалит все — висящая в базе карточка ломает ожидание пустого
+    // дня у следующего теста.
+    private val seededIds = mutableListOf<String>()
+
+    private fun seed(id: String, eventTitle: String, start: Long, durationMinutes: Long = 45) {
+        runBlocking {
+            eventRepository.saveFromUser(
+                Event(
+                    id = id,
+                    title = eventTitle,
+                    startTime = start,
+                    endTime = start + durationMinutes * 60 * 1_000L,
+                    reminderMinutes = emptyList(),
+                    calendarProvider = CalendarProvider.LOCAL,
+                )
+            )
+        }
+        seededIds += id
+    }
+
     @Before
     fun setUp() {
         hiltRule.inject()
@@ -68,34 +103,11 @@ class WeekViewCardsUiTest {
         Thread.sleep(1_000)
 
         val zone = ZoneId.systemDefault()
-        val start = LocalDate.now().atTime(9, 30).atZone(zone).toInstant().toEpochMilli()
-        runBlocking {
-            eventRepository.saveFromUser(
-                Event(
-                    id = eventId,
-                    title = title,
-                    startTime = start,
-                    endTime = start + 45 * 60 * 1_000L,
-                    reminderMinutes = listOf(15),
-                    calendarProvider = CalendarProvider.LOCAL,
-                )
-            )
-        }
+        val start = today.atTime(9, 30).atZone(zone).toInstant().toEpochMilli()
+        seed(eventId, title, start)
 
-        val weekMonday = LocalDate.now().with(DayOfWeek.MONDAY)
         val monStart = weekMonday.atTime(23, 0).atZone(zone).toInstant().toEpochMilli()
-        runBlocking {
-            eventRepository.saveFromUser(
-                Event(
-                    id = spanEventId,
-                    title = spanTitle,
-                    startTime = monStart,
-                    endTime = monStart + 90 * 60 * 1_000L,
-                    reminderMinutes = emptyList(),
-                    calendarProvider = CalendarProvider.LOCAL,
-                )
-            )
-        }
+        seed(spanEventId, spanTitle, monStart, durationMinutes = 90)
     }
 
     @After
@@ -103,13 +115,35 @@ class WeekViewCardsUiTest {
         // Засеянные события не должны пережить прогон: даже если тест упал посередине,
         // висящая в базе карточка ломает ожидание пустого дня у следующих классов набора.
         runBlocking {
-            eventRepository.hardDelete(eventId)
-            eventRepository.hardDelete(spanEventId)
+            seededIds.forEach { eventRepository.hardDelete(it) }
         }
     }
 
     private fun nodesWithText(text: String, substring: Boolean = true) =
         composeRule.onAllNodesWithText(text, substring = substring, useUnmergedTree = true)
+
+    /** Узлы с точным текстом в неразъеденном дереве: заголовок не должен сливаться с телом. */
+    private fun headerNodes(text: String) =
+        composeRule.onAllNodes(hasText(text, substring = false), useUnmergedTree = true)
+
+    /**
+     * Дни недели, свободные от посевов setUp: понедельник и вторник заняты многосуточным
+     * событием, сегодняшний день — основным. Кандидатов не меньше четырёх в любой день недели,
+     * поэтому тесты берут из этого списка разные концы и не затирают карточку друг друга.
+     */
+    private fun freeWeekDays(): List<LocalDate> =
+        (0L..6L).map { weekMonday.plusDays(it) }
+            .filter { it != today && it != weekMonday && it != weekMonday.plusDays(1) }
+
+    /**
+     * Прокручивает список недели к карточке дня. Карточки ниже сгиба экрана в ленивом списке
+     * не композятся, поэтому без прокрутки проверка зависела бы от высоты экрана и размера
+     * системного шрифта.
+     */
+    private fun scrollToWeekCard(date: LocalDate) {
+        composeRule.onAllNodes(hasScrollToIndexAction()).onFirst()
+            .performScrollToIndex(date.dayOfWeek.value - 1)
+    }
 
     private fun reachCalendar() {
         val res = composeRule.activity.resources
@@ -127,36 +161,64 @@ class WeekViewCardsUiTest {
     }
 
     @Test
-    fun weekView_showsDayHeaderAndEventCard() {
+    fun weekView_showsDayCardWithCompactCell() {
         val res = composeRule.activity.resources
         reachCalendar()
         composeRule.onNodeWithText(res.getString(R.string.view_week)).performClick()
 
-        // Сегодняшний заголовок: «Сегодня, 5 ноября»
+        // Строка заголовка сегодняшней карточки: дата вида «05.11»
+        val todayLabel = today.format(weekColDateFormatter)
+        scrollToWeekCard(today)
         composeRule.waitUntil(10_000) {
-            nodesWithText("Сегодня", substring = true).fetchSemanticsNodes().isNotEmpty()
+            nodesWithText(todayLabel, substring = false).fetchSemanticsNodes().isNotEmpty()
         }
-        // Карточка события — кликабельный узел с названием
+        // Компактная строка: название кликабельно, время начала на месте
         composeRule.waitUntil(10_000) {
             composeRule.onAllNodes(hasText(title) and hasClickAction())
                 .fetchSemanticsNodes().isNotEmpty()
         }
-        // Карточка несёт время и провайдера
         assertTrue(nodesWithText("09:30").fetchSemanticsNodes().isNotEmpty())
-        assertTrue(nodesWithText(res.getString(R.string.provider_short_local))
-            .fetchSemanticsNodes().isNotEmpty())
+        // Чипов в компактной строке нет: это единственное отличие от карточки вида «День»
+        composeRule.onAllNodes(hasText(res.getString(R.string.provider_short_local)))
+            .assertCountEquals(0)
     }
 
     @Test
-    fun weekView_emptyDayShowsQuietLine() {
+    fun weekView_emptyDayCardShowsNoQuietLine() {
         val res = composeRule.activity.resources
         reachCalendar()
         composeRule.onNodeWithText(res.getString(R.string.view_week)).performClick()
+        // Пустой день — карточка без тела: тихой строки в недельном виде больше нет.
+        // Проверка снимается, пока список вверху: там композится максимум карточек.
+        composeRule.onAllNodes(hasText(res.getString(R.string.no_events)))
+            .assertCountEquals(0)
+        // Карточка сегодняшнего дня может лежать ниже сгиба, поэтому время ждём после
+        // прокрутки к ней.
+        scrollToWeekCard(today)
         composeRule.waitUntil(10_000) {
-            nodesWithText(res.getString(R.string.no_events)).fetchSemanticsNodes().isNotEmpty()
+            nodesWithText("09:30").fetchSemanticsNodes().isNotEmpty()
         }
-        // «Нет событий» — текст без действия клика
-        composeRule.onAllNodes(hasText(res.getString(R.string.no_events)) and hasClickAction())
+    }
+
+    @Test
+    fun weekView_emptyDayCardShowsHeaderOnly() {
+        // Начало свободного окна: тест «+N ещё» берёт его конец, поэтому посевы того теста
+        // никогда не попадают в карточку, которую этот тест объявляет пустой.
+        val emptyDay = freeWeekDays().first()
+        val res = composeRule.activity.resources
+        reachCalendar()
+        composeRule.onNodeWithText(res.getString(R.string.view_week)).performClick()
+
+        val emptyLabel = emptyDay.format(weekColDateFormatter)
+        scrollToWeekCard(emptyDay)
+        composeRule.waitUntil(10_000) {
+            nodesWithText(emptyLabel, substring = false).fetchSemanticsNodes().isNotEmpty()
+        }
+        // Дата пустого дня стоит ровно один раз — только в строке заголовка, тела у карточки нет.
+        headerNodes(emptyLabel).assertCountEquals(1)
+        // Дата пустой карточки не кликабельна: если клик повесить на весь заголовок, строка
+        // заголовка в объединённом дереве сливается в один clickable-узел и проверка упадёт.
+        composeRule.onAllNodes(hasText(emptyLabel) and hasClickAction())
             .assertCountEquals(0)
     }
 
@@ -169,5 +231,46 @@ class WeekViewCardsUiTest {
             nodesWithText(spanTitle).fetchSemanticsNodes().size >= 2
         }
         composeRule.onAllNodes(hasText(spanTitle) and hasClickAction()).assertCountEquals(2)
+    }
+
+    @Test
+    fun weekView_moreThanFourEventsShowsMoreLineAndOpensDay() {
+        val zone = ZoneId.systemDefault()
+        // Сеять «многие» события на сегодня нельзя: в понедельник и вторник в карточку
+        // «сегодня» попадает ещё и многосуточный посев setUp, и скрытых строк стало бы не
+        // две, а три. Берём конец списка свободных дней: начало списка занято тестом пустой
+        // карточки, поэтому посевы двух тестов не пересекаются.
+        val busyDay = freeWeekDays().last()
+        val dayStart = busyDay.atStartOfDay(zone).toInstant().toEpochMilli()
+        val extra = 2
+        repeat(AppSizes.weekVisibleCells + extra) { index ->
+            seed(
+                id = "week-many-$suffix-$index",
+                eventTitle = "Много $suffix $index",
+                start = dayStart + (6L + index) * 60 * 60 * 1_000L,
+            )
+        }
+        val res = composeRule.activity.resources
+        reachCalendar()
+        composeRule.onNodeWithText(res.getString(R.string.view_week)).performClick()
+
+        val moreText = res.getString(R.string.week_more_events, extra)
+        scrollToWeekCard(busyDay)
+        composeRule.waitUntil(10_000) {
+            composeRule.onAllNodes(hasText(moreText) and hasClickAction())
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onAllNodes(hasText(moreText) and hasClickAction()).assertCountEquals(1)
+        // Видны ровно weekVisibleCells строк, остальные спрятаны за «+N ещё»
+        nodesWithText("Много $suffix").assertCountEquals(AppSizes.weekVisibleCells)
+        // Тап по «+N ещё» открывает вид «День» на этом же дне
+        val moreNode = composeRule.onAllNodes(hasText(moreText) and hasClickAction()).onFirst()
+        moreNode.performScrollTo()
+        moreNode.performClick()
+        val dayHeader = busyDay.format(weekdayTitleFormatter)
+            .replaceFirstChar { it.uppercase(russianLocale) }
+        composeRule.waitUntil(10_000) {
+            nodesWithText(dayHeader).fetchSemanticsNodes().isNotEmpty()
+        }
     }
 }

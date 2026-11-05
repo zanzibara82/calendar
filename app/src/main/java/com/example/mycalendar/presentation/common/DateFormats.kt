@@ -38,3 +38,7 @@ internal val dayTitleFormatter: DateTimeFormatter =
 /** «четверг, 12 марта» — подпись дня недели. */
 internal val weekdayTitleFormatter: DateTimeFormatter =
     DateTimeFormatter.ofPattern("EEEE, d MMMM", russianLocale)
+
+/** «05.11» — дата в строке заголовка карточки дня недельного вида. */
+internal val weekColDateFormatter: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("dd.MM", russianLocale)

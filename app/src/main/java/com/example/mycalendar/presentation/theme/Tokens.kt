@@ -33,6 +33,8 @@ object AppSpacing {
     val headerVPad: Dp = 4.dp
     // Вертикальный отступ списков и шапки видов.
     val listVPad: Dp = 8.dp
+    // Промежуток между строками событий внутри карточки дня и отступ текста от полосы.
+    val weekCellGap: Dp = 4.dp
 }
 
 object AppSizes {
@@ -44,4 +46,6 @@ object AppSizes {
     val dayHeaderMinHeight: Dp = 28.dp
     val dot: Dp = 6.dp
     val stroke: Dp = 1.dp
+    // Сколько строк событий помещается в карточке дня без «+N ещё».
+    val weekVisibleCells: Int = 4
 }

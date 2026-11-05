@@ -162,5 +162,5 @@ fun EventCard(
     }
 }
 
-private fun timeText(millis: Long): String =
+internal fun timeText(millis: Long): String =
     Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(timeFormatter)

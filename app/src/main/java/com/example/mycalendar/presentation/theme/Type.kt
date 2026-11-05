@@ -84,3 +84,36 @@ object CardTypography {
         lineHeight = 14.sp,
     )
 }
+
+/** Стили карточки дня в недельном столбце: кегли меньше карточных, список плотнее. */
+object WeekColumnTypography {
+    val dayLabel: TextStyle = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Medium,
+        fontSize = 11.sp,
+        lineHeight = 15.sp,
+    )
+
+    val date: TextStyle = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Medium,
+        fontSize = 13.sp,
+        lineHeight = 17.sp,
+    )
+
+    // Табличные цифры, как у карточки: время разных дней обязано стоять в одну колонку.
+    val cellTime: TextStyle = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Medium,
+        fontSize = 11.sp,
+        lineHeight = 15.sp,
+        fontFeatureSettings = "tnum",
+    )
+
+    val cellTitle: TextStyle = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Medium,
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+    )
+}

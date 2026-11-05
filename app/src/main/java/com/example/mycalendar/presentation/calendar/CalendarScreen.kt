@@ -54,6 +54,7 @@ import com.example.mycalendar.presentation.components.DayHeader
 import com.example.mycalendar.presentation.components.EmptyState
 import com.example.mycalendar.presentation.components.EventCard
 import com.example.mycalendar.presentation.components.EventOccurrence
+import com.example.mycalendar.presentation.components.WeekDayColumn
 import com.example.mycalendar.presentation.components.providerColor
 import com.example.mycalendar.presentation.theme.AppShapes
 import com.example.mycalendar.presentation.theme.AppSizes
@@ -161,6 +162,10 @@ fun CalendarScreen(
                     state = state,
                     occurrences = occurrences,
                     onEventClick = onEventClick,
+                    onOpenDay = { date ->
+                        viewModel.selectDate(date)
+                        viewModel.setViewMode(CalendarViewMode.DAY)
+                    },
                     eventsOn = viewModel::eventsOn,
                 )
 
@@ -277,6 +282,7 @@ private fun WeekView(
     state: CalendarUiState,
     occurrences: List<EventOccurrence>,
     onEventClick: (String) -> Unit,
+    onOpenDay: (LocalDate) -> Unit,
     eventsOn: (LocalDate, List<EventOccurrence>) -> List<EventOccurrence>,
 ) {
     val weekStart = state.selectedDate.with(DayOfWeek.MONDAY)
@@ -290,32 +296,14 @@ private fun WeekView(
         ),
         verticalArrangement = Arrangement.spacedBy(AppSpacing.cardGap),
     ) {
-        days.forEach { date ->
-            val dayEvents = eventsOn(date, occurrences)
-            item(key = "header_$date") {
-                DayHeader(
-                    date = date,
-                    modifier = Modifier.padding(top = AppSpacing.dayGap - AppSpacing.cardGap),
-                )
-            }
-            if (dayEvents.isEmpty()) {
-                item(key = "empty_$date") {
-                    Text(
-                        text = stringResource(R.string.no_events),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            } else {
-                // Ключ с датой: многосуточное событие лежит в dayEvents каждого перекрытого дня,
-                // без даты вторая карточка дала бы дубликат ключа и обвалила список.
-                items(dayEvents, key = { "${date}_${it.event.id}_${it.startMillis}" }) { occurrence ->
-                    EventCard(
-                        occurrence = occurrence,
-                        onClick = { onEventClick(occurrence.event.id) },
-                    )
-                }
-            }
+        items(days, key = { "week_$it" }) { date ->
+            WeekDayColumn(
+                date = date,
+                dayLabel = dayShortName(date.dayOfWeek),
+                events = eventsOn(date, occurrences),
+                onEventClick = onEventClick,
+                onOpenDay = onOpenDay,
+            )
         }
     }
 }

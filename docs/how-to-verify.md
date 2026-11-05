@@ -128,15 +128,19 @@ Debug и release подписаны разными ключами, поэтом�
 ## Автоматические проверки
 
 ```bash
-./gradlew :app:testDebugUnitTest            # JVM: 97 тестов, 0 падений
-./gradlew :app:lintDebug                    # 0 ошибок, 10 предупреждений
-./gradlew :app:connectedDebugAndroidTest    # эмулятор/устройство: 41 тест
+./gradlew :app:testDebugUnitTest            # JVM: 101 тест, 0 падений
+./gradlew :app:lintDebug                    # 0 ошибок, 11 предупреждений
+./gradlew :app:connectedDebugAndroidTest    # эмулятор/устройство: 55 тестов
 ```
 
-Ожидаемый результат connected: **41 тест, 1 падение** —
+Ожидаемый результат connected: **55 тестов, 1 падение** —
 `SchedulerAndMediaTest.voiceRecorder_recordsM4aFile` с `AssumptionViolatedException`
 (в headless-эмуляторе нет аудиовхода, запуск с `-no-audio`). Это не регресс: тест помечен как
 пропущенный, но AndroidX Test записывает его в XML как `<failure>`.
+
+Состав 11 предупреждений линта — унаследованный, новых задача визуального языка не добавила:
+`IconXmlAndPng` (3), `UnusedAttribute` (2), `AndroidGradlePluginVersion` (2),
+`NewerVersionAvailable` (2), `GradleDependency` (1), `UseKtx` (1).
 
 Отдельные тесты без полного прогона:
 
