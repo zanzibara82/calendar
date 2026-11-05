@@ -402,18 +402,3 @@ private fun monthTitle(date: LocalDate): String =
 
 private fun fullDateTitle(date: LocalDate): String =
     date.format(weekdayTitleFormatter).replaceFirstChar { it.uppercase(russianLocale) }
-
-/**
- * Сетка месяца: недели (Пн–Вс), включая дни соседних месяцев.
- */
-private fun monthWeeks(month: LocalDate): List<List<LocalDate>> {
-    val first = month.withDayOfMonth(1)
-    val firstCell = first.with(DayOfWeek.MONDAY)
-    val daysInMonth = month.lengthOfMonth()
-    // Число клеток, кратное 7: захватываем хвост соседнего месяца
-    val totalCells = ((first.dayOfWeek.value - 1) + daysInMonth)
-        .let { used -> ((used + 6) / 7) * 7 }
-    return (0 until totalCells).chunked(7).map { week ->
-        week.map { firstCell.plusDays(it.toLong()) }
-    }
-}

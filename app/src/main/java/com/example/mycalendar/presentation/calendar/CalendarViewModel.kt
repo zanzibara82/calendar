@@ -2,6 +2,8 @@ package com.example.mycalendar.presentation.calendar
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.mycalendar.domain.holiday.DayMark
+import com.example.mycalendar.domain.holiday.HolidayRegistry
 import com.example.mycalendar.domain.model.Event
 import com.example.mycalendar.domain.usecase.ExpandOccurrencesUseCase
 import com.example.mycalendar.domain.usecase.ObserveEventsBetweenUseCase
@@ -10,7 +12,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -30,6 +31,10 @@ data class CalendarUiState(
     val selectedDate: LocalDate = LocalDate.now(),
     /** Отображаемый месяц в виде Месяц. */
     val visibleMonth: LocalDate = LocalDate.now(),
+    /** Метки дней видимого диапазона: тон клетки, карточки и шапки. Пусто — без тона. */
+    val dayMarks: Map<LocalDate, DayMark> = emptyMap(),
+    /** Ресурсы названий праздников по тем же датам; заполнены только для DayMark.HOLIDAY. */
+    val holidayTitles: Map<LocalDate, Int> = emptyMap(),
 ) {
     /**
      * Диапазон (epoch millis) загружаемых событий:
@@ -52,6 +57,29 @@ data class CalendarUiState(
             CalendarViewMode.DAY -> selectedDate.startMillis() to selectedDate.endMillis()
         }
     }
+
+    /**
+     * Диапазон дней, которые показывает сетка. Не путать с [rangeMillis]: тот задаёт,
+     * что грузить из Room, и у месяца ограничен календарным месяцем, а клеток сетки —
+     * до сорока двух, и тон обязаны получить тоже дни соседних месяцев.
+     */
+    fun gridBounds(): Pair<LocalDate, LocalDate> = when (viewMode) {
+        CalendarViewMode.MONTH -> {
+            val weeks = monthWeeks(visibleMonth)
+            val start = weeks.first().first()
+            val end = weeks.last().last()
+            // Выбранный день мог остаться в другом месяце: шапка под сеткой всё равно
+            // обязана получить свой тон, поэтому диапазон накрывает и его.
+            minOf(start, selectedDate) to maxOf(end, selectedDate)
+        }
+
+        CalendarViewMode.WEEK -> {
+            val monday = selectedDate.with(DayOfWeek.MONDAY)
+            monday to monday.plusDays(6)
+        }
+
+        CalendarViewMode.DAY -> selectedDate to selectedDate
+    }
 }
 
 /**
@@ -67,10 +95,28 @@ data class CalendarUiState(
 class CalendarViewModel @Inject constructor(
     observeEventsBetween: ObserveEventsBetweenUseCase,
     private val expandOccurrences: ExpandOccurrencesUseCase,
+    private val holidayRegistry: HolidayRegistry,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CalendarUiState())
-    val uiState: StateFlow<CalendarUiState> = _uiState.asStateFlow()
+
+    /**
+     * Состояние с метками дня. Считается map-ом по `_uiState`: вход здесь только даты
+     * видимого диапазона, второго потока нет. Eagerly — чтобы значение было готово до
+     * первой подписки. Обычный объём — клетки видимой сетки (до сорока двух); когда выбранный
+     * день остался в другом месяце, диапазон накрывает и его, и карта растёт до этого разрыва.
+     */
+    val uiState: StateFlow<CalendarUiState> = _uiState
+        .map { state ->
+            val (from, to) = state.gridBounds()
+            val marks = holidayRegistry.marksBetween(from, to)
+            val titles = marks
+                .filterValues { it == DayMark.HOLIDAY }
+                .mapNotNull { (date, _) -> holidayRegistry.holidayTitleRes(date)?.let { date to it } }
+                .toMap()
+            state.copy(dayMarks = marks, holidayTitles = titles)
+        }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, CalendarUiState())
 
     /** Развёрнутые вхождения событий для текущего вида календаря. */
     val occurrences: StateFlow<List<com.example.mycalendar.presentation.components.EventOccurrence>> =
