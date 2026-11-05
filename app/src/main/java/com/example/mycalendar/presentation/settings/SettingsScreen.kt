@@ -66,6 +66,7 @@ import com.example.mycalendar.data.auth.OAuthConfig
 import com.example.mycalendar.domain.model.CalendarProvider
 import com.example.mycalendar.domain.model.ThemeMode
 import com.example.mycalendar.domain.repository.SyncResult
+import com.example.mycalendar.presentation.components.providerColor
 import com.example.mycalendar.presentation.common.shortDateTimeFormatter
 import java.time.Instant
 import java.time.ZoneId
@@ -505,7 +506,7 @@ private fun CalendarCard(
 }
 
 /**
- * Иконка провайдера: цвет из схемы + первая буква.
+ * Иконка провайдера: цвет провайдера из палитры + первая буква.
  * Собственные vector-логотипы надёжнее, но брендовые знаки — торговая марка,
  * поэтому используем нейтральную цветную круглую плашку.
  */
@@ -520,7 +521,7 @@ private fun ProviderIcon(provider: CalendarProvider, modifier: Modifier = Modifi
         modifier = modifier
             .size(40.dp)
             .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.primary),
+            .background(providerColor(provider)),
         contentAlignment = Alignment.Center,
     ) {
         Text(
