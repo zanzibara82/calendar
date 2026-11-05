@@ -172,9 +172,9 @@ keyPassword=...
 - Lint — 0 ошибок, 11 предупреждений: дубли иконок xml/png, атрибуты, игнорируемые на старых API,
   и предложения обновить зависимости.
 
-Одно «падение» в connected-прогоне ожидаемое: `SchedulerAndMediaTest.voiceRecorder_recordsM4aFile`
-снят assumption-ом (в headless-эмуляторе нет аудиовхода), но AndroidX Test записывает assumption в
-XML как `<failure>`.
+Connected-тесты выдают себе runtime-разрешения через `pm grant` — установка APK их не даёт. Без
+`RECORD_AUDIO` тест записи голоса не стартовал, и это списывали на отсутствие микрофона у эмулятора,
+хотя запись работает и на headless-образе с отключённым звуком.
 
 Instrumented-тесты проходят на эмуляторах API 28 и API 37. Подпись тестового APK — debug; для
 `connectedDebugAndroidTest` нужен запущенный эмулятор или устройство с включённой отладкой.

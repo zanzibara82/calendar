@@ -154,7 +154,7 @@ adb shell am instrument -w -r -e class com.example.mycalendar.WeekViewCardsUiTes
 ```
 
 Ожидается: JVM — 101 тест, 0 падений; линт — 0 ошибок, 11 предупреждений (состав унаследованный);
-connected — 55 тестов, 1 падение-assumption. `WeekViewCardsUiTest` проверяет карточки и в
+connected — 55 тестов, 0 падений. `WeekViewCardsUiTest` проверяет карточки и в
 понедельник, и в воскресенье: даты в нём считаются от текущего дня, а не зашиты.
 
 **Напоминание:** `connectedDebugAndroidTest` снимает приложение и стирает его данные, а заодно
@@ -169,10 +169,12 @@ connected — 55 тестов, 1 падение-assumption. `WeekViewCardsUiTest
 ./gradlew :app:connectedDebugAndroidTest    # эмулятор/устройство: 55 тестов
 ```
 
-Ожидаемый результат connected: **55 тестов, 1 падение** —
-`SchedulerAndMediaTest.voiceRecorder_recordsM4aFile` с `AssumptionViolatedException`
-(в headless-эмуляторе нет аудиовхода, запуск с `-no-audio`). Это не регресс: тест помечен как
-пропущенный, но AndroidX Test записывает его в XML как `<failure>`.
+Ожидаемый результат connected: **55 тестов, 0 падений**.
+`SchedulerAndMediaTest.voiceRecorder_recordsM4aFile` пишет настоящий `.m4a` и проходит даже на
+headless-эмуляторе с `-no-audio` (замер 05.11.2026). Прежде тест молча пропускался:
+`MediaRecorder.setAudioSource` не стартует без runtime-разрешения `RECORD_AUDIO`, которого установка
+APK не даёт, а отсутствие разрешения списывали на отсутствие микрофона у эмулятора. Теперь
+`RECORD_AUDIO` и `POST_NOTIFICATIONS` выдаются в `setUp` через `pm grant`.
 
 Состав 11 предупреждений линта — унаследованный, новых задача визуального языка не добавила:
 `IconXmlAndPng` (3), `UnusedAttribute` (2), `AndroidGradlePluginVersion` (2),

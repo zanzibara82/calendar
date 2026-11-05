@@ -57,17 +57,23 @@ class SchedulerAndMediaTest {
     @Before
     fun setUp() {
         hiltRule.inject()
-        // POST_NOTIFICATIONS на Android 13+: выдаём тихо, без системного диалога
+        // Разрешения группы dangerous не выдаются установкой APK: свежая поставка
+        // Connected Tests приходит с пустым блоком runtime permissions, и без этого шага
+        // тест записи падал на setAudioSource, а раньше — молча пропускался.
+        grantRuntimePermission("android.permission.RECORD_AUDIO")
         if (Build.VERSION.SDK_INT >= 33) {
-            runCatching {
-                InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand(
-                    "pm grant ${InstrumentationRegistry.getInstrumentation().targetContext.packageName}" +
-                        " android.permission.POST_NOTIFICATIONS"
-                )
-            }
+            grantRuntimePermission("android.permission.POST_NOTIFICATIONS")
         }
         // В тестовом процессе App.onCreate не выполняется — канал создаём сами (идемпотентно)
         notificationHelper.createChannels()
+    }
+
+    private fun grantRuntimePermission(permission: String) {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val descriptor = instrumentation.uiAutomation.executeShellCommand(
+            "pm grant ${instrumentation.targetContext.packageName} $permission"
+        )
+        descriptor.close()
     }
 
     @After
@@ -157,16 +163,6 @@ class SchedulerAndMediaTest {
     @Test
     fun voiceRecorder_recordsM4aFile() {
         val startResult = voiceRecorder.start()
-        if (startResult.isFailure &&
-            startResult.exceptionOrNull() is java.lang.RuntimeException &&
-            startResult.exceptionOrNull()?.message?.contains("setAudioSource") == true
-        ) {
-            // Headless-эмулятор без аудио-бэкенда хоста: микрофона нет физически.
-            // На реальных устройствах (API 28 и 31+) запись работает — пропускаем.
-            throw org.junit.AssumptionViolatedException(
-                "Нет аудио-входа в headless-эмуляторе ${api()}: пропускаем тест записи"
-            )
-        }
         assertTrue("start() должен пройти ${api()}: ${startResult.exceptionOrNull()}", startResult.isSuccess)
 
         Thread.sleep(2_000) // слишком короткая запись бросает на stop()
