@@ -21,7 +21,7 @@
 - Git config не меняем, force-push не делаем.
 - `./gradlew :app:connectedDebugAndroidTest` снимает приложение и стирает его данные: вход в Яндекс и подключённые календари после прогона приходится повторять, а сами `@HiltAndroidTest`-тесты этому не мешают (они сбрасывают онбординг и провайдеры сами).
 - Имена методов в инструментальных тестах (набор `androidTest`) пишутся без пробелов в стиле `префик_camelCase`, как в существующих тестах: dex не принимает имя метода с пробелом. В JVM-тестах имена с пробелами разрешены и остаются как есть.
-- Ожидаемый зелёный результат suite: JVM 97 + новые тесты, lint 0 ошибок (10 предупреждений), connected — одно падение `SchedulerAndMediaTest.voiceRecorder_recordsM4aFile` (`AssumptionViolatedException`, нет микрофона).
+- Ожидаемый зелёный результат suite: JVM 97 + новые тесты, lint 0 ошибок (предупреждения — база окружения: 8 постоянных плюс сетевые подсказки каталога версий, их число дрейфует: замер на голой базе `2af65e9` — 11), connected — одно падение `SchedulerAndMediaTest.voiceRecorder_recordsM4aFile` (`AssumptionViolatedException`, нет микрофона).
 - Структура экранов, навигация, ViewModel'и и слои данных не меняются: правим только presentation и связанные с ним строки/настройки.
 - Числа в UI берутся из токенов. Исключения фиксируются списком по значению, а не по номеру строки (номера устаревают при каждом добавлении импорта): `0.dp` как «выключено» — ширина рамки и `defaultElevation`; `2.dp` — отступ клетки месяца снаружи и промежуток точек внутри; `4.dp` — внутренний отступ клетки месяца; `5.dp` — диаметр точки провайдера в клетке; `8.dp` — отступ ряда стрелок; `24.dp` — разбивка в шапке. Любое новое число — токен в `Tokens.kt`, а не литерал.
 
@@ -1567,7 +1567,7 @@ git commit -m "feat(calendar): месяц, день и шапка перевед
 - [ ] **Step 1: Найти все жёсткие значения вне токенов**
 
 Run: `grep -rn "Color(0x\|RoundedCornerShape([0-9]\|\.dp)" app/src/main/java/com/example/mycalendar/presentation app/src/main/java/com/example/mycalendar/notifications | grep -v "presentation/theme" | head -40`
-Expected: список правок. `presentation/components/ProviderChip.kt` и `EventCard.kt` уже используют токены; внутренние `8.dp` чипов и отступы Material-компонентов правке не подлежат — это часть компонента, а не дизайн-токен.
+Expected: список правок. `presentation/components/ProviderChip.kt` и `EventCard.kt` уже используют токены; внутренние `8.dp` чипов и отступы Material-компонентов правке не подлежат — это часть компонента, а не дизайн-токен. Попадания в `notifications/ReminderActivity.kt` (затемнение `Color.Black.copy(alpha = 0.55f)` и радиус оверлея 24 dp) — вне объёма: спека раздела 4 перекрашивает `presentation/` (календарь, `event/`, `auth/`, `settings/`, `conflict/`), а полноэкранный оверлей будильника поверх локскрина в её список экранов не входил; grep шаг 1 делает обзор шире задания специально, и эти два попадания закрыты решением контроллера в ledger как материал бэклога.
 
 - [ ] **Step 2: Карточка деталей события**
 
@@ -1592,25 +1592,28 @@ Expected: список правок. `presentation/components/ProviderChip.kt` �
 
 - [ ] **Step 3: Белый цвет в настройках**
 
-`SettingsScreen.kt:551` — `color = Color.White` → `color = MaterialTheme.colorScheme.onPrimary`. Если рядом жёсткий фон `Color(0x…)`, заменить на `MaterialTheme.colorScheme.primary`.
+`SettingsScreen.kt` — `color = Color.White` в плашке провайдера → `color = MaterialTheme.colorScheme.onPrimary`. Жёсткий брендовый фон `Color(0xFF4285F4)`/`Color(0xFFFF0000)`/`Color(0xFF9E9E9E)` той же плашки — на `providerColor(provider)` (решение контроллера после ревью: различие цветов провайдеров это функция, а не украшение, и палитра уже несёт эти цвета токенами; замена на `colorScheme.primary` слила бы три провайдера в один цвет).
 
 - [ ] **Step 4: Один источник подписей меток**
 
 Три экрана держали свой `when` по `EventTag` — сводим к `labelRes` из Task 3, не меняя поведения.
 
-`presentation/event/EventDetailsScreen.kt:317-322` — тело функции становится однострочным:
+`presentation/event/EventDetailsScreen.kt` и `presentation/conflict/ConflictDetailScreen.kt` — приватные
+функции `tagLabel` удаляются вместе с объявлением, а вызовы идут прямо к свойству:
 
 ```kotlin
-@Composable
-private fun tagLabel(tag: EventTag): Int = tag.labelRes
+// EventDetailsScreen.kt, метка чипа
+label = { Text(stringResource(tag.labelRes)) },
+
+// ConflictDetailScreen.kt, строка меток
+private fun tagsLabel(tags: List<EventTag>): String =
+    tags.map { stringResource(it.labelRes) }.joinToString(", ")
 ```
 
-`presentation/conflict/ConflictDetailScreen.kt:409-414` — то же:
-
-```kotlin
-@Composable
-private fun tagLabel(tag: EventTag): Int = tag.labelRes
-```
+(Решение контроллера после ревью: листинг этой задачи оставлял по однострочной обёртке `tagLabel` в каждом
+файле — два дословно одинаковых `@Composable private fun`, обёрнутых вокруг несomposable свойства. Обёртка
+не несёт ни логики, ни `@StringRes`, который ей приписывал план: в дереве его не было. DRY-цель шага
+достигается самим `labelRes`.)
 
 `presentation/event/CreateEditEventScreen.kt:93-98` — список чекбоксов строится из общего источника:
 
@@ -1619,12 +1622,14 @@ private fun tagLabel(tag: EventTag): Int = tag.labelRes
 private val tagOptions: List<Pair<EventTag, Int>> = EventTag.entries.map { it to it.labelRes }
 ```
 
-Импорт `com.example.mycalendar.presentation.common.labelRes` добавить во все три файла. `@StringRes`-аннотацию у приватных `tagLabel` оставить как есть (она уже проставлена в этих файлах).
+Импорт `com.example.mycalendar.presentation.common.labelRes` добавить во все три файла; импорт
+`domain.model.EventTag` в `EventDetailsScreen.kt` после удаления обёртки становится неиспользуемым и
+удаляется вместе с ней (в `ConflictDetailScreen.kt` он нужен сигнатуре `tagsLabel`).
 
 - [ ] **Step 5: Линт и JVM**
 
 Run: `./gradlew :app:lintDebug`
-Expected: 0 ошибок, 10 предупреждений (как до redesign). Удалённые `dynamic_color*` строки не должны оставить неиспользуемых ресурсов.
+Expected: 0 ошибок. Предупреждений 11, и это база окружения, а не долг задачи: `UnusedAttribute` ×2 (манифест), `IconXmlAndPng` ×3 (иконки), `UseKtx` ×1 (`ApkInstaller.kt`) — постоянные, плюс `AndroidGradlePluginVersion` ×2, `GradleDependency` ×1 и `NewerVersionAvailable` ×2 из `gradle/libs.versions.toml` — их число зависит от того, какие версии каталог увидел в сети, и правке они запрещены тем же правилом «новые зависимости не трогаем». Контроль — состав id против предыдущего прогона этой же задачи, а не число «10 как до redesign» (до ревью задачи 6 план обещал 10; замеры на голой базе `2af65e9` дали те же 11, значит правки задачи набор не изменили). Удалённые `dynamic_color*` строки не должны оставить неиспользуемых ресурсов.
 
 Run: `./gradlew :app:testDebugUnitTest`
 Expected: PASS.
@@ -1652,7 +1657,7 @@ git commit -m "fix(ui): карточки деталей и настроек сн
 - [ ] **Step 1: Полный прогон**
 
 Run: `./gradlew :app:testDebugUnitTest :app:lintDebug`
-Expected: JVM PASS, 100 тестов (было 97, +3 контраста из Task 1; остальные новые тесты — instrumented). Lint: 0 ошибок, 10 предупреждений.
+Expected: JVM PASS, 100 тестов (было 97, +3 контраста из Task 1; остальные новые тесты — instrumented). Lint: 0 ошибок; предупреждений — база окружения, состав id сверить с прогоном Task 6 (замер на вершине Task 6 — 11, из них 6 подсказок каталога версий, не правятся).
 
 Run: `./gradlew :app:connectedDebugAndroidTest`
 Expected: **52 теста** (41 прежних + 3 `ThemePaletteTest` + 6 `EventCardUiTest` + 2 `WeekViewCardsUiTest`). Число сверить с отчётом `app/build/reports/androidTests/connected/index.html` и записать фактическое; падает только `SchedulerAndMediaTest.voiceRecorder_recordsM4aFile` (assumption).
@@ -2105,7 +2110,7 @@ Expected: 4 теста, 0 падений; судить по XML `TEST-Medium_Pho
 - [ ] **Step 6: JVM и линт**
 
 Run: `./gradlew :app:testDebugUnitTest :app:lintDebug`
-Expected: JVM PASS, 100 тестов (новых JVM-тестов задача не добавляет); линт 0 ошибок, 10 предупреждений. Числа снять с отчётов, а не помнить наизусть.
+Expected: JVM PASS, 100 тестов (новых JVM-тестов задача не добавляет); линт 0 ошибок, предупреждения — база без роста против предыдущего прогона. Числа снять с отчётов, а не помнить наизусть.
 
 - [ ] **Step 7: Живой кадр**
 
