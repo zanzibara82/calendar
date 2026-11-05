@@ -115,11 +115,7 @@
     <string name="calendar_not_connected">Не подключён</string>
     <string name="connect">Подключить</string>
     <string name="disconnect">Отключить</string>
-    <string name="google_system_calendar_help">Google Календарь подключается через системный календарь Android:
-        аккаунт уже добавлен на телефон и синхронизируется системой, поэтому OAuth-клиент
-        и регистрация в Google Cloud Console не нужны — достаточно разрешения на доступ
-        к календарю. Созданные в приложении события попадают в этот календарь и уходят
-        в Google сами.</string>
+    <string name="google_system_calendar_help">Google Календарь берётся из аккаунта на телефоне — отдельный вход не нужен. События отсюда видны в обычном Google Календаре, а его события появляются здесь.</string>
 
     <!-- Обновления через GitHub Releases -->
     <string name="updates_section">Обновления</string>
