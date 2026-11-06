@@ -1233,7 +1233,7 @@ git commit -m "feat(calendar): карточки недельного вида п
 
 **Files:**
 - Modify: `app/src/main/java/com/example/mycalendar/presentation/components/DayHeader.kt`
-- Modify: `app/src/main/java/com/example/mycalendar/presentation/calendar/CalendarScreen.kt` (`DayView` — вызов `DayHeader` строка 348; шапка под сеткой месяца — строки 286–290)
+- Modify: `app/src/main/java/com/example/mycalendar/presentation/calendar/CalendarScreen.kt` (`DayView` — вызов `DayHeader` строка 348; шапка под сеткой месяца — строки 286–289)
 - Modify: `app/src/androidTest/java/com/example/mycalendar/DayViewHolidayUiTest.kt`
 
 **Interfaces:**
@@ -1377,7 +1377,7 @@ fun DayHeader(
         }
 ```
 
-`CalendarScreen.kt`, шапка под сеткой месяца (строки 286–290) — тон есть, названия нет:
+`CalendarScreen.kt`, шапка под сеткой месяца (строки 286–289) — тон есть, названия нет:
 
 ```kotlin
         DayHeader(
