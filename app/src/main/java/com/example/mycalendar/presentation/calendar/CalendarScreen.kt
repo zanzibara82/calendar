@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -39,11 +40,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.example.mycalendar.R
+import com.example.mycalendar.domain.holiday.DayMark
 import com.example.mycalendar.presentation.common.monthTitleFormatter
 import com.example.mycalendar.presentation.common.russianLocale
 import com.example.mycalendar.presentation.common.weekdayTitleFormatter
@@ -51,11 +54,15 @@ import com.example.mycalendar.presentation.components.DayHeader
 import com.example.mycalendar.presentation.components.EmptyState
 import com.example.mycalendar.presentation.components.EventCard
 import com.example.mycalendar.presentation.components.EventOccurrence
+import com.example.mycalendar.presentation.components.HolidayMarker
+import com.example.mycalendar.presentation.components.MONTH_CELL_TAG
 import com.example.mycalendar.presentation.components.ProviderDot
 import com.example.mycalendar.presentation.components.WeekDayColumn
+import com.example.mycalendar.presentation.components.dayMarkTag
 import com.example.mycalendar.presentation.theme.AppShapes
 import com.example.mycalendar.presentation.theme.AppSizes
 import com.example.mycalendar.presentation.theme.AppSpacing
+import com.example.mycalendar.presentation.theme.dayMarkColor
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.WeekFields
@@ -137,11 +144,11 @@ fun CalendarScreen(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = viewModel::goPrevious) {
+                IconButton(onClick = viewModel::goPrevious, modifier = Modifier.testTag("period_prev")) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                 }
                 Spacer(modifier = Modifier.width(24.dp))
-                IconButton(onClick = viewModel::goNext) {
+                IconButton(onClick = viewModel::goNext, modifier = Modifier.testTag("period_next")) {
                     Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
                 }
             }
@@ -213,9 +220,10 @@ private fun MonthView(
                     val inMonth = date.month == state.visibleMonth.month
                     val isSelected = date == state.selectedDate
                     val isToday = date == LocalDate.now()
+                    val mark = state.dayMarks[date]
                     val dayEvents = eventsOn(date, occurrences)
 
-                    Column(
+                    Box(
                         modifier = Modifier
                             .weight(1f)
                             .aspectRatio(1f)
@@ -223,7 +231,7 @@ private fun MonthView(
                             .background(
                                 color = when {
                                     isSelected -> MaterialTheme.colorScheme.primary
-                                    else -> MaterialTheme.colorScheme.surface
+                                    else -> dayMarkColor(mark) ?: MaterialTheme.colorScheme.surface
                                 },
                                 shape = AppShapes.calendarCell,
                             )
@@ -233,26 +241,41 @@ private fun MonthView(
                                 shape = AppShapes.calendarCell,
                             )
                             .clickable { onDayClick(date) }
-                            .padding(4.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
+                            .testTag(dayMarkTag(MONTH_CELL_TAG, date, mark)),
                     ) {
-                        Text(
-                            text = date.dayOfMonth.toString(),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = when {
-                                isSelected -> MaterialTheme.colorScheme.onPrimary
-                                !inMonth -> MaterialTheme.colorScheme.onSurfaceVariant
-                                else -> MaterialTheme.colorScheme.onSurface
-                            },
-                        )
-                        // Точки событий (максимум 3)
-                        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                            dayEvents.take(3).forEach { occurrence ->
-                                ProviderDot(
-                                    occurrence.event.calendarProvider,
-                                    size = AppSizes.gridDot,
-                                )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(4.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Text(
+                                text = date.dayOfMonth.toString(),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = when {
+                                    isSelected -> MaterialTheme.colorScheme.onPrimary
+                                    !inMonth -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    else -> MaterialTheme.colorScheme.onSurface
+                                },
+                            )
+                            // Точки событий (максимум 3)
+                            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                dayEvents.take(3).forEach { occurrence ->
+                                    ProviderDot(
+                                        occurrence.event.calendarProvider,
+                                        size = AppSizes.gridDot,
+                                    )
+                                }
                             }
+                        }
+                        // На выбранной клетке тон скрыт под заливкой выбора, поэтому маркер
+                        // там не рисуется: два признака в одной клетке только шумят.
+                        if (mark == DayMark.HOLIDAY && !isSelected) {
+                            HolidayMarker(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(AppSpacing.markInset),
+                            )
                         }
                     }
                 }
