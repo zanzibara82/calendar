@@ -151,11 +151,16 @@ adb shell am instrument -w -r -e class com.example.mycalendar.ThemePaletteTest \
     com.example.mycalendar.test/com.example.mycalendar.HiltTestRunner
 adb shell am instrument -w -r -e class com.example.mycalendar.WeekViewCardsUiTest \
     com.example.mycalendar.test/com.example.mycalendar.HiltTestRunner
+adb shell am instrument -w -r -e class com.example.mycalendar.DayViewHolidayUiTest \
+    com.example.mycalendar.test/com.example.mycalendar.HiltTestRunner
 ```
 
-Ожидается: JVM — 101 тест, 0 падений; линт — 0 ошибок, 11 предупреждений (состав унаследованный);
-connected — 55 тестов, 0 падений. `WeekViewCardsUiTest` проверяет карточки и в
-понедельник, и в воскресенье: даты в нём считаются от текущего дня, а не зашиты.
+Ожидается (замерено 06.11.2026 по отчётам полных прогонов): JVM — 116 тестов, 0 падений;
+линт — 0 ошибок, 11 предупреждений (состав унаследованный); connected — 62 теста, 0 падений.
+`WeekViewCardsUiTest` проверяет карточки и в понедельник, и в воскресенье: даты в нём считаются от
+текущего дня, а не зашиты, и стрелками периодов он не пользуется. По месяцам сеткой ездит только
+`DayViewHolidayUiTest` — через `testTag` стрелок периодов `period_prev` / `period_next`, поэтому
+переименование этих тегов ломает именно его.
 
 **Напоминание:** `connectedDebugAndroidTest` снимает приложение и стирает его данные, а заодно
 сбрасывает выбранную тему на системную. Для скриншотов после прогона нужно заново поставить APK
@@ -164,12 +169,13 @@ connected — 55 тестов, 0 падений. `WeekViewCardsUiTest` пров�
 ## Автоматические проверки
 
 ```bash
-./gradlew :app:testDebugUnitTest            # JVM: 101 тест, 0 падений
+./gradlew :app:testDebugUnitTest            # JVM: 116 тестов, 0 падений
 ./gradlew :app:lintDebug                    # 0 ошибок, 11 предупреждений
-./gradlew :app:connectedDebugAndroidTest    # эмулятор/устройство: 55 тестов
+./gradlew :app:connectedDebugAndroidTest    # эмулятор/устройство: 62 теста
 ```
 
-Ожидаемый результат connected: **55 тестов, 0 падений**.
+Ожидаемый результат connected: **62 теста, 0 падений** (сумма классовых `<testsuite>` в JUnit-отчёте
+`connectedDebugAndroidTest`, сверка по `<testcase>`; замер 06.11.2026).
 `SchedulerAndMediaTest.voiceRecorder_recordsM4aFile` пишет настоящий `.m4a` и проходит даже на
 headless-эмуляторе с `-no-audio` (замер 05.11.2026). Прежде тест молча пропускался:
 `MediaRecorder.setAudioSource` не стартует без runtime-разрешения `RECORD_AUDIO`, которого установка
