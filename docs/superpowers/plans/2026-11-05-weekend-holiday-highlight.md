@@ -21,6 +21,9 @@
 - `java.time` компилируется против `android.jar` (libcore), а не JDK: у `LocalDate` там нет публичного
   `getMonthDay()`, поэтому Kotlin-свойство `date.monthDay` не собирается. Ключ таблицы берут
   `MonthDay.from(date)`; любое свойство `java.time` из листинга проверять на присутствие в android.jar.
+- Connected-тесты идут по API `androidx.compose.ui:ui-test` 1.12.1: матчер тега называется `hasTestTag`
+  (матчера `hasTag` в артефакте нет), `assertExists()` и `assertCountEquals()` — методы узла без отдельного
+  импорта, а потомки `clickable`-узла сливаются в него и видны только с `useUnmergedTree = true`.
 - `versionCode = 5` и `versionName = "1.1.3"` не трогать; `applicationId` не менять — его смена отдельное изменение.
 - Тесты гонять только через `./gradlew` из корня проекта; одновременно — один прогон Gradle, второй запускать только после завершения первого.
 - Коммит каждой задачи — только с явного разрешения пользователя, данного в этот момент; текст коммита указан в шаге. Пуш и теги — отдельные разрешения, в этот план не входят.
@@ -819,7 +822,7 @@ git commit -m "feat(ui): точка провайдера с обводкой и 
 - Create: `app/src/androidTest/java/com/example/mycalendar/DayViewHolidayUiTest.kt` (в этой задаче — тесты сетки месяца; Task 7 дополняет тот же файл шапкой дня, потому что и сетка, и шапка живут на одном экране)
 
 **Interfaces:**
-- Consumes: `CalendarUiState.dayMarks` (Task 3), `dayMarkColor` (Task 2), `HolidayMarker`, `dayMarkTag`, `MONTH_CELL_TAG`, `HOLIDAY_MARKER_TAG`, `AppSpacing.markInset` (Task 4), `ProviderDot` (Task 4).
+- Consumes: `CalendarUiState.dayMarks` (Task 3), `dayMarkColor` (Task 2), `HolidayMarker` (он сам ставит `HOLIDAY_MARKER_TAG`), `dayMarkTag`, `MONTH_CELL_TAG`, `AppSpacing.markInset` (Task 4), `ProviderDot` (Task 4). Экрану `HOLIDAY_MARKER_TAG` не импортируется — его читает только тест.
 - Produces: теги `month_cell_<ISO-дата>.<МЕТКА>`, `period_prev`, `period_next` — на них опираются тесты Tasks 5–7.
 
 - [ ] **Step 1: Теги на стрелках периодов**
@@ -908,7 +911,7 @@ git commit -m "feat(ui): точка провайдера с обводкой и 
                 }
 ```
 
-Импорты в `CalendarScreen.kt`: `androidx.compose.foundation.layout.Box` (задача 4 удалила его как мёртвый — здесь он снова нужен), `com.example.mycalendar.domain.holiday.DayMark`, `com.example.mycalendar.presentation.components.HOLIDAY_MARKER_TAG`, `MONTH_CELL_TAG`, `dayMarkTag`, `com.example.mycalendar.presentation.theme.dayMarkColor`.
+Импорты в `CalendarScreen.kt`: `androidx.compose.foundation.layout.Box` (задача 4 удалила его как мёртвый — здесь он снова нужен), `com.example.mycalendar.domain.holiday.DayMark`, `com.example.mycalendar.presentation.components.HolidayMarker`, `MONTH_CELL_TAG`, `dayMarkTag`, `com.example.mycalendar.presentation.theme.dayMarkColor`. `HOLIDAY_MARKER_TAG` здесь не импортируется: тег ставит сам `HolidayMarker` внутри `DayMarkUi.kt`, экрану он не нужен (находка M1 ревьюера задачи 5 — импорт из прежней редакции списка вешал мёртвую строку).
 
 - [ ] **Step 3: Тесты сетки месяца**
 
@@ -918,8 +921,7 @@ git commit -m "feat(ui): точка провайдера с обводкой и 
 package com.example.mycalendar
 
 import androidx.compose.ui.test.assertCountEquals
-import androidx.compose.ui.test.assertExists
-import androidx.compose.ui.test.hasTag
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -988,7 +990,7 @@ class DayViewHolidayUiTest {
     /** Ожидание узла по тегу: состояние экрана приходит потоком, сразу после клика его ещё нет. */
     private fun awaitTag(tag: String) {
         composeRule.waitUntil(10_000) {
-            composeRule.onAllNodes(hasTag(tag)).fetchSemanticsNodes().isNotEmpty()
+            composeRule.onAllNodes(hasTestTag(tag)).fetchSemanticsNodes().isNotEmpty()
         }
     }
 
@@ -1020,7 +1022,7 @@ class DayViewHolidayUiTest {
         val months = ChronoUnit.MONTHS.between(LocalDate.now().withDayOfMonth(1), target.withDayOfMonth(1))
         val tag = if (months >= 0) "period_next" else "period_prev"
         repeat(kotlin.math.abs(months).toInt()) {
-            composeRule.onNode(hasTag(tag)).performClick()
+            composeRule.onNode(hasTestTag(tag)).performClick()
         }
     }
 
@@ -1029,9 +1031,11 @@ class DayViewHolidayUiTest {
         goToMonth(victoryDay)
         val holidayTag = dayMarkTag(MONTH_CELL_TAG, victoryDay, DayMark.HOLIDAY)
         awaitTag(holidayTag)
-        composeRule.onNode(hasTag(holidayTag)).assertExists()
+        composeRule.onNode(hasTestTag(holidayTag)).assertExists()
         composeRule.waitUntil(10_000) {
-            composeRule.onAllNodes(hasTag(HOLIDAY_MARKER_TAG)).fetchSemanticsNodes().isNotEmpty()
+            // Клетка clickable и сливает потомков в merged-дереве: маркер виден только в unmerged.
+            composeRule.onAllNodes(hasTestTag(HOLIDAY_MARKER_TAG), useUnmergedTree = true)
+                .fetchSemanticsNodes().isNotEmpty()
         }
     }
 
@@ -1039,10 +1043,12 @@ class DayViewHolidayUiTest {
     fun monthView_marksOnlyHolidaysInTheGrid() {
         goToMonth(plainWeekend)
         awaitTag(dayMarkTag(MONTH_CELL_TAG, plainWeekend, DayMark.WEEKEND))
-        composeRule.onNode(hasTag(dayMarkTag(MONTH_CELL_TAG, plainWeekday, null))).assertExists()
+        composeRule.onNode(hasTestTag(dayMarkTag(MONTH_CELL_TAG, plainWeekday, null))).assertExists()
         // В мае 2026 ровно два твёрдых праздника — 1 и 9 мая, и маркеров ровно столько.
         // Суббота 16 мая тонирована, но формы-признака не получает.
-        composeRule.onAllNodes(hasTag(HOLIDAY_MARKER_TAG)).assertCountEquals(2)
+        // Маркер живёт внутри clickable-клетки, которая сливает потомков: считаем unmerged-деревом.
+        composeRule.onAllNodes(hasTestTag(HOLIDAY_MARKER_TAG), useUnmergedTree = true)
+            .assertCountEquals(2)
     }
 
     @Test
@@ -1050,21 +1056,24 @@ class DayViewHolidayUiTest {
         goToMonth(victoryDay)
         val holidayTag = dayMarkTag(MONTH_CELL_TAG, victoryDay, DayMark.HOLIDAY)
         awaitTag(holidayTag)
-        val markersBefore = composeRule.onAllNodes(hasTag(HOLIDAY_MARKER_TAG))
+        val markersBefore = composeRule.onAllNodes(hasTestTag(HOLIDAY_MARKER_TAG), useUnmergedTree = true)
             .fetchSemanticsNodes().size
         assertTrue("маркеров должно быть не меньше одного", markersBefore >= 1)
-        composeRule.onNode(hasTag(holidayTag)).performClick()
+        composeRule.onNode(hasTestTag(holidayTag)).performClick()
         // Выбранная клетка залита акцентом: её маркер исчезает, а соседний праздник
         // (1 мая) остаётся — значит отключается именно выбор, а не маркеры вообще.
+        // Ровно на один меньше, а не «меньше вообще»: при now == 0 это условие бы
+        // провалилось и различило бы два этих случая.
         composeRule.waitUntil(10_000) {
-            val now = composeRule.onAllNodes(hasTag(HOLIDAY_MARKER_TAG)).fetchSemanticsNodes().size
-            now < markersBefore
+            val now = composeRule.onAllNodes(hasTestTag(HOLIDAY_MARKER_TAG), useUnmergedTree = true)
+                .fetchSemanticsNodes().size
+            now == markersBefore - 1
         }
     }
 }
 ```
 
-Оба теста месяца работают в мае 2026: пять недель сетки (27 апреля — 31 мая), ровно два твёрдых праздника и заведомо нет сегодняшнего дня, поэтому выбор клетки не мешает подсчёту маркеров.
+Все три теста месяца работают в мае 2026: пять недель сетки (27 апреля — 31 мая), ровно два твёрдых праздника и заведомо нет сегодняшнего дня, поэтому выбор клетки не мешает подсчёту маркеров. `assertExists()` — метод `SemanticsNodeInteraction`, отдельного импорта не требует (так же делают `AppUiTest.kt` и `ConflictScreensUiTest.kt`): импорт `androidx.compose.ui.test.assertExists` в тесте не появится. Тот же разбор по фактическому API касается матчера — в 1.12.1 он `hasTestTag`, а не `hasTag`, и поиска маркера по `useUnmergedTree`: клетка `clickable`, и в merged-дереве её потомок-маркер не существует как узел, поэтому запрос без этого флага падает на пустом множестве.
 
 - [ ] **Step 4: Прогнать connected**
 
@@ -1088,7 +1097,7 @@ git commit -m "feat(calendar): сетка месяца тонируется по
 
 **Files:**
 - Modify: `app/src/main/java/com/example/mycalendar/presentation/components/WeekColumn.kt`
-- Modify: `app/src/main/java/com/example/mycalendar/presentation/calendar/CalendarScreen.kt` (`WeekView` — строки 299–307)
+- Modify: `app/src/main/java/com/example/mycalendar/presentation/calendar/CalendarScreen.kt` (`WeekView` — вызов `WeekDayColumn`, строки 317–323)
 - Modify: `app/src/androidTest/java/com/example/mycalendar/WeekViewCardsUiTest.kt`
 
 **Interfaces:**
@@ -1097,7 +1106,7 @@ git commit -m "feat(calendar): сетка месяца тонируется по
 
 - [ ] **Step 1: Падающий тест**
 
-В `WeekViewCardsUiTest.kt` добавить тест и импорты `androidx.compose.ui.test.assertExists`, `androidx.compose.ui.test.hasTag`, `androidx.compose.ui.test.or`, `com.example.mycalendar.domain.holiday.DayMark`, `com.example.mycalendar.domain.holiday.HolidayRegistry`, `com.example.mycalendar.presentation.components.WEEK_CARD_TAG`, `com.example.mycalendar.presentation.components.dayMarkTag`:
+В `WeekViewCardsUiTest.kt` добавить тест и импорты `androidx.compose.ui.test.hasTestTag`, `com.example.mycalendar.domain.holiday.DayMark`, `com.example.mycalendar.domain.holiday.HolidayRegistry`, `com.example.mycalendar.presentation.components.WEEK_CARD_TAG`, `com.example.mycalendar.presentation.components.dayMarkTag`. `or` импорта не требует: это infix-метод самого `SemanticsMatcher` (замер по байткодам `ui-test-android:1.12.1` — дескриптор `(SemanticsMatcher)SemanticsMatcher` в `SemanticsMatcher.class`, верхнеуровневой функции `or` в артефакте нет); `assertExists` — тоже метод узла:
 
 ```kotlin
     /**
@@ -1119,7 +1128,7 @@ git commit -m "feat(calendar): сетка месяца тонируется по
         val weekendTag = dayMarkTag(WEEK_CARD_TAG, saturday, DayMark.WEEKEND)
         val holidayTag = dayMarkTag(WEEK_CARD_TAG, saturday, DayMark.HOLIDAY)
         composeRule.waitUntil(10_000) {
-            composeRule.onAllNodes(hasTag(weekendTag) or hasTag(holidayTag))
+            composeRule.onAllNodes(hasTestTag(weekendTag) or hasTestTag(holidayTag))
                 .fetchSemanticsNodes().isNotEmpty()
         }
 
@@ -1127,7 +1136,7 @@ git commit -m "feat(calendar): сетка месяца тонируется по
         val plainDay = (0L..6L).map { weekMonday.plusDays(it) }.first { registry.markFor(it) == null }
         scrollToWeekCard(plainDay)
         composeRule.waitUntil(10_000) {
-            composeRule.onAllNodes(hasTag(dayMarkTag(WEEK_CARD_TAG, plainDay, null)))
+            composeRule.onAllNodes(hasTestTag(dayMarkTag(WEEK_CARD_TAG, plainDay, null)))
                 .fetchSemanticsNodes().isNotEmpty()
         }
     }
@@ -1224,7 +1233,7 @@ git commit -m "feat(calendar): карточки недельного вида п
 
 **Files:**
 - Modify: `app/src/main/java/com/example/mycalendar/presentation/components/DayHeader.kt`
-- Modify: `app/src/main/java/com/example/mycalendar/presentation/calendar/CalendarScreen.kt` (`DayView` — строка 331; шапка под сеткой месяца — строки 270–273)
+- Modify: `app/src/main/java/com/example/mycalendar/presentation/calendar/CalendarScreen.kt` (`DayView` — вызов `DayHeader` строка 348; шапка под сеткой месяца — строки 286–290)
 - Modify: `app/src/androidTest/java/com/example/mycalendar/DayViewHolidayUiTest.kt`
 
 **Interfaces:**
@@ -1233,7 +1242,7 @@ git commit -m "feat(calendar): карточки недельного вида п
 
 - [ ] **Step 1: Тесты шапки дня**
 
-Добавить в `DayViewHolidayUiTest.kt` три теста и импорты `androidx.compose.ui.test.assertDoesNotExist`, `com.example.mycalendar.presentation.components.DAY_HEADER_TAG`:
+Добавить в `DayViewHolidayUiTest.kt` три теста и импорты `com.example.mycalendar.presentation.components.DAY_HEADER_TAG`. Импорт `androidx.compose.ui.test.assertDoesNotExist` не нужен: `assertDoesNotExist()` — тот же метод `SemanticsNodeInteraction`, что и `assertExists()` (в `ui-test-android:1.12.1` имя встречается только в `SemanticsNodeInteraction.class`, верхнеуровневой функции нет; `EventCardUiTest.kt:92` и `AppUiTest.kt:294` зовут его без импорта):
 
 ```kotlin
     @Test
@@ -1242,7 +1251,7 @@ git commit -m "feat(calendar): карточки недельного вида п
         goToMonth(victoryDay)
         val holidayTag = dayMarkTag(MONTH_CELL_TAG, victoryDay, DayMark.HOLIDAY)
         awaitTag(holidayTag)
-        composeRule.onNode(hasTag(holidayTag)).performClick()
+        composeRule.onNode(hasTestTag(holidayTag)).performClick()
         switchToView(res.getString(R.string.view_day))
 
         composeRule.waitUntil(10_000) {
@@ -1257,7 +1266,7 @@ git commit -m "feat(calendar): карточки недельного вида п
         goToMonth(plainWeekend)
         val weekendTag = dayMarkTag(MONTH_CELL_TAG, plainWeekend, DayMark.WEEKEND)
         awaitTag(weekendTag)
-        composeRule.onNode(hasTag(weekendTag)).performClick()
+        composeRule.onNode(hasTestTag(weekendTag)).performClick()
         switchToView(res.getString(R.string.view_day))
         awaitTag(dayMarkTag(DAY_HEADER_TAG, plainWeekend, DayMark.WEEKEND))
         composeRule.onNode(hasText(res.getString(R.string.holiday_victory_day), substring = false))
@@ -1272,7 +1281,7 @@ git commit -m "feat(calendar): карточки недельного вида п
         goToMonth(victoryDay)
         val holidayTag = dayMarkTag(MONTH_CELL_TAG, victoryDay, DayMark.HOLIDAY)
         awaitTag(holidayTag)
-        composeRule.onNode(hasTag(holidayTag)).performClick()
+        composeRule.onNode(hasTestTag(holidayTag)).performClick()
         // Тон шапки под сеткой проверяется тегом: он обязан появиться, иначе «нет строки»
         // означает просто неотработавшее тонирование.
         awaitTag(dayMarkTag(DAY_HEADER_TAG, victoryDay, DayMark.HOLIDAY))
@@ -1355,7 +1364,7 @@ fun DayHeader(
 
 - [ ] **Step 4: Виды передают метку**
 
-`CalendarScreen.kt`, `DayView` (строка 331):
+`CalendarScreen.kt`, `DayView` — вызов шапки на строке 348:
 
 ```kotlin
         item(key = "header_${state.selectedDate}") {
@@ -1368,7 +1377,7 @@ fun DayHeader(
         }
 ```
 
-`CalendarScreen.kt`, шапка под сеткой месяца (строки 270–273) — тон есть, названия нет:
+`CalendarScreen.kt`, шапка под сеткой месяца (строки 286–290) — тон есть, названия нет:
 
 ```kotlin
         DayHeader(
