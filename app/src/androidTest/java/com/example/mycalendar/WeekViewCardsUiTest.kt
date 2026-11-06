@@ -3,6 +3,7 @@ package com.example.mycalendar
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollToIndexAction
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -14,11 +15,15 @@ import androidx.compose.ui.test.performScrollToIndex
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
 import androidx.test.platform.app.InstrumentationRegistry
+import com.example.mycalendar.domain.holiday.DayMark
+import com.example.mycalendar.domain.holiday.HolidayRegistry
 import com.example.mycalendar.domain.model.CalendarProvider
 import com.example.mycalendar.domain.model.Event
 import com.example.mycalendar.domain.repository.AuthRepository
 import com.example.mycalendar.domain.repository.EventRepository
 import com.example.mycalendar.domain.repository.SettingsRepository
+import com.example.mycalendar.presentation.components.WEEK_CARD_TAG
+import com.example.mycalendar.presentation.components.dayMarkTag
 import com.example.mycalendar.presentation.common.russianLocale
 import com.example.mycalendar.presentation.common.weekColDateFormatter
 import com.example.mycalendar.presentation.common.weekdayTitleFormatter
@@ -271,6 +276,38 @@ class WeekViewCardsUiTest {
             .replaceFirstChar { it.uppercase(russianLocale) }
         composeRule.waitUntil(10_000) {
             nodesWithText(dayHeader).fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    /**
+     * Тон карточки читается из тега: проверка цвета пикселем в моках невозможна, а вот
+     * факт «вид прочитал метку дня из состояния экрана» проверяется ровно именем тега.
+     * Реестр здесь используется как фикстура: правильность его таблицы — задача
+     * HolidayRegistryTest, а не этого теста.
+     */
+    @Test
+    fun weekView_weekendCardCarriesItsMark() {
+        val res = composeRule.activity.resources
+        reachCalendar()
+        composeRule.onNodeWithText(res.getString(R.string.view_week)).performClick()
+
+        val registry = HolidayRegistry()
+        val saturday = weekMonday.plusDays(5)
+        scrollToWeekCard(saturday)
+        // Суббота может оказаться праздником — тогда правильный тон праздник
+        val weekendTag = dayMarkTag(WEEK_CARD_TAG, saturday, DayMark.WEEKEND)
+        val holidayTag = dayMarkTag(WEEK_CARD_TAG, saturday, DayMark.HOLIDAY)
+        composeRule.waitUntil(10_000) {
+            composeRule.onAllNodes(hasTestTag(weekendTag) or hasTestTag(holidayTag))
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+
+        // Первый день недели, у которого метки нет вовсе: он обязан остаться без тона
+        val plainDay = (0L..6L).map { weekMonday.plusDays(it) }.first { registry.markFor(it) == null }
+        scrollToWeekCard(plainDay)
+        composeRule.waitUntil(10_000) {
+            composeRule.onAllNodes(hasTestTag(dayMarkTag(WEEK_CARD_TAG, plainDay, null)))
+                .fetchSemanticsNodes().isNotEmpty()
         }
     }
 }

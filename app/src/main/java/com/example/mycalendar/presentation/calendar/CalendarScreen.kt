@@ -319,6 +319,7 @@ private fun WeekView(
                 events = eventsOn(date, occurrences),
                 onEventClick = onEventClick,
                 onOpenDay = onOpenDay,
+                mark = state.dayMarks[date],
             )
         }
     }

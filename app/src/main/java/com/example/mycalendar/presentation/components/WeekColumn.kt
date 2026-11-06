@@ -23,16 +23,19 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.mycalendar.R
+import com.example.mycalendar.domain.holiday.DayMark
 import com.example.mycalendar.presentation.common.weekColDateFormatter
 import com.example.mycalendar.presentation.theme.AppShapes
 import com.example.mycalendar.presentation.theme.AppSizes
 import com.example.mycalendar.presentation.theme.AppSpacing
 import com.example.mycalendar.presentation.theme.LocalIsDarkTheme
 import com.example.mycalendar.presentation.theme.WeekColumnTypography
+import com.example.mycalendar.presentation.theme.dayMarkColor
 import java.time.LocalDate
 
 /**
@@ -49,15 +52,18 @@ fun WeekDayColumn(
     onOpenDay: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
     isToday: Boolean = date == LocalDate.now(),
+    mark: DayMark? = null,
 ) {
     val dark = LocalIsDarkTheme.current
     val visible = events.sortedBy { it.startMillis }.take(AppSizes.weekVisibleCells)
     val extra = events.size - visible.size
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag(dayMarkTag(WEEK_CARD_TAG, date, mark)),
         shape = AppShapes.card,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            containerColor = dayMarkColor(mark) ?: MaterialTheme.colorScheme.surfaceVariant,
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = if (dark) {
@@ -92,7 +98,11 @@ fun WeekDayColumn(
                     text = date.format(weekColDateFormatter),
                     style = WeekColumnTypography.date,
                     color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f, fill = false),
                 )
+                if (mark == DayMark.HOLIDAY) {
+                    HolidayMarker()
+                }
             }
             visible.forEach { occurrence ->
                 WeekEventCell(
