@@ -12,6 +12,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.example.mycalendar.domain.holiday.DayMark
 import com.example.mycalendar.domain.repository.AuthRepository
 import com.example.mycalendar.domain.repository.SettingsRepository
+import com.example.mycalendar.presentation.components.DAY_HEADER_TAG
 import com.example.mycalendar.presentation.components.HOLIDAY_MARKER_TAG
 import com.example.mycalendar.presentation.components.MONTH_CELL_TAG
 import com.example.mycalendar.presentation.components.dayMarkTag
@@ -148,5 +149,49 @@ class DayViewHolidayUiTest {
                 .fetchSemanticsNodes().size
             now == markersBefore - 1
         }
+    }
+
+    @Test
+    fun dayView_showsHolidayTitleAndTint() {
+        val res = composeRule.activity.resources
+        goToMonth(victoryDay)
+        val holidayTag = dayMarkTag(MONTH_CELL_TAG, victoryDay, DayMark.HOLIDAY)
+        awaitTag(holidayTag)
+        composeRule.onNode(hasTestTag(holidayTag)).performClick()
+        switchToView(res.getString(R.string.view_day))
+
+        composeRule.waitUntil(10_000) {
+            nodesWithText(res.getString(R.string.holiday_victory_day)).fetchSemanticsNodes().isNotEmpty()
+        }
+        awaitTag(dayMarkTag(DAY_HEADER_TAG, victoryDay, DayMark.HOLIDAY))
+    }
+
+    @Test
+    fun dayView_ordinaryWeekendHasTintButNoTitle() {
+        val res = composeRule.activity.resources
+        goToMonth(plainWeekend)
+        val weekendTag = dayMarkTag(MONTH_CELL_TAG, plainWeekend, DayMark.WEEKEND)
+        awaitTag(weekendTag)
+        composeRule.onNode(hasTestTag(weekendTag)).performClick()
+        switchToView(res.getString(R.string.view_day))
+        awaitTag(dayMarkTag(DAY_HEADER_TAG, plainWeekend, DayMark.WEEKEND))
+        composeRule.onNode(hasText(res.getString(R.string.holiday_victory_day), substring = false))
+            .assertDoesNotExist()
+    }
+
+    @Test
+    fun monthView_headerUnderGridHasTintButNoHolidayTitle() {
+        // Спека §2 и уточнение 6 плана: название праздника — только в виде «День».
+        // Под сеткой месяца шапка тонирована, но строки названия не получает.
+        val res = composeRule.activity.resources
+        goToMonth(victoryDay)
+        val holidayTag = dayMarkTag(MONTH_CELL_TAG, victoryDay, DayMark.HOLIDAY)
+        awaitTag(holidayTag)
+        composeRule.onNode(hasTestTag(holidayTag)).performClick()
+        // Тон шапки под сеткой проверяется тегом: он обязан появиться, иначе «нет строки»
+        // означает просто неотработавшее тонирование.
+        awaitTag(dayMarkTag(DAY_HEADER_TAG, victoryDay, DayMark.HOLIDAY))
+        composeRule.onNode(hasText(res.getString(R.string.holiday_victory_day), substring = false))
+            .assertDoesNotExist()
     }
 }

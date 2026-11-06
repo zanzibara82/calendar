@@ -286,6 +286,7 @@ private fun MonthView(
         DayHeader(
             date = state.selectedDate,
             modifier = Modifier.padding(horizontal = AppSpacing.screen),
+            mark = state.dayMarks[state.selectedDate],
         )
         EventList(events = selectedDayEvents, onEventClick = onEventClick)
     }
@@ -345,7 +346,12 @@ private fun DayView(
         verticalArrangement = Arrangement.spacedBy(AppSpacing.cardGap),
     ) {
         item(key = "header_${state.selectedDate}") {
-            DayHeader(date = state.selectedDate)
+            DayHeader(
+                date = state.selectedDate,
+                mark = state.dayMarks[state.selectedDate],
+                holidayTitle = state.holidayTitles[state.selectedDate]
+                    ?.let { stringResource(it) },
+            )
         }
         if (dayEvents.isEmpty()) {
             item {
