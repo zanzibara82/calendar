@@ -1097,7 +1097,7 @@ git commit -m "feat(calendar): сетка месяца тонируется по
 
 **Files:**
 - Modify: `app/src/main/java/com/example/mycalendar/presentation/components/WeekColumn.kt`
-- Modify: `app/src/main/java/com/example/mycalendar/presentation/calendar/CalendarScreen.kt` (`WeekView` — вызов `WeekDayColumn`, строки 317–323)
+- Modify: `app/src/main/java/com/example/mycalendar/presentation/calendar/CalendarScreen.kt` (`WeekView` — вызов `WeekDayColumn`, строки 316–322)
 - Modify: `app/src/androidTest/java/com/example/mycalendar/WeekViewCardsUiTest.kt`
 
 **Interfaces:**
