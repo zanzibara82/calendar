@@ -1184,7 +1184,7 @@ fun WeekDayColumn(
                     text = date.format(weekColDateFormatter),
                     style = WeekColumnTypography.date,
                     color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f, fill = false),
+                    modifier = Modifier.weight(1f),
                 )
                 if (mark == DayMark.HOLIDAY) {
                     HolidayMarker()
