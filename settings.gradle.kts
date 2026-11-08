@@ -25,4 +25,3 @@ dependencyResolutionManagement {
 rootProject.name = "MyCalendar"
 include(":app")
 include(":baselineprofile")
- 
