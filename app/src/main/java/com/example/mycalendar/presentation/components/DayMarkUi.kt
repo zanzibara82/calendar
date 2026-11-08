@@ -19,6 +19,13 @@ const val DAY_HEADER_TAG = "day_header"
 const val HOLIDAY_MARKER_TAG = "holiday_marker"
 
 /**
+ * Теги стрелок периодов: по ним тесты ездят по месяцам и неделям, поэтому литералы живут
+ * здесь, а не в продакшен-экране и тестовом помощнике.
+ */
+const val PERIOD_PREV_TAG = "period_prev"
+const val PERIOD_NEXT_TAG = "period_next"
+
+/**
  * Тег помеченного дня: «week_day_card_2026-05-09.HOLIDAY», у немеченого дня — «…PLAIN».
  * Тест сравнивает ровно этот суффикс: проверка цвета пикселем в моках невозможна,
  * а карта меток в состоянии экрана — проверяема.

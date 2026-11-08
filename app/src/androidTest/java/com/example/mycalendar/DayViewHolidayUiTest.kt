@@ -15,11 +15,13 @@ import com.example.mycalendar.domain.repository.SettingsRepository
 import com.example.mycalendar.presentation.components.DAY_HEADER_TAG
 import com.example.mycalendar.presentation.components.HOLIDAY_MARKER_TAG
 import com.example.mycalendar.presentation.components.MONTH_CELL_TAG
+import com.example.mycalendar.presentation.components.PERIOD_NEXT_TAG
+import com.example.mycalendar.presentation.components.PERIOD_PREV_TAG
 import com.example.mycalendar.presentation.components.dayMarkTag
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import kotlinx.coroutines.runBlocking
-import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -78,6 +80,24 @@ class DayViewHolidayUiTest {
     private fun nodesWithText(text: String) =
         composeRule.onAllNodes(hasText(text, substring = true), useUnmergedTree = true)
 
+    /**
+     * Узлы маркеров праздника. Маркер живёт внутри clickable-клетки, которая сливает
+     * потомков в merged-дереве, поэтому считается только unmerged-дерево.
+     */
+    private fun holidayMarkerNodes() =
+        composeRule.onAllNodes(hasTestTag(HOLIDAY_MARKER_TAG), useUnmergedTree = true).fetchSemanticsNodes()
+
+    /**
+     * Переводит выбор на клетку без метки (вторник 5 мая 2026) и дожидается шапки этого дня.
+     * Нужно для счётчиков маркеров: стартовый выбор — `LocalDate.now()` (`CalendarViewModel`),
+     * а на выбранной клетке маркер не рисуется (`CalendarScreen`), поэтому без фиксации счёт
+     * зависел бы от даты устройства.
+     */
+    private fun pinSelectionToPlainDay() {
+        composeRule.onNode(hasTestTag(dayMarkTag(MONTH_CELL_TAG, plainWeekday, null))).performClick()
+        awaitTag(dayMarkTag(DAY_HEADER_TAG, plainWeekday, null))
+    }
+
     private fun reachCalendar() {
         val res = composeRule.activity.resources
         val enter = res.getString(R.string.enter_app)
@@ -101,7 +121,7 @@ class DayViewHolidayUiTest {
     private fun goToMonth(target: LocalDate) {
         reachCalendar()
         val months = ChronoUnit.MONTHS.between(LocalDate.now().withDayOfMonth(1), target.withDayOfMonth(1))
-        val tag = if (months >= 0) "period_next" else "period_prev"
+        val tag = if (months >= 0) PERIOD_NEXT_TAG else PERIOD_PREV_TAG
         repeat(kotlin.math.abs(months).toInt()) {
             composeRule.onNode(hasTestTag(tag)).performClick()
         }
@@ -120,35 +140,50 @@ class DayViewHolidayUiTest {
         }
     }
 
+    /**
+     * Природа хрупкости счётчиков маркеров — как у R28 в `WeekViewCardsUiTest`: выбор
+     * по умолчанию это `LocalDate.now()`, а на выбранной клетке маркер скрыт правилом
+     * «два признака в одной клетке шумят». При дате устройства 1 или 9 мая 2026 майская
+     * сетка теряла бы один маркер ещё до всякого клика, поэтому оба теста ниже сначала
+     * фиксируют выбор на дне без метки. Правильность таблицы дат — задача
+     * `HolidayRegistryTest`, здесь проверяется поведение вида.
+     */
     @Test
     fun monthView_marksOnlyHolidaysInTheGrid() {
         goToMonth(plainWeekend)
         awaitTag(dayMarkTag(MONTH_CELL_TAG, plainWeekend, DayMark.WEEKEND))
+        pinSelectionToPlainDay()
         composeRule.onNode(hasTestTag(dayMarkTag(MONTH_CELL_TAG, plainWeekday, null))).assertExists()
         // В мае 2026 ровно два твёрдых праздника — 1 и 9 мая, и маркеров ровно столько.
         // Суббота 16 мая тонирована, но формы-признака не получает.
-        // Маркер живёт внутри clickable-клетки, которая сливает потомков: считаем unmerged-деревом.
+        composeRule.waitUntil(10_000) { holidayMarkerNodes().size == 2 }
         composeRule.onAllNodes(hasTestTag(HOLIDAY_MARKER_TAG), useUnmergedTree = true).assertCountEquals(2)
     }
 
+    /**
+     * Тот же приём, что у предыдущего теста: базовый счёт берётся при выборе на дне без
+     * метки. Иначе при дате устройства 9 мая 2026 маркеров до клика был бы один, а после
+     * клика ноль, и условие «ровно на один меньше» стало бы недостижимым для `waitUntil`.
+     */
     @Test
     fun monthView_hidesMarkerOnSelectedCell() {
         goToMonth(victoryDay)
         val holidayTag = dayMarkTag(MONTH_CELL_TAG, victoryDay, DayMark.HOLIDAY)
         awaitTag(holidayTag)
-        val markersBefore = composeRule.onAllNodes(hasTestTag(HOLIDAY_MARKER_TAG), useUnmergedTree = true)
-            .fetchSemanticsNodes().size
-        assertTrue("маркеров должно быть не меньше одного", markersBefore >= 1)
+        pinSelectionToPlainDay()
+        // Базовый счёт снят при выборе на дне без метки: в мае 2026 помечены 1 и 9 число.
+        composeRule.waitUntil(10_000) { holidayMarkerNodes().size == 2 }
+        val markersBefore = holidayMarkerNodes().size
+        assertEquals("до клика ожидаем два маркера", 2, markersBefore)
         composeRule.onNode(hasTestTag(holidayTag)).performClick()
         // Выбранная клетка залита акцентом: её маркер исчезает, а соседний праздник
         // (1 мая) остаётся — значит отключается именно выбор, а не маркеры вообще.
-        // Ровно на один меньше, а не «меньше вообще»: при now == 0 это условие бы
-        // провалилось и различило бы два этих случая.
+        // Ровно на один меньше, а не «меньше вообще»: базовый счёт не зависит от даты
+        // устройства, поэтому единица после клика — это маркер 1 мая.
         composeRule.waitUntil(10_000) {
-            val now = composeRule.onAllNodes(hasTestTag(HOLIDAY_MARKER_TAG), useUnmergedTree = true)
-                .fetchSemanticsNodes().size
-            now == markersBefore - 1
+            holidayMarkerNodes().size == markersBefore - 1
         }
+        assertEquals("на выбранной клетке остаётся один чужой маркер", 1, holidayMarkerNodes().size)
     }
 
     @Test

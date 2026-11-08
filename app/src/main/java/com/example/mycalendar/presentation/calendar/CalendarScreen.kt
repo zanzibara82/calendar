@@ -56,6 +56,8 @@ import com.example.mycalendar.presentation.components.EventCard
 import com.example.mycalendar.presentation.components.EventOccurrence
 import com.example.mycalendar.presentation.components.HolidayMarker
 import com.example.mycalendar.presentation.components.MONTH_CELL_TAG
+import com.example.mycalendar.presentation.components.PERIOD_NEXT_TAG
+import com.example.mycalendar.presentation.components.PERIOD_PREV_TAG
 import com.example.mycalendar.presentation.components.ProviderDot
 import com.example.mycalendar.presentation.components.WeekDayColumn
 import com.example.mycalendar.presentation.components.dayMarkTag
@@ -144,11 +146,11 @@ fun CalendarScreen(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = viewModel::goPrevious, modifier = Modifier.testTag("period_prev")) {
+                IconButton(onClick = viewModel::goPrevious, modifier = Modifier.testTag(PERIOD_PREV_TAG)) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                 }
                 Spacer(modifier = Modifier.width(24.dp))
-                IconButton(onClick = viewModel::goNext, modifier = Modifier.testTag("period_next")) {
+                IconButton(onClick = viewModel::goNext, modifier = Modifier.testTag(PERIOD_NEXT_TAG)) {
                     Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
                 }
             }
