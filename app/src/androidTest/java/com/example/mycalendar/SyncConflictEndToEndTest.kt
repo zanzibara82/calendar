@@ -652,11 +652,17 @@ private class FakeSettings : SettingsRepository {
     override val lastSyncTime: Flow<Long> = flowOf(0L)
     override val notificationsAsked: Flow<Boolean> = flowOf(false)
     override val onboardingCompleted: Flow<Boolean> = flowOf(true)
+    override val alarmSoundUri: Flow<String?> = flowOf(null)
+    override val birthdaySoundUri: Flow<String?> = flowOf(null)
+    override val quietMode: Flow<Boolean> = flowOf(false)
 
     override suspend fun setThemeMode(mode: ThemeMode) {}
     override suspend fun setLastSyncTime(timeMillis: Long) {}
     override suspend fun setNotificationsAsked() {}
     override suspend fun setOnboardingCompleted(completed: Boolean) {}
+    override suspend fun setAlarmSoundUri(uri: String?) {}
+    override suspend fun setBirthdaySoundUri(uri: String?) {}
+    override suspend fun setQuietMode(enabled: Boolean) {}
 
     override fun lastSyncTime(provider: CalendarProvider): Flow<Long> = flowOf(0L)
     override suspend fun setLastSyncTime(provider: CalendarProvider, timeMillis: Long) {}
@@ -672,4 +678,7 @@ private class FakeSettings : SettingsRepository {
     override suspend fun clearCollectionUrl(provider: CalendarProvider) {
         storedCollectionUrl = null
     }
+
+    override fun calendarName(provider: CalendarProvider): Flow<String?> = flowOf(null)
+    override suspend fun setCalendarName(provider: CalendarProvider, name: String) {}
 }

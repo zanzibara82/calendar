@@ -28,6 +28,9 @@ class SettingsRepositoryImpl @Inject constructor(
         val LAST_SYNC = longPreferencesKey("last_sync_time")
         val NOTIFICATIONS_ASKED = booleanPreferencesKey("notification_permission_asked")
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
+        val ALARM_SOUND_URI = stringPreferencesKey("alarm_sound_uri")
+        val BIRTHDAY_SOUND_URI = stringPreferencesKey("birthday_sound_uri")
+        val QUIET_MODE = booleanPreferencesKey("quiet_mode")
 
         /** Время последней синхронизации провайдера: last_sync_time_google / _yandex. */
         fun lastSync(provider: CalendarProvider) =
@@ -36,6 +39,10 @@ class SettingsRepositoryImpl @Inject constructor(
         /** Коллекция, с которой сверяемся: collection_url_google / _yandex. */
         fun collection(provider: CalendarProvider) =
             stringPreferencesKey("collection_url_${provider.name.lowercase()}")
+
+        /** Имя коллекции: calendar_name_google / _yandex. */
+        fun calendarName(provider: CalendarProvider) =
+            stringPreferencesKey("calendar_name_${provider.name.lowercase()}")
     }
 
     override val themeMode: Flow<ThemeMode> = dataStore.data.map { prefs ->
@@ -54,6 +61,18 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override val onboardingCompleted: Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[Keys.ONBOARDING_COMPLETED] ?: false
+    }
+
+    override val alarmSoundUri: Flow<String?> = dataStore.data.map { prefs ->
+        prefs[Keys.ALARM_SOUND_URI]
+    }
+
+    override val birthdaySoundUri: Flow<String?> = dataStore.data.map { prefs ->
+        prefs[Keys.BIRTHDAY_SOUND_URI]
+    }
+
+    override val quietMode: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.QUIET_MODE] ?: false
     }
 
     override suspend fun setThemeMode(mode: ThemeMode) {
@@ -88,11 +107,38 @@ class SettingsRepositoryImpl @Inject constructor(
         prefs[Keys.collection(provider)]
     }
 
+    override fun calendarName(provider: CalendarProvider): Flow<String?> = dataStore.data.map { prefs ->
+        prefs[Keys.calendarName(provider)]
+    }
+
     override suspend fun setCollectionUrl(provider: CalendarProvider, url: String) {
         dataStore.edit { it[Keys.collection(provider)] = url }
     }
 
+    override suspend fun setAlarmSoundUri(uri: String?) {
+        dataStore.edit { prefs ->
+            if (uri == null) prefs.remove(Keys.ALARM_SOUND_URI) else prefs[Keys.ALARM_SOUND_URI] = uri
+        }
+    }
+
+    override suspend fun setBirthdaySoundUri(uri: String?) {
+        dataStore.edit { prefs ->
+            if (uri == null) prefs.remove(Keys.BIRTHDAY_SOUND_URI) else prefs[Keys.BIRTHDAY_SOUND_URI] = uri
+        }
+    }
+
+    override suspend fun setQuietMode(enabled: Boolean) {
+        dataStore.edit { it[Keys.QUIET_MODE] = enabled }
+    }
+
+    override suspend fun setCalendarName(provider: CalendarProvider, name: String) {
+        dataStore.edit { it[Keys.calendarName(provider)] = name }
+    }
+
     override suspend fun clearCollectionUrl(provider: CalendarProvider) {
-        dataStore.edit { it.remove(Keys.collection(provider)) }
+        dataStore.edit {
+            it.remove(Keys.collection(provider))
+            it.remove(Keys.calendarName(provider))
+        }
     }
 }

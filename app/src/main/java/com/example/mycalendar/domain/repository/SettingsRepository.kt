@@ -20,6 +20,15 @@ interface SettingsRepository {
      */
     val onboardingCompleted: Flow<Boolean>
 
+    /** URI выбранного сигнала обычного напоминания (null — встроенный reminder_sound). */
+    val alarmSoundUri: Flow<String?>
+
+    /** URI выбранного сигнала дня рождения (null — встроенный reminder_sound). */
+    val birthdaySoundUri: Flow<String?>
+
+    /** Глобальный тихий режим: оверлей молчит и вибрирует, сигнал не звенит. */
+    val quietMode: Flow<Boolean>
+
     suspend fun setThemeMode(mode: ThemeMode)
     suspend fun setLastSyncTime(timeMillis: Long)
     suspend fun setNotificationsAsked()
@@ -49,4 +58,16 @@ interface SettingsRepository {
      * не совпадёт с сохранённым, а перезаписывать его при расхождении нельзя).
      */
     suspend fun clearCollectionUrl(provider: CalendarProvider)
+
+    /**
+     * Имя коллекции провайдера, из которой прошла последняя синхронизация (null — ещё
+     * не запоминали). Нужно для распознавания календаря дней рождения: у Google это
+     * displayName календаря, у Яндекса — displayname CalDAV-коллекции.
+     */
+    fun calendarName(provider: CalendarProvider): Flow<String?>
+
+    suspend fun setAlarmSoundUri(uri: String?)
+    suspend fun setBirthdaySoundUri(uri: String?)
+    suspend fun setQuietMode(enabled: Boolean)
+    suspend fun setCalendarName(provider: CalendarProvider, name: String)
 }
