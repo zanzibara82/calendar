@@ -40,6 +40,11 @@ data class RemoteFetch(
      * не должна вычищать все локальные привязки.
      */
     val collectionUrl: String? = null,
+    /**
+     * Имя коллекции (displayName). Политика сигнала распознаёт по нему календарь дней
+     * рождения. null — источник не сообщил имя.
+     */
+    val calendarName: String? = null,
 )
 
 /**

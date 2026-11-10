@@ -41,9 +41,9 @@ class YandexCalendarDataSource @Inject constructor(
 
     class YandexCalendarUnavailableException(message: String) : Exception(message)
 
-    /** Кэш URL выбранного календаря в рамках процесса (discovery — дорогая операция). */
+    /** Кэш выбранного календаря в рамках процесса (discovery — дорогая операция). */
     @Volatile
-    private var cachedCalendarUrl: String? = null
+    private var cachedCalendar: CalDavClient.Calendar? = null
 
     /** Пара (email, токен) из зашифрованного хранилища; бросает, если авторизации нет. */
     private suspend fun credentials(): Pair<String, String> {
@@ -54,18 +54,18 @@ class YandexCalendarDataSource @Inject constructor(
         return email to token
     }
 
-    private suspend fun calendarUrl(user: String, token: String): String {
-        cachedCalendarUrl?.let { return it }
-        val calendar = caldav.discoverAndPickCalendar(user, token)
-        cachedCalendarUrl = calendar.url
-        return calendar.url
+    private suspend fun calendar(user: String, token: String): CalDavClient.Calendar {
+        cachedCalendar?.let { return it }
+        val chosen = caldav.discoverAndPickCalendar(user, token)
+        cachedCalendar = chosen
+        return chosen
     }
 
     override suspend fun fetchUpdatedSince(sinceMillis: Long): RemoteFetch =
         withContext(Dispatchers.IO) {
             val (user, token) = credentials()
-            val url = calendarUrl(user, token)
-            val calendars = caldav.fetchEvents(url, user, token)
+            val chosen = calendar(user, token)
+            val calendars = caldav.fetchEvents(chosen.url, user, token)
             val parsed = calendars.mapNotNull { IcsMapper.fromIcs(it) }
             RemoteFetch(
                 events = parsed,
@@ -74,13 +74,14 @@ class YandexCalendarDataSource @Inject constructor(
                 } else {
                     null
                 },
-                collectionUrl = url,
+                collectionUrl = chosen.url,
+                calendarName = chosen.displayName,
             )
         }
 
     override suspend fun insert(event: Event): String = withContext(Dispatchers.IO) {
         val (user, token) = credentials()
-        val url = calendarUrl(user, token)
+        val url = calendar(user, token).url
         val uid = UUID.randomUUID().toString()
         caldav.putEvent(url, user, token, uid, IcsMapper.toIcs(event, uid, System.currentTimeMillis()))
         uid
@@ -88,13 +89,13 @@ class YandexCalendarDataSource @Inject constructor(
 
     override suspend fun update(remoteId: String, event: Event) = withContext(Dispatchers.IO) {
         val (user, token) = credentials()
-        val url = calendarUrl(user, token)
+        val url = calendar(user, token).url
         caldav.putEvent(url, user, token, remoteId, IcsMapper.toIcs(event, remoteId, System.currentTimeMillis()))
     }
 
     override suspend fun delete(remoteId: String) = withContext(Dispatchers.IO) {
         val (user, token) = credentials()
-        val url = calendarUrl(user, token)
+        val url = calendar(user, token).url
         caldav.deleteEvent(url, user, token, remoteId)
     }
 }

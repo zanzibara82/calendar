@@ -142,6 +142,7 @@ class SystemCalendarDataSource @Inject constructor(
                     val minutes = reminders[id] ?: return@map event
                     event.copy(reminderMinutes = minutes)
                 },
+                calendarName = calendar.displayName,
             )
         }
 

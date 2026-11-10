@@ -104,6 +104,23 @@ class YandexCalendarDataSourceTest {
     }
 
     @Test
+    fun `fetchUpdatedSince carries the calendar display name`() {
+        val captured = mutableListOf<MiniCalDavServer.Request>()
+        yandexMockServer(captured).use { server ->
+            val ds = YandexCalendarDataSource(
+                caldav = CalDavClient(OkHttpClient(), baseUrl = server.baseUrl),
+                auth = FakeTokenProvider(token),
+                authRepository = FakeAuthRepository(UserAccount(CalendarProvider.YANDEX, email)),
+            )
+
+            val fetch = runBlocking { ds.fetchUpdatedSince(0) }
+
+            // Имя коллекции нужно политике сигнала для распознавания календаря дней рождения.
+            assertEquals("Календарь", fetch.calendarName)
+        }
+    }
+
+    @Test
     fun `unparsable VEVENT disables absence-based deletion detection`() {
         val broken = """BEGIN:VCALENDAR
 VERSION:2.0

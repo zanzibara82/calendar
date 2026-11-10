@@ -209,6 +209,7 @@ class SyncRepositoryImpl @Inject constructor(
         // Сменившийся URL не подменяем: иначе защита от чужой коллекции отключилась бы сама.
         if (sameCollection || pinnedUrl == null) {
             fetch.collectionUrl?.let { settingsRepository.setCollectionUrl(provider, it) }
+            fetch.calendarName?.let { settingsRepository.setCalendarName(provider, it) }
         }
 
         // Перепланирование напоминаний для событий, которым pull двигал содержимое
