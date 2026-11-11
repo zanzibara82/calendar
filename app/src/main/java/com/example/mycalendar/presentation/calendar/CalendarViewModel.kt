@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.mycalendar.domain.holiday.DayMark
 import com.example.mycalendar.domain.holiday.HolidayRegistry
 import com.example.mycalendar.domain.model.Event
+import com.example.mycalendar.domain.repository.SettingsRepository
 import com.example.mycalendar.domain.usecase.ExpandOccurrencesUseCase
 import com.example.mycalendar.domain.usecase.ObserveEventsBetweenUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -96,6 +97,7 @@ class CalendarViewModel @Inject constructor(
     observeEventsBetween: ObserveEventsBetweenUseCase,
     private val expandOccurrences: ExpandOccurrencesUseCase,
     private val holidayRegistry: HolidayRegistry,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CalendarUiState())
@@ -138,6 +140,15 @@ class CalendarViewModel @Inject constructor(
                     }
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Тихий режим для индикатора в шапке: показывается только при активном режиме. */
+    val quietMode: StateFlow<Boolean> = settingsRepository.quietMode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** Тап по индикатору выключает режим; включается он только из настроек. */
+    fun setQuietMode(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setQuietMode(enabled) }
+    }
 
     fun setViewMode(mode: CalendarViewMode) = _uiState.update { it.copy(viewMode = mode) }
 

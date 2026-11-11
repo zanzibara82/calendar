@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -59,6 +60,7 @@ import com.example.mycalendar.presentation.components.MONTH_CELL_TAG
 import com.example.mycalendar.presentation.components.PERIOD_NEXT_TAG
 import com.example.mycalendar.presentation.components.PERIOD_PREV_TAG
 import com.example.mycalendar.presentation.components.ProviderDot
+import com.example.mycalendar.presentation.components.QUIET_INDICATOR_TAG
 import com.example.mycalendar.presentation.components.WeekDayColumn
 import com.example.mycalendar.presentation.components.dayMarkTag
 import com.example.mycalendar.presentation.theme.AppShapes
@@ -85,12 +87,24 @@ fun CalendarScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val occurrences by viewModel.occurrences.collectAsState()
+    val quietMode by viewModel.quietMode.collectAsState()
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(text = headerTitle(state), style = MaterialTheme.typography.headlineMedium) },
                 actions = {
+                    if (quietMode) {
+                        IconButton(
+                            onClick = { viewModel.setQuietMode(false) },
+                            modifier = Modifier.testTag(QUIET_INDICATOR_TAG),
+                        ) {
+                            Icon(
+                                Icons.Filled.NotificationsOff,
+                                contentDescription = stringResource(R.string.quiet_mode_indicator),
+                            )
+                        }
+                    }
                     IconButton(onClick = viewModel::goToday) {
                         Icon(Icons.Filled.Today, contentDescription = stringResource(R.string.today))
                     }
