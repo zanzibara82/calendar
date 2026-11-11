@@ -96,6 +96,11 @@ class OverlaySnoozeTest {
         val intent = ReminderActivity.createIntent(context, event, ReminderSound.Builtin, "09:00")
         ActivityScenario.launch<ReminderActivity>(intent).use { scenario ->
             composeRule.waitForIdle()
+            // Предусловие доказательства: уведомление с таким id реально опубликовано.
+            assertTrue(
+                "Перед «Отложить» уведомление с id eventId.hashCode() должно быть в шторке",
+                manager.activeNotifications.any { it.id == event.id.hashCode() },
+            )
             composeRule.onNodeWithText(context.getString(R.string.overlay_snooze)).performClick()
             // SnoozeReceiver асинхронен (goAsync + корутина): ждём снятия уведомления и DESTROYED.
             val deadline = System.currentTimeMillis() + 10_000

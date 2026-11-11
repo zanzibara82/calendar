@@ -76,13 +76,15 @@ class NotificationHelper @Inject constructor(
         }
         manager.createNotificationChannel(remindersChannel)
 
-        // Тихий режим: служебный канал IMPORTANCE_MIN — пропуск для запуска оверлея из фона
-        // (Android 10+ запрещает фоновый старт активности; уведомление в шторке — исключение).
-        // Без звука/вибрации/lights. Существующий v2 не пересоздаём.
+        // Тихий режим: канал IMPORTANCE_HIGH, но без звука/вибрации/lights.
+        // HIGH нужен, чтобы система доставляла full-screen intent: на API 29+ прямой
+        // startActivity из BroadcastReceiver запрещён (точные будильники не входят
+        // в исключения BAL), а FSI доставляется только с канала HIGH и выше.
+        // Существующий v2 не пересоздаём.
         val quietChannel = NotificationChannel(
             CHANNEL_REMINDERS_QUIET,
             context.getString(R.string.notification_channel_reminders_quiet),
-            NotificationManager.IMPORTANCE_MIN,
+            NotificationManager.IMPORTANCE_HIGH,
         ).apply {
             description = context.getString(R.string.notification_channel_reminders_quiet_desc)
             setSound(null, null)
@@ -134,8 +136,10 @@ class NotificationHelper @Inject constructor(
         }
 
         // Убеждаемся, что канал создан
+        val isQuiet = sound == ReminderSound.Silent
+        val channel = if (isQuiet) CHANNEL_REMINDERS_QUIET else CHANNEL_REMINDERS
         createChannels()
-        Log.d(TAG, "  channels created, channel=$CHANNEL_REMINDERS")
+        Log.d(TAG, "  channels created, channel=$channel")
 
         val startTime = occurrenceStart.takeIf { it > 0 } ?: event.startTime
         val label = buildReminderLabel(startTime, reminderMinutes)
@@ -174,12 +178,11 @@ class NotificationHelper @Inject constructor(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
-        val channel = if (sound == ReminderSound.Silent) CHANNEL_REMINDERS_QUIET else CHANNEL_REMINDERS
         val notification = NotificationCompat.Builder(context, channel)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle(event.title)
             .setContentText(label)
-            .setPriority(if (sound == ReminderSound.Silent) NotificationCompat.PRIORITY_MIN else NotificationCompat.PRIORITY_MAX)
+            .setPriority(if (isQuiet) NotificationCompat.PRIORITY_MIN else NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setAutoCancel(true)

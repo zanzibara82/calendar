@@ -63,6 +63,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -75,6 +76,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.mycalendar.R
 import com.example.mycalendar.data.auth.OAuthConfig
 import com.example.mycalendar.domain.model.CalendarProvider
@@ -663,9 +667,23 @@ private fun RemindersCard(
     val context = LocalContext.current
     val alarmTitle = stringResource(R.string.alarm_sound)
     val birthdayTitle = stringResource(R.string.birthday_sound)
-    var pickerTarget by remember { mutableStateOf(SoundTarget.ALARM) }
+    var pickerTarget by rememberSaveable { mutableStateOf(SoundTarget.ALARM) }
     var preview by remember { mutableStateOf<Ringtone?>(null) }
 
+    // Уход экрана в фон гасит предпрослушивание: иначе рингтон играет поверх других окон.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) {
+                preview?.stop()
+                preview = null
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // Страховка на случай выхода из композиции без ON_STOP.
     DisposableEffect(Unit) {
         onDispose { preview?.stop() }
     }
@@ -728,7 +746,8 @@ private fun RemindersCard(
             preview = null
         } else if (uri != null) {
             current?.stop()
-            val ringtone = RingtoneManager.getRingtone(context, Uri.parse(uri))
+            // RingtoneManager бросает исключения на битом/чужом URI — не роняем экран.
+            val ringtone = runCatching { RingtoneManager.getRingtone(context, Uri.parse(uri)) }.getOrNull()
             if (ringtone != null) {
                 ringtone.audioAttributes = AudioAttributes.Builder()
                     .setUsage(AudioAttributes.USAGE_ALARM)
@@ -795,10 +814,20 @@ private fun SoundRow(
     onPreview: () -> Unit,
 ) {
     val context = LocalContext.current
-    val ringtone = remember(uri) { uri?.let { RingtoneManager.getRingtone(context, Uri.parse(it)) } }
-    // getTitle читает MediaProvider: битый или недоступный URI бросает исключение — тогда
-    // строка показывает «недоступен» вместо падения экрана.
-    val title = remember(uri) { ringtone?.let { it -> runCatching { it.getTitle(context) }.getOrNull() } }
+    val ringtone = remember(uri) {
+        uri?.let { runCatching { RingtoneManager.getRingtone(context, Uri.parse(it)) }.getOrNull() }
+    }
+    // getTitle читает MediaProvider: битый или недоступный URI бросает RuntimeException — тогда
+    // строка показывает «недоступен» вместо падения экрана. OOM и отмену корутины не глотаем.
+    val title = remember(uri) {
+        ringtone?.let {
+            try {
+                it.getTitle(context)
+            } catch (e: RuntimeException) {
+                null
+            }
+        }
+    }
     val available = title != null
     val valueText = when {
         uri == null -> stringResource(R.string.sound_default)

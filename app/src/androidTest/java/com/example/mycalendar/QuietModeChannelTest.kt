@@ -18,8 +18,9 @@ import org.junit.runner.RunWith
 import javax.inject.Inject
 
 /**
- * Тихий канал существует с IMPORTANCE_MIN, без звука/вибрации/lights; существующий v2
- * сохраняет IMPORTANCE_HIGH — регрессия на «не трогать существующий канал».
+ * Тихий канал существует с IMPORTANCE_HIGH (иначе система не доставит full-screen intent),
+ * но без звука/вибрации/lights; существующий v2 сохраняет IMPORTANCE_HIGH — регрессия
+ * на «не трогать существующий канал».
  */
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
@@ -41,10 +42,10 @@ class QuietModeChannelTest {
     }
 
     @Test
-    fun quietChannel_existsWithMinImportance() {
+    fun quietChannel_existsWithHighImportance() {
         val channel = manager.getNotificationChannel(NotificationHelper.CHANNEL_REMINDERS_QUIET)
         assertNotNull("Тихий канал должен быть создан", channel)
-        assertEquals(NotificationManager.IMPORTANCE_MIN, channel!!.importance)
+        assertEquals(NotificationManager.IMPORTANCE_HIGH, channel!!.importance)
     }
 
     @Test

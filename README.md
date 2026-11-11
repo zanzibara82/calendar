@@ -176,20 +176,21 @@ keyPassword=...
   (`HolidayRegistryTest`, 7), тоном дня (`DayMarkToneTest`, 2), контрастом пар палитры
   (`PaletteContrastTest`, 7 — из них 3 теста добавлены этой серией) и границами сетки
   (`CalendarUiStateTest`, 4); сигнал напоминания и признак дня рождения — `BirthdayCalendarTest` (7)
-  и `ReminderSoundPolicyTest` (6), имя коллекции из ответа источника — `YandexCalendarDataSourceTest` (6);
+  и `ReminderSoundPolicyTest` (6), имя коллекции из ответа источника — `YandexCalendarDataSourceTest`
+  (6, из них 1 — `calendarName`);
   итог 131 и 0 падений сняты с отчёта `testDebugUnitTest` (замер 11.11.2026);
-- **73 instrumented-теста** — Room-миграции, сквозные сценарии синхронизации на настоящей базе,
+- **74 instrumented-теста** — Room-миграции, сквозные сценарии синхронизации на настоящей базе,
   экраны конфликтов, уведомления и действия, системный календарь, переиспользование OAuth-токена,
   сверка подписи скачанного APK на устройстве, карточки события и недельного вида, тон и
   маркер праздничного дня в месячной сетке и в шапке дня (`DayViewHolidayUiTest`, 6) и в карточках
   недели (`WeekViewCardsUiTest`, 6 — 1 тест добавлен этой серией), контраст палитры токенов;
-  выбор сигнала и тихий режим — интент напоминания (`ReminderActivityIntentTest`, 3), тихий канал
+  выбор сигнала и тихий режим — интент напоминания (`ReminderActivityIntentTest`, 4), тихий канал
   (`QuietModeChannelTest`, 3), оверлей тихого режима и «Отложить» (`OverlayQuietModeTest`, 1;
   `OverlaySnoozeTest`, 1), карточка «Напоминания» (`SettingsRemindersCardTest`, 2) и индикатор
   в шапке (`QuietModeIndicatorTest`, 1);
-  итог 73 и 0 падений сняты с JUnit-отчёта `connectedDebugAndroidTest` (замер 11.11.2026);
+  итог 74 и 0 падений сняты с JUnit-отчёта `connectedDebugAndroidTest` (замер 11.11.2026);
 - Lint — 0 ошибок, 15 предупреждений: дубли иконок xml/png, атрибуты,
-  игнорируемые на старых API, `UseKtx` в новых файлах и предложения обновить зависимости.
+  игнорируемые на старых API, `UseKtx` в новом коде и предложения обновить зависимости.
 
 Connected-тесты выдают себе runtime-разрешения через `pm grant` — установка APK их не даёт. Без
 `RECORD_AUDIO` тест записи голоса не стартовал, и это списывали на отсутствие микрофона у эмулятора,

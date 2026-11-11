@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.PowerManager
 import android.util.Log
+import com.example.mycalendar.domain.model.ReminderSound
 import com.example.mycalendar.domain.repository.EventRepository
 import com.example.mycalendar.domain.reminder.ReminderSoundPolicy
 import com.example.mycalendar.domain.repository.SettingsRepository
@@ -68,8 +69,15 @@ class AlarmReceiver : BroadcastReceiver() {
                 val startTime = occurrenceStart.takeIf { it > 0 } ?: event.startTime
                 val endTime = occurrenceEnd.takeIf { it > 0 } ?: event.endTime
                 val label = notificationHelper.buildReminderLabel(startTime, minutes)
-                val calendarName = settingsRepository.calendarName(event.calendarProvider).first()
-                val sound = reminderSoundPolicy.resolve(event, calendarName)
+                // Сбой DataStore не должен отменять напоминание: уведомление и оверлей
+                // уходят даже без имени коллекции — тогда звучит встроенный сигнал.
+                val sound = try {
+                    val calendarName = settingsRepository.calendarName(event.calendarProvider).first()
+                    reminderSoundPolicy.resolve(event, calendarName)
+                } catch (e: Exception) {
+                    Log.w(TAG, "  sound resolve failed, falling back to Builtin", e)
+                    ReminderSound.Builtin
+                }
 
                 // 1. Уведомление (звук канала + full-screen intent для погашенного экрана)
                 notificationHelper.showEventReminder(

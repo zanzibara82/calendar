@@ -1,6 +1,8 @@
 package com.example.mycalendar
 
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -80,11 +82,18 @@ class QuietModeIndicatorTest {
                 useUnmergedTree = true,
             ).fetchSemanticsNodes().isNotEmpty()
         }
-        // Индикатор на месте, тап выключает режим.
+        // Индикатор на месте, тап выключает режим и индикатор исчезает.
+        composeRule.waitUntil(10_000) {
+            composeRule.onAllNodesWithTag(QUIET_INDICATOR_TAG).fetchSemanticsNodes().isNotEmpty()
+        }
         composeRule.onNodeWithTag(QUIET_INDICATOR_TAG).performClick()
         composeRule.waitUntil(10_000) {
             runBlocking { settingsRepository.quietMode.first() } == false
         }
+        composeRule.waitUntil(10_000) {
+            composeRule.onAllNodesWithTag(QUIET_INDICATOR_TAG).fetchSemanticsNodes().isEmpty()
+        }
+        composeRule.onAllNodesWithTag(QUIET_INDICATOR_TAG).assertCountEquals(0)
         assertFalse(runBlocking { settingsRepository.quietMode.first() })
     }
 }

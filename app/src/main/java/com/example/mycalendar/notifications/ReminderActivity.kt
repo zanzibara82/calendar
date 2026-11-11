@@ -24,6 +24,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -41,15 +44,24 @@ import dagger.hilt.android.AndroidEntryPoint
  * Ключевое поведение:
  *  - запускается через full-screen intent: всплывает в центре экрана и включается
  *    поверх локскрина даже при погашенном экране (showWhenLocked + turnScreenOn);
- *  - ЗАЦИКЛЕННЫЙ звук через MediaPlayer (res/raw/reminder_sound.mp3, USAGE_ALARM):
- *    играет, пока пользователь не нажмёт «Открыть событие» или «Закрыть» —
- *    как в первой версии, где работало.
+ *  - обычный режим: ЗАЦИКЛЕННЫЙ звук через MediaPlayer (выбранный URI или
+ *    res/raw/reminder_sound.mp3, USAGE_ALARM), играет, пока пользователь не нажмёт
+ *    «Открыть событие», «Отложить» или «Закрыть»;
+ *  - тихий режим: звука нет, вместо него зацикленная вибрация;
+ *  - повторный интент (onNewIntent) перечитывает экстры: звук и вибрация прежнего
+ *    события гасятся и запускаются заново под новое событие.
  */
 @AndroidEntryPoint
 class ReminderActivity : ComponentActivity() {
 
     private var mediaPlayer: MediaPlayer? = null
     private var vibrationLoop: VibrationLoop? = null
+
+    private var eventId: String? = null
+    private var quiet: Boolean = false
+    private var soundUri: String? = null
+    private var title by mutableStateOf("")
+    private var timeText by mutableStateOf("")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,10 +82,7 @@ class ReminderActivity : ComponentActivity() {
 
         runningInstance = this
 
-        val title = intent.getStringExtra(EXTRA_TITLE) ?: ""
-        val timeText = intent.getStringExtra(EXTRA_TIME_TEXT).orEmpty()
-        val eventId = intent.getStringExtra(NotificationHelper.EXTRA_EVENT_ID)
-
+        applyIntent(intent)
         startLoopingSound()
 
         setContent {
@@ -88,9 +97,7 @@ class ReminderActivity : ComponentActivity() {
                     },
                     onSnooze = {
                         stopLoopingSound()
-                        if (eventId != null) {
-                            sendBroadcast(SnoozeReceiver.createIntent(this, eventId))
-                        }
+                        eventId?.let { sendBroadcast(SnoozeReceiver.createIntent(this, it)) }
                         finish()
                     },
                     onDismiss = {
@@ -102,14 +109,41 @@ class ReminderActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Повторный full-screen intent (тот же оверлей уже на экране): Android отдаёт его
+     * сюда, а не в onCreate. Экстры перечитываем, чтобы поля и «Отложить» относились
+     * к новому событию, и заново запускаем звук — startLoopingSound сначала гасит
+     * прежний звук/вибрацию.
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleNewIntent(intent)
+    }
+
+    /** Тело onNewIntent без super — internal, чтобы connected-тест шёл тем же путём. */
+    internal fun handleNewIntent(intent: Intent) {
+        setIntent(intent)
+        applyIntent(intent)
+        startLoopingSound()
+    }
+
+    /** Разбор экстр оверлея: единственное место, где они читаются. */
+    internal fun applyIntent(intent: Intent) {
+        title = intent.getStringExtra(EXTRA_TITLE) ?: ""
+        timeText = intent.getStringExtra(EXTRA_TIME_TEXT).orEmpty()
+        eventId = intent.getStringExtra(NotificationHelper.EXTRA_EVENT_ID)
+        quiet = intent.getBooleanExtra(EXTRA_QUIET, false)
+        soundUri = intent.getStringExtra(EXTRA_SOUND_URI)
+    }
+
     /** Зацикленный сигнал: тихий режим → вибрация; URI → MediaPlayer с откатом на встроенный. */
     private fun startLoopingSound() {
         stopLoopingSound()
-        if (intent.getBooleanExtra(EXTRA_QUIET, false)) {
+        if (quiet) {
             vibrationLoop = VibrationLoop(this).also { it.start() }
             return
         }
-        val uri = intent.getStringExtra(EXTRA_SOUND_URI)
+        val uri = soundUri
         Log.d(TAG, "startLoopingSound: uri=$uri")
         try {
             val mp = if (uri != null) {
@@ -150,6 +184,9 @@ class ReminderActivity : ComponentActivity() {
     internal fun soundPlayingForTest(): Boolean =
         runCatching { mediaPlayer?.isPlaying == true }.getOrDefault(false)
 
+    /** Для connected-теста onNewIntent: какое событие сейчас показывает оверлей. */
+    internal fun currentEventIdForTest(): String? = eventId
+
     override fun onDestroy() {
         super.onDestroy()
         stopLoopingSound()
@@ -185,7 +222,10 @@ class ReminderActivity : ComponentActivity() {
         /**
          * Единственный источник интента оверлея: зовут и AlarmReceiver (прямой запуск),
          * и NotificationHelper (full-screen intent). sealed-объект в интент не кладём —
-         * только примитивы: Quiet == true → Silent, иначе URI != null → FromUri, иначе Builtin.
+         * только примитивы: Silent → EXTRA_QUIET = true (звука нет, вибрирует пульсом),
+         * FromUri → EXTRA_SOUND_URI (MediaPlayer с откатом на встроенный), Builtin → оба
+         * экстры пусты (встроенный R.raw.reminder_sound). «Отложить» в оверлее шлёт
+         * SnoozeReceiver с eventId из того же интента.
          */
         fun createIntent(context: Context, event: Event, sound: ReminderSound, timeText: String): Intent =
             Intent(context, ReminderActivity::class.java).apply {
