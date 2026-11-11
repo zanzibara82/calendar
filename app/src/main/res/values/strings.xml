@@ -164,6 +164,7 @@
     <string name="notification_open_event">Открыть событие</string>
     <string name="notification_snooze">Отложить на %1$d мин</string>
     <string name="notification_snoozed">Напоминание отложено на %1$d мин</string>
+    <string name="overlay_snooze">Отложить</string>
 
     <!-- Единицы времени -->
     <string name="minutes_short">%1$d мин</string>

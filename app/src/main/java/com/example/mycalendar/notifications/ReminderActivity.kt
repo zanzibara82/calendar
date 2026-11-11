@@ -1,7 +1,10 @@
 package com.example.mycalendar.notifications
 
+import android.content.Context
+import android.content.Intent
 import android.media.AudioAttributes
 import android.media.MediaPlayer
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -27,6 +30,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.mycalendar.R
+import com.example.mycalendar.domain.model.Event
+import com.example.mycalendar.domain.model.ReminderSound
 import com.example.mycalendar.presentation.theme.MyCalendarTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -44,6 +49,7 @@ import dagger.hilt.android.AndroidEntryPoint
 class ReminderActivity : ComponentActivity() {
 
     private var mediaPlayer: MediaPlayer? = null
+    private var vibrationLoop: VibrationLoop? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -77,11 +83,14 @@ class ReminderActivity : ComponentActivity() {
                     timeText = timeText,
                     onOpen = {
                         stopLoopingSound()
-                        // Даже если id не дошёл (например, из стороннего
-                        // уведомления), открываем приложение — иначе кнопка
-                        // выглядит «мёртвой» и пользователь не понимает, куда
-                        // нажал.
                         startActivity(com.example.mycalendar.MainActivity.createIntent(this, eventId))
+                        finish()
+                    },
+                    onSnooze = {
+                        stopLoopingSound()
+                        if (eventId != null) {
+                            sendBroadcast(SnoozeReceiver.createIntent(this, eventId))
+                        }
                         finish()
                     },
                     onDismiss = {
@@ -93,12 +102,21 @@ class ReminderActivity : ComponentActivity() {
         }
     }
 
-    /** Зацикленный сигнал напоминания (тот же принцип, что в первой версии приложения). */
+    /** Зацикленный сигнал: тихий режим → вибрация; URI → MediaPlayer с откатом на встроенный. */
     private fun startLoopingSound() {
         stopLoopingSound()
-        Log.d(TAG, "startLoopingSound: attempting to create MediaPlayer for R.raw.reminder_sound")
+        if (intent.getBooleanExtra(EXTRA_QUIET, false)) {
+            vibrationLoop = VibrationLoop(this).also { it.start() }
+            return
+        }
+        val uri = intent.getStringExtra(EXTRA_SOUND_URI)
+        Log.d(TAG, "startLoopingSound: uri=$uri")
         try {
-            val mp = MediaPlayer.create(this, R.raw.reminder_sound)
+            val mp = if (uri != null) {
+                MediaPlayer.create(this, Uri.parse(uri)) ?: MediaPlayer.create(this, R.raw.reminder_sound)
+            } else {
+                MediaPlayer.create(this, R.raw.reminder_sound)
+            }
             if (mp == null) {
                 Log.e(TAG, "  MediaPlayer.create returned null!")
                 return
@@ -124,7 +142,13 @@ class ReminderActivity : ComponentActivity() {
             mediaPlayer?.release()
         }
         mediaPlayer = null
+        vibrationLoop?.stop()
+        vibrationLoop = null
     }
+
+    /** Для connected-теста тихого режима: MediaPlayer не поднят. */
+    internal fun soundPlayingForTest(): Boolean =
+        runCatching { mediaPlayer?.isPlaying == true }.getOrDefault(false)
 
     override fun onDestroy() {
         super.onDestroy()
@@ -136,6 +160,8 @@ class ReminderActivity : ComponentActivity() {
         private const val TAG = "ReminderActivity"
         const val EXTRA_TITLE = "extra_reminder_title"
         const val EXTRA_TIME_TEXT = "extra_reminder_time_text"
+        const val EXTRA_QUIET = "extra_reminder_quiet"
+        const val EXTRA_SOUND_URI = "extra_reminder_sound_uri"
 
         /**
          * Открытый в данный момент экран напоминания.
@@ -155,6 +181,25 @@ class ReminderActivity : ComponentActivity() {
             activity.stopLoopingSound()
             activity.finish()
         }
+
+        /**
+         * Единственный источник интента оверлея: зовут и AlarmReceiver (прямой запуск),
+         * и NotificationHelper (full-screen intent). sealed-объект в интент не кладём —
+         * только примитивы: Quiet == true → Silent, иначе URI != null → FromUri, иначе Builtin.
+         */
+        fun createIntent(context: Context, event: Event, sound: ReminderSound, timeText: String): Intent =
+            Intent(context, ReminderActivity::class.java).apply {
+                putExtra(NotificationHelper.EXTRA_EVENT_ID, event.id)
+                putExtra(EXTRA_TITLE, event.title)
+                putExtra(EXTRA_TIME_TEXT, timeText)
+                putExtra(EXTRA_QUIET, sound == ReminderSound.Silent)
+                putExtra(EXTRA_SOUND_URI, (sound as? ReminderSound.FromUri)?.uri)
+                addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK
+                        or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        or Intent.FLAG_ACTIVITY_SINGLE_TOP,
+                )
+            }
     }
 }
 
@@ -163,6 +208,7 @@ private fun AlarmOverlay(
     title: String,
     timeText: String,
     onOpen: () -> Unit,
+    onSnooze: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     // Полупрозрачный фон поверх всего (в т.ч. локскрина) + карточка в центре
@@ -206,6 +252,14 @@ private fun AlarmOverlay(
                     Spacer(modifier = Modifier.height(20.dp))
                     Button(onClick = onOpen, modifier = Modifier.fillMaxWidth()) {
                         Text(stringResource(R.string.notification_open_event))
+                    }
+                    TextButton(
+                        onClick = onSnooze,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp),
+                    ) {
+                        Text(stringResource(R.string.overlay_snooze))
                     }
                     TextButton(
                         onClick = onDismiss,
