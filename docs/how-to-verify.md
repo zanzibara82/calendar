@@ -171,7 +171,7 @@ adb shell am instrument -w -r -e class com.example.mycalendar.DayViewHolidayUiTe
 ```
 
 Ожидается (замерено 11.11.2026 по отчётам полных прогонов): JVM — 131 тест, 0 падений;
-линт — 1 ошибка, 15 предупреждений (состав ниже); connected — 73 теста, 0 падений.
+линт — 0 ошибок, 15 предупреждений (состав ниже); connected — 73 теста, 0 падений.
 `WeekViewCardsUiTest` проверяет карточки и в понедельник, и в воскресенье: даты в нём считаются от
 текущего дня, а не зашиты, и стрелками периодов он не пользуется. По месяцам сеткой ездит только
 `DayViewHolidayUiTest` — через `testTag` стрелок периодов `period_prev` / `period_next`, поэтому
@@ -185,7 +185,7 @@ adb shell am instrument -w -r -e class com.example.mycalendar.DayViewHolidayUiTe
 
 ```bash
 ./gradlew :app:testDebugUnitTest            # JVM: 131 тест, 0 падений
-./gradlew :app:lintDebug                    # 1 ошибка, 15 предупреждений
+./gradlew :app:lintDebug                    # 0 ошибок, 15 предупреждений
 ./gradlew :app:connectedDebugAndroidTest    # эмулятор/устройство: 73 теста
 ```
 
@@ -199,9 +199,8 @@ APK не даёт, а отсутствие разрешения списывал
 
 Состав линта — 15 предупреждений: `UseKtx` (5, из них 4 — в новых файлах сигнала и тихого режима),
 `IconXmlAndPng` (3), `UnusedAttribute` (2), `AndroidGradlePluginVersion` (2),
-`NewerVersionAvailable` (2), `GradleDependency` (1). Плюс одна ошибка
-`LocalContextGetResourceValueCall`: `context.getString` в обработчике выбора сигнала
-(`SettingsScreen.kt`), из-за неё `lintDebug` завершается сообщением «Lint found 1 error».
+`NewerVersionAvailable` (2), `GradleDependency` (1). Ошибок нет: подписи пикера сигнала берутся
+через `stringResource` до лямбды, а не через `context.getString`.
 
 Отдельные тесты без полного прогона:
 

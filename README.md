@@ -188,8 +188,7 @@ keyPassword=...
   `OverlaySnoozeTest`, 1), карточка «Напоминания» (`SettingsRemindersCardTest`, 2) и индикатор
   в шапке (`QuietModeIndicatorTest`, 1);
   итог 73 и 0 падений сняты с JUnit-отчёта `connectedDebugAndroidTest` (замер 11.11.2026);
-- Lint — 1 ошибка, 15 предупреждений: чтение строки через `LocalContext` при выборе сигнала
-  (`LocalContextGetResourceValueCall` в `SettingsScreen.kt`), дубли иконок xml/png, атрибуты,
+- Lint — 0 ошибок, 15 предупреждений: дубли иконок xml/png, атрибуты,
   игнорируемые на старых API, `UseKtx` в новых файлах и предложения обновить зависимости.
 
 Connected-тесты выдают себе runtime-разрешения через `pm grant` — установка APK их не даёт. Без

@@ -661,6 +661,8 @@ private fun RemindersCard(
     onBirthdayPick: (String?) -> Unit,
 ) {
     val context = LocalContext.current
+    val alarmTitle = stringResource(R.string.alarm_sound)
+    val birthdayTitle = stringResource(R.string.birthday_sound)
     var pickerTarget by remember { mutableStateOf(SoundTarget.ALARM) }
     var preview by remember { mutableStateOf<Ringtone?>(null) }
 
@@ -693,7 +695,7 @@ private fun RemindersCard(
             putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
             putExtra(
                 RingtoneManager.EXTRA_RINGTONE_TITLE,
-                context.getString(if (target == SoundTarget.ALARM) R.string.alarm_sound else R.string.birthday_sound),
+                if (target == SoundTarget.ALARM) alarmTitle else birthdayTitle,
             )
             if (existing != null) putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, Uri.parse(existing))
         }
