@@ -73,6 +73,12 @@ data class SettingsUiState(
     val calendars: List<CalendarConnectionState> = emptyList(),
     /** Открытые конфликты синхронизации; 0 — строку не показываем. */
     val conflictCount: Int = 0,
+    /** Глобальный тихий режим: оверлей молчит и вибрирует. */
+    val quietMode: Boolean = false,
+    /** URI сигнала обычного напоминания (null — встроенный). */
+    val alarmSoundUri: String? = null,
+    /** URI сигнала дня рождения (null — встроенный). */
+    val birthdaySoundUri: String? = null,
 )
 
 /** Состояние карточки «Обновления». */
@@ -159,12 +165,25 @@ class SettingsViewModel @Inject constructor(
         MANAGED.map { provider -> settingsRepository.lastSyncTime(provider).map { provider to it } }
     ) { pairs -> pairs.toMap() }
 
+    /** Три потока напоминаний одним снимком — пятый аргумент внешнего combine. */
+    private data class ReminderSettings(
+        val quietMode: Boolean,
+        val alarmSoundUri: String?,
+        val birthdaySoundUri: String?,
+    )
+
     val uiState: StateFlow<SettingsUiState> = combine(
         settingsRepository.themeMode,
         authRepository.connections,
         lastSyncTimes,
         combine(connecting, syncing, results, conflictCount, ::SyncFlags),
-    ) { themeMode, connections, syncTimes, flags ->
+        combine(
+            settingsRepository.quietMode,
+            settingsRepository.alarmSoundUri,
+            settingsRepository.birthdaySoundUri,
+            ::ReminderSettings,
+        ),
+    ) { themeMode, connections, syncTimes, flags, reminders ->
         SettingsUiState(
             themeMode = themeMode,
             calendars = connections.map { connection ->
@@ -178,6 +197,9 @@ class SettingsViewModel @Inject constructor(
                 )
             },
             conflictCount = flags.conflicts,
+            quietMode = reminders.quietMode,
+            alarmSoundUri = reminders.alarmSoundUri,
+            birthdaySoundUri = reminders.birthdaySoundUri,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
@@ -185,6 +207,20 @@ class SettingsViewModel @Inject constructor(
 
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { settingsRepository.setThemeMode(mode) }
+    }
+
+    // ---------- Напоминания ----------
+
+    fun setQuietMode(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setQuietMode(enabled) }
+    }
+
+    fun setAlarmSoundUri(uri: String?) {
+        viewModelScope.launch { settingsRepository.setAlarmSoundUri(uri) }
+    }
+
+    fun setBirthdaySoundUri(uri: String?) {
+        viewModelScope.launch { settingsRepository.setBirthdaySoundUri(uri) }
     }
 
     /** Открыть/закрыть пошаговую инструкцию регистрации OAuth-клиентов. */

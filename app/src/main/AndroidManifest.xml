@@ -27,6 +27,11 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- Доступ к файлам рингтонов на Android 8–9; на API 29+ не требуется -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
     <!-- Установка обновления из GitHub Releases (пользователь подтверждает вручную) -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 

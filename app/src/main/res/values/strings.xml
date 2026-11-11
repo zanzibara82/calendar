@@ -146,6 +146,18 @@
     <string name="update_allow_install">Открыть разрешение</string>
     <string name="update_signature_mismatch">Подпись загруженного APK не совпадает с установленным приложением — установка отменена</string>
 
+    <!-- Карточка «Напоминания»: сигнал и тихий режим -->
+    <string name="reminders_section">Напоминания</string>
+    <string name="quiet_mode">Тихий режим</string>
+    <string name="quiet_mode_desc">Напоминание приходит молча: окно и вибрация, без сигнала</string>
+    <string name="alarm_sound">Сигнал напоминания</string>
+    <string name="birthday_sound">Сигнал дня рождения</string>
+    <string name="sound_default">Стандартный</string>
+    <string name="sound_unavailable">Сигнал недоступен, используется стандартный</string>
+    <string name="sound_preview_play">Прослушать</string>
+    <string name="sound_preview_stop">Остановить</string>
+    <string name="quiet_mode_indicator">Тихий режим включён, нажмите чтобы выключить</string>
+
     <!-- Настройка OAuth: точные значения для этого проекта -->
     <string name="oauth_setup_title">Настройка входа</string>
     <string name="oauth_setup_google">Google — БЕЗ OAuth:\n1) Аккаунт Google уже добавлен на телефон (Настройки → Аккаунты)\n2) В его настройках включите синхронизацию «Календарь»\n3) В настройках приложения нажмите «Подключить» и разрешите доступ к календарю\n\nНи client_id, ни SHA-1, ни регистрация в Google Cloud Console не требуются.</string>

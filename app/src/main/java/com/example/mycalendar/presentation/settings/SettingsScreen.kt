@@ -1,11 +1,19 @@
 package com.example.mycalendar.presentation.settings
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.AudioAttributes
+import android.media.Ringtone
+import android.media.RingtoneManager
+import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,7 +34,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
@@ -42,19 +52,23 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -66,6 +80,9 @@ import com.example.mycalendar.data.auth.OAuthConfig
 import com.example.mycalendar.domain.model.CalendarProvider
 import com.example.mycalendar.domain.model.ThemeMode
 import com.example.mycalendar.domain.repository.SyncResult
+import com.example.mycalendar.presentation.components.ALARM_SOUND_ROW_TAG
+import com.example.mycalendar.presentation.components.BIRTHDAY_SOUND_ROW_TAG
+import com.example.mycalendar.presentation.components.QUIET_MODE_SWITCH_TAG
 import com.example.mycalendar.presentation.components.providerColor
 import com.example.mycalendar.presentation.common.shortDateTimeFormatter
 import java.time.Instant
@@ -235,6 +252,19 @@ fun SettingsScreen(
                 onCheck = viewModel::checkForUpdates,
                 onInstall = viewModel::downloadAndInstall,
                 onOpenInstallSettings = viewModel::openInstallPermissionSettings,
+            )
+
+            HorizontalDivider()
+
+            // ---------- Напоминания ----------
+            SectionHeader(stringResource(R.string.reminders_section))
+            RemindersCard(
+                quietMode = state.quietMode,
+                alarmSoundUri = state.alarmSoundUri,
+                birthdaySoundUri = state.birthdaySoundUri,
+                onQuietChange = viewModel::setQuietMode,
+                onAlarmPick = viewModel::setAlarmSoundUri,
+                onBirthdayPick = viewModel::setBirthdaySoundUri,
             )
 
             HorizontalDivider()
@@ -612,3 +642,190 @@ private fun hasCalendarPermission(context: Context): Boolean =
 
 private fun formatDateTime(millis: Long): String =
     Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(shortDateTimeFormatter)
+
+/** Какая строка открыла пикер — результат маршрутизируется в нужный сеттер. */
+private enum class SoundTarget { ALARM, BIRTHDAY }
+
+/**
+ * Карточка «Напоминания»: тумблер тихого режима и две строки выбора сигнала с пикером
+ * и предпрослушиванием. При активном тихом режиме строки затемнены (enabled = false),
+ * выбор сохранён и возвращается после выключения тумблера.
+ */
+@Composable
+private fun RemindersCard(
+    quietMode: Boolean,
+    alarmSoundUri: String?,
+    birthdaySoundUri: String?,
+    onQuietChange: (Boolean) -> Unit,
+    onAlarmPick: (String?) -> Unit,
+    onBirthdayPick: (String?) -> Unit,
+) {
+    val context = LocalContext.current
+    var pickerTarget by remember { mutableStateOf(SoundTarget.ALARM) }
+    var preview by remember { mutableStateOf<Ringtone?>(null) }
+
+    DisposableEffect(Unit) {
+        onDispose { preview?.stop() }
+    }
+
+    val pickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val data = result.data
+            val uri = if (Build.VERSION.SDK_INT >= 33) {
+                data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI, Uri::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                data?.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+            }
+            preview?.stop()
+            preview = null
+            if (pickerTarget == SoundTarget.ALARM) onAlarmPick(uri?.toString()) else onBirthdayPick(uri?.toString())
+        }
+    }
+
+    val launchPicker: (SoundTarget) -> Unit = { target ->
+        val existing = if (target == SoundTarget.ALARM) alarmSoundUri else birthdaySoundUri
+        val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+            putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
+            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+            putExtra(
+                RingtoneManager.EXTRA_RINGTONE_TITLE,
+                context.getString(if (target == SoundTarget.ALARM) R.string.alarm_sound else R.string.birthday_sound),
+            )
+            if (existing != null) putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, Uri.parse(existing))
+        }
+        pickerLauncher.launch(intent)
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) {
+        // Отказ не блокирует: работает откат на встроенный сигнал.
+        launchPicker(pickerTarget)
+    }
+
+    val requestPick: (SoundTarget) -> Unit = { target ->
+        pickerTarget = target
+        val needsPermission = Build.VERSION.SDK_INT <= 28 &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) !=
+            PackageManager.PERMISSION_GRANTED
+        if (needsPermission) {
+            permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+        } else {
+            launchPicker(target)
+        }
+    }
+
+    val togglePreview: (String?) -> Unit = { uri ->
+        val current = preview
+        if (current != null && current.isPlaying) {
+            current.stop()
+            preview = null
+        } else if (uri != null) {
+            current?.stop()
+            val ringtone = RingtoneManager.getRingtone(context, Uri.parse(uri))
+            if (ringtone != null) {
+                ringtone.audioAttributes = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .build()
+                ringtone.play()
+                preview = ringtone
+            }
+        }
+    }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(AppSpacing.screen)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.quiet_mode), style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        stringResource(R.string.quiet_mode_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = quietMode,
+                    onCheckedChange = onQuietChange,
+                    modifier = Modifier.testTag(QUIET_MODE_SWITCH_TAG),
+                )
+            }
+            Spacer(modifier = Modifier.height(AppSpacing.cardVPad))
+            SoundRow(
+                label = stringResource(R.string.alarm_sound),
+                uri = alarmSoundUri,
+                enabled = !quietMode,
+                tag = ALARM_SOUND_ROW_TAG,
+                previewing = preview?.isPlaying == true,
+                onPick = { requestPick(SoundTarget.ALARM) },
+                onPreview = { togglePreview(alarmSoundUri) },
+            )
+            Spacer(modifier = Modifier.height(AppSpacing.cardVPad))
+            SoundRow(
+                label = stringResource(R.string.birthday_sound),
+                uri = birthdaySoundUri,
+                enabled = !quietMode,
+                tag = BIRTHDAY_SOUND_ROW_TAG,
+                previewing = preview?.isPlaying == true,
+                onPick = { requestPick(SoundTarget.BIRTHDAY) },
+                onPreview = { togglePreview(birthdaySoundUri) },
+            )
+        }
+    }
+}
+
+/** Строка выбора сигнала: имя файла (или «Стандартный»/«недоступен») и кнопка play/stop. */
+@Composable
+private fun SoundRow(
+    label: String,
+    uri: String?,
+    enabled: Boolean,
+    tag: String,
+    previewing: Boolean,
+    onPick: () -> Unit,
+    onPreview: () -> Unit,
+) {
+    val context = LocalContext.current
+    val ringtone = remember(uri) { uri?.let { RingtoneManager.getRingtone(context, Uri.parse(it)) } }
+    // getTitle читает MediaProvider: битый или недоступный URI бросает исключение — тогда
+    // строка показывает «недоступен» вместо падения экрана.
+    val title = remember(uri) { ringtone?.let { it -> runCatching { it.getTitle(context) }.getOrNull() } }
+    val available = title != null
+    val valueText = when {
+        uri == null -> stringResource(R.string.sound_default)
+        !available -> stringResource(R.string.sound_unavailable)
+        else -> title
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(tag)
+            .clickable(enabled = enabled, onClick = onPick)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.titleSmall)
+            Text(
+                valueText,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        IconButton(onClick = onPreview, enabled = enabled && available) {
+            Icon(
+                if (previewing) Icons.Filled.Stop else Icons.Filled.PlayArrow,
+                contentDescription = stringResource(
+                    if (previewing) R.string.sound_preview_stop else R.string.sound_preview_play
+                ),
+            )
+        }
+    }
+}
