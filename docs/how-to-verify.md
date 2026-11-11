@@ -125,6 +125,21 @@ Debug и release подписаны разными ключами, поэтом�
    встроенное обновление с установленной 1.1.1 всегда отклоняет скачанный APK. `releases/latest`
    pre-release игнорирует — проверка обновлений его не предложит. Первый корректный релиз — `v1.1.2`.
 
+### Сигнал напоминания и тихий режим
+
+1. Настройки → «Напоминания» → строка «Сигнал напоминания» открывает системный пикер
+   (вкладка будильников): выберите сигнал и нажмите play — он проигрывается для предпрослушивания.
+   То же для строки «Сигнал дня рождения».
+2. Тумблер «Тихий режим» затемняет обе строки сигналов: выбор сохраняется, а после выключения
+   тихого режима возвращается.
+3. При включённом тихом режиме в шапке календаря виден значок `NotificationsOff`; тап по нему
+   выключает режим. Включить режим можно только из настроек.
+4. Напоминание в тихом режиме: оверлей молчит (без звука), вибрирует пульсом, кнопка «Отложить»
+   работает; при погашенном экране оверлей всплывает поверх блокировки — это делает служебный
+   канал (пропуск).
+5. Событие с меткой «День рождения» или из коллекции «Дни рождения» звучит выбранным сигналом
+   дня рождения, а не сигналом напоминания.
+
 ## Визуальный язык
 
 Спека: [docs/superpowers/specs/2026-11-01-android-visual-language-design.md](superpowers/specs/2026-11-01-android-visual-language-design.md).
@@ -155,8 +170,8 @@ adb shell am instrument -w -r -e class com.example.mycalendar.DayViewHolidayUiTe
     com.example.mycalendar.test/com.example.mycalendar.HiltTestRunner
 ```
 
-Ожидается (замерено 06.11.2026 по отчётам полных прогонов): JVM — 117 тестов, 0 падений;
-линт — 0 ошибок, 11 предупреждений (состав унаследованный); connected — 62 теста, 0 падений.
+Ожидается (замерено 11.11.2026 по отчётам полных прогонов): JVM — 131 тест, 0 падений;
+линт — 1 ошибка, 15 предупреждений (состав ниже); connected — 73 теста, 0 падений.
 `WeekViewCardsUiTest` проверяет карточки и в понедельник, и в воскресенье: даты в нём считаются от
 текущего дня, а не зашиты, и стрелками периодов он не пользуется. По месяцам сеткой ездит только
 `DayViewHolidayUiTest` — через `testTag` стрелок периодов `period_prev` / `period_next`, поэтому
@@ -169,27 +184,41 @@ adb shell am instrument -w -r -e class com.example.mycalendar.DayViewHolidayUiTe
 ## Автоматические проверки
 
 ```bash
-./gradlew :app:testDebugUnitTest            # JVM: 117 тестов, 0 падений
-./gradlew :app:lintDebug                    # 0 ошибок, 11 предупреждений
-./gradlew :app:connectedDebugAndroidTest    # эмулятор/устройство: 62 теста
+./gradlew :app:testDebugUnitTest            # JVM: 131 тест, 0 падений
+./gradlew :app:lintDebug                    # 1 ошибка, 15 предупреждений
+./gradlew :app:connectedDebugAndroidTest    # эмулятор/устройство: 73 теста
 ```
 
-Ожидаемый результат connected: **62 теста, 0 падений** (сумма классовых `<testsuite>` в JUnit-отчёте
-`connectedDebugAndroidTest`, сверка по `<testcase>`; замер 06.11.2026).
+Ожидаемый результат connected: **73 теста, 0 падений** (сумма классовых `<testsuite>` в JUnit-отчёте
+`connectedDebugAndroidTest`, сверка по `<testcase>`; замер 11.11.2026).
 `SchedulerAndMediaTest.voiceRecorder_recordsM4aFile` пишет настоящий `.m4a` и проходит даже на
 headless-эмуляторе с `-no-audio` (замер 05.11.2026). Прежде тест молча пропускался:
 `MediaRecorder.setAudioSource` не стартует без runtime-разрешения `RECORD_AUDIO`, которого установка
 APK не даёт, а отсутствие разрешения списывали на отсутствие микрофона у эмулятора. Теперь
 `RECORD_AUDIO` и `POST_NOTIFICATIONS` выдаются в `setUp` через `pm grant`.
 
-Состав 11 предупреждений линта — унаследованный, новых задача визуального языка не добавила:
+Состав линта — 15 предупреждений: `UseKtx` (5, из них 4 — в новых файлах сигнала и тихого режима),
 `IconXmlAndPng` (3), `UnusedAttribute` (2), `AndroidGradlePluginVersion` (2),
-`NewerVersionAvailable` (2), `GradleDependency` (1), `UseKtx` (1).
+`NewerVersionAvailable` (2), `GradleDependency` (1). Плюс одна ошибка
+`LocalContextGetResourceValueCall`: `context.getString` в обработчике выбора сигнала
+(`SettingsScreen.kt`), из-за неё `lintDebug` завершается сообщением «Lint found 1 error».
 
 Отдельные тесты без полного прогона:
 
 ```bash
 adb shell am instrument -w -r -e class com.example.mycalendar.YandexSignInReuseTokenTest \
+    com.example.mycalendar.test/com.example.mycalendar.HiltTestRunner
+adb shell am instrument -w -r -e class com.example.mycalendar.ReminderActivityIntentTest \
+    com.example.mycalendar.test/com.example.mycalendar.HiltTestRunner
+adb shell am instrument -w -r -e class com.example.mycalendar.QuietModeChannelTest \
+    com.example.mycalendar.test/com.example.mycalendar.HiltTestRunner
+adb shell am instrument -w -r -e class com.example.mycalendar.OverlayQuietModeTest \
+    com.example.mycalendar.test/com.example.mycalendar.HiltTestRunner
+adb shell am instrument -w -r -e class com.example.mycalendar.OverlaySnoozeTest \
+    com.example.mycalendar.test/com.example.mycalendar.HiltTestRunner
+adb shell am instrument -w -r -e class com.example.mycalendar.SettingsRemindersCardTest \
+    com.example.mycalendar.test/com.example.mycalendar.HiltTestRunner
+adb shell am instrument -w -r -e class com.example.mycalendar.QuietModeIndicatorTest \
     com.example.mycalendar.test/com.example.mycalendar.HiltTestRunner
 ```
 
