@@ -159,6 +159,8 @@
     <!-- Уведомления -->
     <string name="notification_channel_reminders">Напоминания о событиях</string>
     <string name="notification_channel_reminders_desc">Уведомления о предстоящих событиях</string>
+    <string name="notification_channel_reminders_quiet">Тихие напоминания</string>
+    <string name="notification_channel_reminders_quiet_desc">Служебный канал тихого режима: напоминание приходит без звука</string>
     <string name="notification_reminder_text">Начало в %1$s (через %2$s)</string>
     <string name="notification_reminder_now">Событие начинается</string>
     <string name="notification_open_event">Открыть событие</string>

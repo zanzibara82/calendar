@@ -6,7 +6,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.media.RingtoneManager
@@ -17,6 +16,7 @@ import androidx.core.content.ContextCompat
 import com.example.mycalendar.MainActivity
 import com.example.mycalendar.R
 import com.example.mycalendar.domain.model.Event
+import com.example.mycalendar.domain.model.ReminderSound
 import com.example.mycalendar.work.ReminderScheduler
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.Instant
@@ -43,6 +43,7 @@ class NotificationHelper @Inject constructor(
         private const val TAG = "NotificationHelper"
         // v2: новая версия канала, чтобы звук/атрибутика применились у обновившихся установок
         const val CHANNEL_REMINDERS = "channel_event_reminders_v2"
+        const val CHANNEL_REMINDERS_QUIET = "channel_event_reminders_quiet"
         const val EXTRA_EVENT_ID = "extra_event_id"
 
         /** Размер отсрочки кнопки «Отложить» — один источник правды с ReminderScheduler. */
@@ -74,6 +75,22 @@ class NotificationHelper @Inject constructor(
             setBypassDnd(false)
         }
         manager.createNotificationChannel(remindersChannel)
+
+        // Тихий режим: служебный канал IMPORTANCE_MIN — пропуск для запуска оверлея из фона
+        // (Android 10+ запрещает фоновый старт активности; уведомление в шторке — исключение).
+        // Без звука/вибрации/lights. Существующий v2 не пересоздаём.
+        val quietChannel = NotificationChannel(
+            CHANNEL_REMINDERS_QUIET,
+            context.getString(R.string.notification_channel_reminders_quiet),
+            NotificationManager.IMPORTANCE_MIN,
+        ).apply {
+            description = context.getString(R.string.notification_channel_reminders_quiet_desc)
+            setSound(null, null)
+            enableVibration(false)
+            enableLights(false)
+            setBypassDnd(false)
+        }
+        manager.createNotificationChannel(quietChannel)
     }
 
     /**
@@ -106,6 +123,7 @@ class NotificationHelper @Inject constructor(
         reminderMinutes: Int,
         occurrenceStart: Long,
         occurrenceEnd: Long,
+        sound: ReminderSound = ReminderSound.Builtin,
     ) {
         Log.d(TAG, "showEventReminder: eventId=${event.id} title='${event.title}' " +
             "reminderMinutes=$reminderMinutes canPost=${canPostNotifications()}")
@@ -122,13 +140,8 @@ class NotificationHelper @Inject constructor(
         val startTime = occurrenceStart.takeIf { it > 0 } ?: event.startTime
         val label = buildReminderLabel(startTime, reminderMinutes)
 
-        // Полноэкранный запуск аларм-экрана
-        val fullScreenIntent = Intent(context, ReminderActivity::class.java).apply {
-            putExtra(EXTRA_EVENT_ID, event.id)
-            putExtra(ReminderActivity.EXTRA_TITLE, event.title)
-            putExtra(ReminderActivity.EXTRA_TIME_TEXT, label)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
+        // Полноэкранный запуск аларм-экрана: та же фабрика, что у AlarmReceiver.
+        val fullScreenIntent = ReminderActivity.createIntent(context, event, sound, label)
         val fullScreenPendingIntent = PendingIntent.getActivity(
             context,
             event.id.hashCode(),
@@ -161,11 +174,12 @@ class NotificationHelper @Inject constructor(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
-        val notification = NotificationCompat.Builder(context, CHANNEL_REMINDERS)
+        val channel = if (sound == ReminderSound.Silent) CHANNEL_REMINDERS_QUIET else CHANNEL_REMINDERS
+        val notification = NotificationCompat.Builder(context, channel)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle(event.title)
             .setContentText(label)
-            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setPriority(if (sound == ReminderSound.Silent) NotificationCompat.PRIORITY_MIN else NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setAutoCancel(true)

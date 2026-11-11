@@ -6,6 +6,9 @@ import android.content.Intent
 import android.os.PowerManager
 import android.util.Log
 import com.example.mycalendar.domain.repository.EventRepository
+import com.example.mycalendar.domain.reminder.ReminderSoundPolicy
+import com.example.mycalendar.domain.repository.SettingsRepository
+import kotlinx.coroutines.flow.first
 import com.example.mycalendar.work.ReminderScheduler
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -30,6 +33,8 @@ class AlarmReceiver : BroadcastReceiver() {
     @Inject lateinit var eventRepository: EventRepository
     @Inject lateinit var notificationHelper: NotificationHelper
     @Inject lateinit var reminderScheduler: ReminderScheduler
+    @Inject lateinit var settingsRepository: SettingsRepository
+    @Inject lateinit var reminderSoundPolicy: ReminderSoundPolicy
 
     override fun onReceive(context: Context, intent: Intent) {
         Log.d(TAG, "onReceive: action=${intent.action} intent=$intent")
@@ -63,6 +68,8 @@ class AlarmReceiver : BroadcastReceiver() {
                 val startTime = occurrenceStart.takeIf { it > 0 } ?: event.startTime
                 val endTime = occurrenceEnd.takeIf { it > 0 } ?: event.endTime
                 val label = notificationHelper.buildReminderLabel(startTime, minutes)
+                val calendarName = settingsRepository.calendarName(event.calendarProvider).first()
+                val sound = reminderSoundPolicy.resolve(event, calendarName)
 
                 // 1. Уведомление (звук канала + full-screen intent для погашенного экрана)
                 notificationHelper.showEventReminder(
@@ -70,6 +77,7 @@ class AlarmReceiver : BroadcastReceiver() {
                     reminderMinutes = minutes,
                     occurrenceStart = startTime,
                     occurrenceEnd = endTime,
+                    sound = sound,
                 )
                 Log.d(TAG, "  notification shown successfully")
 
@@ -84,16 +92,7 @@ class AlarmReceiver : BroadcastReceiver() {
                 ).apply { acquire(30_000) }
 
                 try {
-                    val alarmIntent = Intent(context, ReminderActivity::class.java).apply {
-                        putExtra(NotificationHelper.EXTRA_EVENT_ID, event.id)
-                        putExtra(ReminderActivity.EXTRA_TITLE, event.title)
-                        putExtra(ReminderActivity.EXTRA_TIME_TEXT, label)
-                        addFlags(
-                            Intent.FLAG_ACTIVITY_NEW_TASK
-                                or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                                or Intent.FLAG_ACTIVITY_SINGLE_TOP,
-                        )
-                    }
+                    val alarmIntent = ReminderActivity.createIntent(context, event, sound, label)
                     Log.d(TAG, "  starting ReminderActivity directly")
                     context.startActivity(alarmIntent)
                 } finally {
