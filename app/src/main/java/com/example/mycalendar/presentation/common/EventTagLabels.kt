@@ -11,4 +11,7 @@ val EventTag.labelRes: Int
         EventTag.BIRTHDAY -> R.string.tag_birthday
         EventTag.DATE -> R.string.tag_date
         EventTag.CINEMA -> R.string.tag_cinema
+        EventTag.DOCTOR -> R.string.tag_doctor
+        EventTag.MEDICINE -> R.string.tag_medicine
+        EventTag.VACATION -> R.string.tag_vacation
     }

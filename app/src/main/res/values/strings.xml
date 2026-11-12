@@ -73,6 +73,9 @@
     <string name="tag_birthday">День рождения</string>
     <string name="tag_date">Свидание</string>
     <string name="tag_cinema">Кино</string>
+    <string name="tag_doctor">Врач</string>
+    <string name="tag_medicine">Лекарства</string>
+    <string name="tag_vacation">Отпуск</string>
 
     <!-- Голосовая заметка -->
     <string name="voice_note">Голосовая заметка</string>

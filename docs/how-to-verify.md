@@ -172,8 +172,9 @@ adb shell am instrument -w -r -e class com.example.mycalendar.DayViewHolidayUiTe
     ru.zanzibara82.calendar.test/com.example.mycalendar.HiltTestRunner
 ```
 
-Ожидается (замерено 12.11.2026 по отчётам полных прогонов): JVM — 131 тест, 0 падений;
-линт — 0 ошибок, 16 предупреждений (состав ниже); connected — 75 тестов, 0 падений.
+Ожидается (замерено 12.11.2026 по отчётам полных прогонов): JVM — 228 тестов
+(64 в `:app`, 81 в `:shared`, 83 в `:desktopApp`), 0 падений; линт — 0 ошибок,
+17 предупреждений (состав ниже); connected — 75 тестов, 0 падений.
 `WeekViewCardsUiTest` проверяет карточки и в понедельник, и в воскресенье: даты в нём считаются от
 текущего дня, а не зашиты, и стрелками периодов он не пользуется. По месяцам сеткой ездит только
 `DayViewHolidayUiTest` — через `testTag` стрелок периодов `period_prev` / `period_next`, поэтому
@@ -186,9 +187,9 @@ adb shell am instrument -w -r -e class com.example.mycalendar.DayViewHolidayUiTe
 ## Автоматические проверки
 
 ```bash
-./gradlew :app:testDebugUnitTest            # JVM: 131 тест, 0 падений
-./gradlew :app:lintDebug                    # 0 ошибок, 16 предупреждений
-./gradlew :app:connectedDebugAndroidTest    # эмулятор/устройство: 75 тестов
+./gradlew :app:testDebugUnitTest :shared:test :desktopApp:test  # JVM: 228 тестов, 0 падений
+./gradlew :app:lintDebug                                        # 0 ошибок, 17 предупреждений
+./gradlew :app:connectedDebugAndroidTest                        # эмулятор/устройство: 75 тестов
 ```
 
 Перед полным connected-прогоном выдайте пакету разрешения вручную: установка APK их не даёт,
@@ -210,9 +211,10 @@ headless-эмуляторе с `-no-audio` (замер 05.11.2026). Прежде
 APK не даёт, а отсутствие разрешения списывали на отсутствие микрофона у эмулятора. Теперь
 `RECORD_AUDIO` и `POST_NOTIFICATIONS` выдаются в `setUp` через `pm grant`.
 
-Состав линта — 16 предупреждений: `UseKtx` (5, из них 4 — в новых файлах сигнала и тихого режима),
-`IconXmlAndPng` (3), `UnusedAttribute` (2), `AndroidGradlePluginVersion` (2),
-`NewerVersionAvailable` (3), `GradleDependency` (1). Ошибок нет: подписи пикера сигнала берутся
+Состав линта — 17 предупреждений: `UseKtx` (5, из них 4 — в новых файлах сигнала и тихого режима),
+`NewerVersionAvailable` (4 — Kotlin 2.4.21 и kotlinx-serialization-json 1.13.0), `IconXmlAndPng` (3),
+`UnusedAttribute` (2 — `showWhenLocked`/`turnScreenOn` при minSdk 26),
+`AndroidGradlePluginVersion` (2), `GradleDependency` (1). Ошибок нет: подписи пикера сигнала берутся
 через `stringResource` до лямбды, а не через `context.getString`.
 
 Отдельные тесты без полного прогона:

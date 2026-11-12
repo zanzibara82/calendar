@@ -1,6 +1,7 @@
 package com.example.mycalendar.desktop.calendar
 
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -9,6 +10,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.example.mycalendar.desktop.theme.DesktopTheme
 import com.example.mycalendar.domain.model.Event
+import com.example.mycalendar.domain.model.EventTag
 import com.example.mycalendar.domain.model.RepeatRule
 import java.time.LocalDate
 import java.time.ZoneId
@@ -31,6 +33,7 @@ class EventEditorUiTest {
         startTime = millis(9),
         endTime = millis(10),
         repeatRule = RepeatRule.WEEKLY,
+        tags = listOf(EventTag.BIRTHDAY),
     )
 
     @Test
@@ -53,6 +56,9 @@ class EventEditorUiTest {
         onNodeWithText("12.11.2026").assertExists()
         onNodeWithText("09:00").assertExists()
         onNodeWithText("10:00").assertExists()
+        onNodeWithText("Врач").assertExists()
+        onNodeWithText("Лекарства").assertExists()
+        onNodeWithText("Отпуск").assertExists()
         onNodeWithTag("event-delete").assertDoesNotExist()
     }
 
@@ -202,6 +208,52 @@ class EventEditorUiTest {
         onNodeWithTag("event-save").performClick()
 
         assertEquals(RepeatRule.WEEKLY, saved?.repeatRule)
+    }
+
+    @Test
+    fun `tag checkbox adds the tag to the saved event`() = runComposeUiTest {
+        var saved: Event? = null
+        setContent {
+            DesktopTheme {
+                EventEditorDialog(
+                    base = null,
+                    date = day,
+                    newId = "new",
+                    zone = zone,
+                    onDismiss = {},
+                    onSave = { saved = it },
+                )
+            }
+        }
+
+        onNodeWithTag("event-title").performTextInput("Свидание")
+        onNodeWithTag("event-tag-date").performClick()
+        onNodeWithTag("event-save").performClick()
+
+        assertEquals(listOf(EventTag.DATE), saved?.tags)
+    }
+
+    @Test
+    fun `editing shows the event tags and saves the unchecked set`() = runComposeUiTest {
+        var saved: Event? = null
+        setContent {
+            DesktopTheme {
+                EventEditorDialog(
+                    base = existingEvent(),
+                    date = day,
+                    newId = "new",
+                    zone = zone,
+                    onDismiss = {},
+                    onSave = { saved = it },
+                )
+            }
+        }
+
+        onNodeWithTag("event-tag-birthday").assertIsOn()
+        onNodeWithTag("event-tag-birthday").performClick()
+        onNodeWithTag("event-save").performClick()
+
+        assertEquals(emptyList<EventTag>(), saved?.tags)
     }
 
     @Test

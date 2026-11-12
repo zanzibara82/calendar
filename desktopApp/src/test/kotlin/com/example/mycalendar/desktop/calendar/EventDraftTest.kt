@@ -29,12 +29,13 @@ class EventDraftTest {
         assertEquals("09:00", draft.start)
         assertEquals("10:00", draft.end)
         assertNull(draft.repeatRule)
+        assertTrue(draft.tags.isEmpty())
     }
 
     @Test
     fun `valid draft builds a local event`() {
         val result = buildEvent(
-            draft = EventDraft("Планёрка", "12.11.2026", "9:30", "11:00", RepeatRule.WEEKLY),
+            draft = EventDraft("Планёрка", "12.11.2026", "9:30", "11:00", RepeatRule.WEEKLY, setOf(EventTag.CINEMA)),
             id = "new",
             zone = zone,
         )
@@ -45,6 +46,7 @@ class EventDraftTest {
         assertEquals(millis(day, 9, 30), event.startTime)
         assertEquals(millis(day, 11), event.endTime)
         assertEquals(RepeatRule.WEEKLY, event.repeatRule)
+        assertEquals(listOf(EventTag.CINEMA), event.tags)
         assertEquals(CalendarProvider.LOCAL, event.calendarProvider)
         assertTrue(result.errors.isEmpty())
     }
@@ -106,7 +108,12 @@ class EventDraftTest {
         )
 
         val result = buildEvent(
-            draft = draftFromEvent(base, zone).copy(title = "Новое", start = "18:00", end = "19:00"),
+            draft = draftFromEvent(base, zone).copy(
+                title = "Новое",
+                start = "18:00",
+                end = "19:00",
+                tags = setOf(EventTag.BIRTHDAY, EventTag.DATE),
+            ),
             id = "ignored",
             base = base,
             zone = zone,
@@ -119,7 +126,7 @@ class EventDraftTest {
         assertEquals(listOf(15), event.reminderMinutes)
         assertEquals(RepeatRule.MONTHLY, event.repeatRule)
         assertEquals("заметка", event.textNote)
-        assertEquals(listOf(EventTag.BIRTHDAY), event.tags)
+        assertEquals(listOf(EventTag.BIRTHDAY, EventTag.DATE), event.tags)
         assertEquals(CalendarProvider.YANDEX, event.calendarProvider)
         assertEquals("remote-1", event.remoteId)
         assertEquals(millis(day, 18), event.startTime)

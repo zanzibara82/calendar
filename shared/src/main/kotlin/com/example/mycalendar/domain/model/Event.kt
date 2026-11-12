@@ -54,6 +54,9 @@ enum class EventTag {
     BIRTHDAY,
     DATE,
     CINEMA,
+    DOCTOR,
+    MEDICINE,
+    VACATION,
 }
 
 /** Поддерживаемые провайдеры календаря. */

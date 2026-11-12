@@ -175,8 +175,11 @@ private fun repeatLabel(rule: RepeatRule): String = when (rule) {
     RepeatRule.YEARLY -> "Ежегодно"
 }
 
-private fun tagLabel(tag: EventTag): String = when (tag) {
+internal fun tagLabel(tag: EventTag): String = when (tag) {
     EventTag.BIRTHDAY -> "День рождения"
     EventTag.DATE -> "Свидание"
     EventTag.CINEMA -> "Кино"
+    EventTag.DOCTOR -> "Врач"
+    EventTag.MEDICINE -> "Лекарства"
+    EventTag.VACATION -> "Отпуск"
 }

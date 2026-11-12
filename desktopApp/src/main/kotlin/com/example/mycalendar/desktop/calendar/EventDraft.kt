@@ -1,6 +1,7 @@
 package com.example.mycalendar.desktop.calendar
 
 import com.example.mycalendar.domain.model.Event
+import com.example.mycalendar.domain.model.EventTag
 import com.example.mycalendar.domain.model.RepeatRule
 import java.time.Instant
 import java.time.LocalDate
@@ -23,6 +24,7 @@ data class EventDraft(
     val start: String,
     val end: String,
     val repeatRule: RepeatRule? = null,
+    val tags: Set<EventTag> = emptySet(),
 )
 
 data class DraftResult(val event: Event?, val errors: Map<DraftField, String>) {
@@ -51,12 +53,13 @@ fun draftFromEvent(event: Event, zone: ZoneId): EventDraft {
         start = start.toLocalTime().format(DISPLAY_TIME_PATTERN),
         end = end.toLocalTime().format(DISPLAY_TIME_PATTERN),
         repeatRule = event.repeatRule,
+        tags = event.tags.toSet(),
     )
 }
 
 /**
  * Собирает событие из черновика. Поля, которых в диалоге нет (описание, заметки,
- * метки, провайдер), берутся из [base]; новое событие создаётся локальным.
+ * провайдер), берутся из [base]; новое событие создаётся локальным.
  */
 fun buildEvent(
     draft: EventDraft,
@@ -97,6 +100,7 @@ fun buildEvent(
             startTime = startTime,
             endTime = endTime,
             repeatRule = draft.repeatRule,
+            tags = draft.tags.sortedBy { it.ordinal },
         )
     return DraftResult(event = event, errors = emptyMap())
 }

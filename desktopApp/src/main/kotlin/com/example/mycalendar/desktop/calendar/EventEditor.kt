@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -47,6 +48,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.example.mycalendar.desktop.theme.LocalDesktopColors
 import com.example.mycalendar.domain.model.Event
+import com.example.mycalendar.domain.model.EventTag
 import com.example.mycalendar.domain.model.RepeatRule
 import java.time.LocalDate
 import java.time.ZoneId
@@ -58,6 +60,9 @@ private val repeatOptions: List<Triple<RepeatRule?, String, String>> = listOf(
     Triple(RepeatRule.MONTHLY, "Ежемесячно", "event-repeat-monthly"),
     Triple(RepeatRule.YEARLY, "Ежегодно", "event-repeat-yearly"),
 )
+
+private fun Set<EventTag>.toggled(tag: EventTag): Set<EventTag> =
+    if (tag in this) this - tag else this + tag
 
 /**
  * Модальный редактор события поверх календаря: создание и правка.
@@ -177,6 +182,32 @@ fun EventEditorDialog(
                             label = { Text(label) },
                             modifier = Modifier.testTag(tag),
                         )
+                    }
+                }
+
+                Text(
+                    text = "Метки",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = colors.onSurfaceVariant,
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    EventTag.entries.forEach { tag ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = tag in draft.tags,
+                                onCheckedChange = { draft = draft.copy(tags = draft.tags.toggled(tag)) },
+                                modifier = Modifier.testTag("event-tag-${tag.name.lowercase()}"),
+                            )
+                            Text(
+                                text = tagLabel(tag),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = colors.onSurface,
+                                modifier = Modifier.clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                ) { draft = draft.copy(tags = draft.tags.toggled(tag)) },
+                            )
+                        }
                     }
                 }
 
