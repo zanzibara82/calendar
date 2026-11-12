@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,6 +44,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onThemeChange: (ThemeMode) -> Unit,
     onQuietChange: (Boolean) -> Unit,
+    onMinimizeToTrayChange: (Boolean) -> Unit,
     onPickAlarm: () -> Unit,
     onResetAlarm: () -> Unit,
     onPickBirthday: () -> Unit,
@@ -126,6 +128,29 @@ fun SettingsScreen(
                 onPick = onPickBirthday,
                 onReset = onResetBirthday,
             )
+        }
+
+        SectionHeader("Окно")
+        Panel {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Сворачивать в трей", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = "Закрытие окна оставляет программу в трее — напоминания продолжают работать.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.onSurfaceVariant,
+                    )
+                }
+                Checkbox(
+                    checked = settings.minimizeToTray,
+                    onCheckedChange = onMinimizeToTrayChange,
+                    modifier = Modifier.testTag("settings-minimize-to-tray"),
+                )
+            }
         }
 
         SectionHeader("О приложении")

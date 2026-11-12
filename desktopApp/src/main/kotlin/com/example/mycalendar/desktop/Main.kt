@@ -10,9 +10,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Canvas
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Tray
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import androidx.compose.ui.window.isTraySupported
 import androidx.compose.ui.window.rememberWindowState
 import com.example.mycalendar.desktop.calendar.EventEditorDialog
 import com.example.mycalendar.desktop.calendar.MonthView
@@ -23,6 +33,7 @@ import com.example.mycalendar.desktop.data.EventFileStore
 import com.example.mycalendar.desktop.settings.DesktopSettings
 import com.example.mycalendar.desktop.settings.SettingsScreen
 import com.example.mycalendar.desktop.theme.DesktopTheme
+import com.example.mycalendar.desktop.theme.EventCardGradient
 import com.example.mycalendar.domain.model.Event
 import java.awt.FileDialog
 import java.awt.Frame
@@ -57,9 +68,18 @@ fun main() {
         LaunchedEffect(settingsStore) { settingsStore.load() }
         val settings = stored ?: DesktopSettings()
         val windowState = rememberWindowState(width = 1000.dp, height = 760.dp)
+        var windowVisible by remember { mutableStateOf(true) }
+        val trayAvailable = isTraySupported
+        val showWindow = {
+            windowVisible = true
+            windowState.isMinimized = false
+        }
 
         Window(
-            onCloseRequest = ::exitApplication,
+            onCloseRequest = {
+                if (settings.minimizeToTray && trayAvailable) windowVisible = false else exitApplication()
+            },
+            visible = windowVisible,
             title = "MyCalendar",
             state = windowState,
         ) {
@@ -142,6 +162,9 @@ fun main() {
                         onQuietChange = { quiet ->
                             scope.launch { settingsStore.update { it.copy(quietMode = quiet) } }
                         },
+                        onMinimizeToTrayChange = { tray ->
+                            scope.launch { settingsStore.update { it.copy(minimizeToTray = tray) } }
+                        },
                         onPickAlarm = {
                             pickSoundFile()?.let { uri ->
                                 scope.launch { settingsStore.update { it.copy(alarmSoundUri = uri) } }
@@ -162,7 +185,45 @@ fun main() {
                 }
             }
         }
+
+        if (trayAvailable) {
+            Tray(
+                icon = remember { BitmapPainter(trayIconBitmap()) },
+                tooltip = "MyCalendar",
+                onAction = showWindow,
+            ) {
+                Item("Открыть", onClick = showWindow)
+                Separator()
+                Item("Выход", onClick = ::exitApplication)
+            }
+        }
     }
+}
+
+/**
+ * Иконка трея рисуется кодом тем же фирменным градиентом, что и шапка карточки:
+ * отдельного ресурса у desktop-модуля нет, а PNG-файл ради 16 пикселей не нужен.
+ */
+private fun trayIconBitmap(): ImageBitmap {
+    val size = 64f
+    val bitmap = ImageBitmap(size.toInt(), size.toInt())
+    val canvas = Canvas(bitmap)
+    val tile = Paint().apply {
+        Brush.linearGradient(EventCardGradient).applyTo(Size(size, size), this, 1f)
+    }
+    canvas.drawRoundRect(0f, 0f, size, size, 14f, 14f, tile)
+
+    val page = Paint().apply { color = Color.White }
+    canvas.drawRoundRect(12f, 18f, 52f, 52f, 6f, 6f, page)
+    val header = Paint().apply { color = Color(0xFF09235E) }
+    canvas.drawRoundRect(12f, 18f, 52f, 29f, 6f, 6f, header)
+    canvas.drawRoundRect(21f, 10f, 25f, 22f, 2f, 2f, page)
+    canvas.drawRoundRect(39f, 10f, 43f, 22f, 2f, 2f, page)
+    val day = Paint().apply { color = Color(0xFF35618F) }
+    listOf(22f, 32f, 42f).forEach { x ->
+        listOf(36f, 45f).forEach { y -> canvas.drawCircle(Offset(x, y), 2.5f, day) }
+    }
+    return bitmap
 }
 
 /** Системный диалог выбора файла: на desktop «системный сигнал» — это отсутствие файла. */

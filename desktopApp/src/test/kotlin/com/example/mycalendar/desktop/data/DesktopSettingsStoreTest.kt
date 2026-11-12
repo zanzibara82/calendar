@@ -36,13 +36,19 @@ class DesktopSettingsStoreTest {
     fun `saved settings survive reload`() = runBlocking {
         val (store, file) = newStore()
         store.update {
-            it.copy(themeMode = ThemeMode.LIGHT, quietMode = true, alarmSoundUri = "file:///sounds/alarm.ogg")
+            it.copy(
+                themeMode = ThemeMode.LIGHT,
+                quietMode = true,
+                alarmSoundUri = "file:///sounds/alarm.ogg",
+                minimizeToTray = true,
+            )
         }
 
         val reloaded = DesktopSettingsStore(file).load()
 
         assertEquals(ThemeMode.LIGHT, reloaded.themeMode)
         assertTrue(reloaded.quietMode)
+        assertTrue(reloaded.minimizeToTray)
         assertEquals("file:///sounds/alarm.ogg", reloaded.alarmSoundUri)
         assertNull(reloaded.birthdaySoundUri)
     }

@@ -32,6 +32,7 @@ class SettingsScreenUiTest {
                     onBack = {},
                     onThemeChange = {},
                     onQuietChange = {},
+                    onMinimizeToTrayChange = {},
                     onPickAlarm = {},
                     onResetAlarm = {},
                     onPickBirthday = {},
@@ -42,6 +43,7 @@ class SettingsScreenUiTest {
 
         onNodeWithText("Оформление").assertExists()
         onNodeWithText("Напоминания").assertExists()
+        onNodeWithText("Окно").assertExists()
         onNodeWithText("О приложении").assertExists()
         onNodeWithText("Системная").assertExists()
         onNodeWithText("Светлая").assertExists()
@@ -63,6 +65,7 @@ class SettingsScreenUiTest {
                     onBack = {},
                     onThemeChange = { mode = it },
                     onQuietChange = {},
+                    onMinimizeToTrayChange = {},
                     onPickAlarm = {},
                     onResetAlarm = {},
                     onPickBirthday = {},
@@ -90,6 +93,7 @@ class SettingsScreenUiTest {
                     onBack = {},
                     onThemeChange = {},
                     onQuietChange = { quiet = it },
+                    onMinimizeToTrayChange = {},
                     onPickAlarm = {},
                     onResetAlarm = {},
                     onPickBirthday = {},
@@ -104,6 +108,32 @@ class SettingsScreenUiTest {
     }
 
     @Test
+    fun `tray checkbox reports toggle`() = runComposeUiTest {
+        var tray by mutableStateOf(false)
+        setContent {
+            DesktopTheme(ThemeMode.DARK) {
+                SettingsScreen(
+                    settings = DesktopSettings(minimizeToTray = tray),
+                    dataDir = "dir",
+                    version = "0.1.0",
+                    onBack = {},
+                    onThemeChange = {},
+                    onQuietChange = {},
+                    onMinimizeToTrayChange = { tray = it },
+                    onPickAlarm = {},
+                    onResetAlarm = {},
+                    onPickBirthday = {},
+                    onResetBirthday = {},
+                )
+            }
+        }
+
+        onNodeWithTag("settings-minimize-to-tray").performClick()
+
+        assertTrue(tray)
+    }
+
+    @Test
     fun `back button reports navigation`() = runComposeUiTest {
         var backed = false
         setContent {
@@ -115,6 +145,7 @@ class SettingsScreenUiTest {
                     onBack = { backed = true },
                     onThemeChange = {},
                     onQuietChange = {},
+                    onMinimizeToTrayChange = {},
                     onPickAlarm = {},
                     onResetAlarm = {},
                     onPickBirthday = {},
@@ -140,6 +171,7 @@ class SettingsScreenUiTest {
                     onBack = {},
                     onThemeChange = {},
                     onQuietChange = {},
+                    onMinimizeToTrayChange = {},
                     onPickAlarm = {},
                     onResetAlarm = { alarm = null },
                     onPickBirthday = {},

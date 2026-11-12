@@ -5,7 +5,8 @@ import kotlinx.serialization.Serializable
 
 /**
  * Настройки desktop-клиента. Сейчас это только то, что уже работает в окне:
- * тема оформления и напоминания. Календарь-провайдеры появятся вместе с синхронизацией.
+ * тема оформления, напоминания и поведение окна. Календарь-провайдеры появятся
+ * вместе с синхронизацией.
  */
 @Serializable
 data class DesktopSettings(
@@ -13,4 +14,6 @@ data class DesktopSettings(
     val quietMode: Boolean = false,
     val alarmSoundUri: String? = null,
     val birthdaySoundUri: String? = null,
+    /** Крестик окна прячет программу в трей, а не завершает её. */
+    val minimizeToTray: Boolean = false,
 )
