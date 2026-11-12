@@ -1,5 +1,6 @@
 package com.example.mycalendar.presentation.conflict
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -108,16 +109,20 @@ fun ConflictListScreen(
     }
 }
 
-/** Русское склонение независимо от локали устройства: интерфейс всегда русский. */
-@Composable
-private fun contestedFieldsText(count: Int): String {
-    val id = when {
-        count % 10 == 1 && count % 100 != 11 -> R.string.conflict_contested_fields_one
-        count % 10 in 2..4 && count % 100 !in 12..14 -> R.string.conflict_contested_fields_few
-        else -> R.string.conflict_contested_fields_many
-    }
-    return stringResource(id, count)
+/**
+ * Форма счётчика по русским правилам, а не по локали устройства: интерфейс
+ * всегда русский, а на en-US Android выбирает quantity="other" для «2».
+ */
+@StringRes
+internal fun contestedFieldsLabel(count: Int): Int = when {
+    count % 10 == 1 && count % 100 != 11 -> R.string.conflict_contested_fields_one
+    count % 10 in 2..4 && count % 100 !in 12..14 -> R.string.conflict_contested_fields_few
+    else -> R.string.conflict_contested_fields_many
 }
+
+@Composable
+private fun contestedFieldsText(count: Int): String =
+    stringResource(contestedFieldsLabel(count), count)
 
 private fun formatDetectedAt(millis: Long): String =
     Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(shortDateTimeFormatter)
