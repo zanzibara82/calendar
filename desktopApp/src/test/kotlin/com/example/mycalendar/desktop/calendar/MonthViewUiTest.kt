@@ -1,6 +1,10 @@
 package com.example.mycalendar.desktop.calendar
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
@@ -20,6 +24,7 @@ import java.time.ZoneId
 import java.time.format.TextStyle
 import java.util.Locale
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -233,6 +238,95 @@ class MonthViewUiTest {
         onNodeWithTag("open-settings").performClick()
 
         org.junit.Assert.assertTrue(opened)
+    }
+
+    @Test
+    fun `add button reports the selected day`() = runComposeUiTest {
+        val repository = newRepository()
+        var requested: LocalDate? = null
+        setContent {
+            DesktopTheme {
+                MonthView(repository, initialMonth = november, onAddEvent = { requested = it })
+            }
+        }
+
+        onNodeWithTag("day-2026-11-04").performClick()
+        onNodeWithTag("add-event").performClick()
+
+        assertEquals(LocalDate.of(2026, 11, 4), requested)
+    }
+
+    @Test
+    fun `clicking an event card reports the event for details`() = runComposeUiTest {
+        val repository = newRepository()
+        var clicked: Event? = null
+        runBlocking {
+            repository.saveFromUser(event("a", LocalDate.of(2026, 11, 10), 9, CalendarProvider.LOCAL))
+        }
+        setContent {
+            DesktopTheme {
+                MonthView(repository, initialMonth = november, onEventClick = { clicked = it })
+            }
+        }
+
+        onNodeWithTag("day-2026-11-10").performClick()
+        waitUntil("событие дня показано", 5_000) {
+            onAllNodesWithTag("day-event-a", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        }
+        onNodeWithTag("day-event-a", useUnmergedTree = true).performClick()
+
+        assertEquals("a", clicked?.id)
+    }
+
+    @Test
+    fun `selected event opens the info panel on the right`() = runComposeUiTest {
+        val repository = newRepository()
+        val sample = event("a", LocalDate.of(2026, 11, 10), 9, CalendarProvider.LOCAL)
+        var info by mutableStateOf<Event?>(null)
+        runBlocking { repository.saveFromUser(sample) }
+        setContent {
+            DesktopTheme {
+                MonthView(
+                    repository = repository,
+                    initialMonth = november,
+                    infoEvent = info,
+                    onEventClick = { info = it },
+                )
+            }
+        }
+
+        onNodeWithTag("day-2026-11-10").performClick()
+        waitUntil("событие дня показано", 5_000) {
+            onAllNodesWithTag("day-event-a", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        }
+        onNodeWithTag("event-info").assertDoesNotExist()
+
+        onNodeWithTag("day-event-a", useUnmergedTree = true).performClick()
+
+        onNodeWithTag("event-info").assertExists()
+        onNodeWithTag("event-info-title", useUnmergedTree = true).assertTextEquals("Событие a")
+    }
+
+    @Test
+    fun `info panel edit opens the editor callback`() = runComposeUiTest {
+        val repository = newRepository()
+        val sample = event("a", LocalDate.of(2026, 11, 10), 9, CalendarProvider.LOCAL)
+        var edited: Event? = null
+        runBlocking { repository.saveFromUser(sample) }
+        setContent {
+            DesktopTheme {
+                MonthView(
+                    repository = repository,
+                    initialMonth = november,
+                    infoEvent = sample,
+                    onEditEvent = { edited = it },
+                )
+            }
+        }
+
+        onNodeWithTag("event-info-edit").performClick()
+
+        assertEquals("a", edited?.id)
     }
 
     private fun newRepository(): DesktopEventRepository {

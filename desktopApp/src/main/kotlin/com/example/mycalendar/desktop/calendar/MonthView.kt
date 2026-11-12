@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -76,7 +77,13 @@ private val DAY_EVENTS_MAX_HEIGHT = 180.dp
 fun MonthView(
     repository: EventRepository,
     initialMonth: YearMonth = YearMonth.now(),
+    infoEvent: Event? = null,
     onOpenSettings: () -> Unit = {},
+    onAddEvent: (LocalDate) -> Unit = {},
+    onEventClick: (Event) -> Unit = {},
+    onCloseInfo: () -> Unit = {},
+    onEditEvent: (Event) -> Unit = {},
+    onDeleteEvent: (Event) -> Unit = {},
 ) {
     var month by remember { mutableStateOf(initialMonth) }
     var selected by remember { mutableStateOf(LocalDate.now()) }
@@ -86,7 +93,13 @@ fun MonthView(
         selectedDate = selected,
         onMonthChange = { month = it },
         onSelectDate = { selected = it },
+        infoEvent = infoEvent,
         onOpenSettings = onOpenSettings,
+        onAddEvent = onAddEvent,
+        onEventClick = onEventClick,
+        onCloseInfo = onCloseInfo,
+        onEditEvent = onEditEvent,
+        onDeleteEvent = onDeleteEvent,
     )
 }
 
@@ -101,7 +114,13 @@ fun MonthView(
     selectedDate: LocalDate,
     onMonthChange: (YearMonth) -> Unit,
     onSelectDate: (LocalDate) -> Unit,
+    infoEvent: Event? = null,
     onOpenSettings: () -> Unit = {},
+    onAddEvent: (LocalDate) -> Unit = {},
+    onEventClick: (Event) -> Unit = {},
+    onCloseInfo: () -> Unit = {},
+    onEditEvent: (Event) -> Unit = {},
+    onDeleteEvent: (Event) -> Unit = {},
 ) {
     val registry = remember { HolidayRegistry() }
     val zone = remember { ZoneId.systemDefault() }
@@ -117,48 +136,80 @@ fun MonthView(
     }
     val dots = remember(events, days) { eventsByDay(events, days.first(), days.last(), zone) }
     val dayEvents = remember(events, selectedDate) { dayOccurrences(events, selectedDate, zone) }
+    // Панель показывает свежую версию события: после правки в хранилище приходит новый снимок.
+    val shownInfo = infoEvent?.let { target -> events.firstOrNull { it.id == target.id } ?: target }
+    var pendingDelete by remember { mutableStateOf<Event?>(null) }
 
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Header(
-            month = month,
-            onPrevious = { onMonthChange(month.minusMonths(1)) },
-            onNext = { onMonthChange(month.plusMonths(1)) },
-            onToday = {
-                val today = LocalDate.now()
-                onMonthChange(YearMonth.from(today))
-                onSelectDate(today)
-            },
-            onOpenSettings = onOpenSettings,
-        )
-        WeekdayHeader()
-        weeks.forEach { week ->
-            Row(
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+    Box(Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier.fillMaxSize().padding(24.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Column(
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                week.forEach { date ->
-                    DayCell(
-                        date = date,
-                        inMonth = YearMonth.from(date) == month,
-                        mark = marks[date],
-                        isToday = date == LocalDate.now(),
-                        isSelected = date == selectedDate,
-                        dots = dots[date].orEmpty(),
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                        onClick = { onSelectDate(date) },
-                    )
+                Header(
+                    month = month,
+                    onPrevious = { onMonthChange(month.minusMonths(1)) },
+                    onNext = { onMonthChange(month.plusMonths(1)) },
+                    onToday = {
+                        val today = LocalDate.now()
+                        onMonthChange(YearMonth.from(today))
+                        onSelectDate(today)
+                    },
+                    onOpenSettings = onOpenSettings,
+                )
+                WeekdayHeader()
+                weeks.forEach { week ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        week.forEach { date ->
+                            DayCell(
+                                date = date,
+                                inMonth = YearMonth.from(date) == month,
+                                mark = marks[date],
+                                isToday = date == LocalDate.now(),
+                                isSelected = date == selectedDate,
+                                dots = dots[date].orEmpty(),
+                                modifier = Modifier.weight(1f).fillMaxHeight(),
+                                onClick = { onSelectDate(date) },
+                            )
+                        }
+                    }
                 }
+                DayPanel(
+                    date = selectedDate,
+                    holidayKey = registry.holidayKey(selectedDate),
+                    events = dayEvents,
+                    zone = zone,
+                    onAddEvent = { onAddEvent(selectedDate) },
+                    onEventClick = onEventClick,
+                )
+            }
+            if (shownInfo != null) {
+                EventInfoPanel(
+                    event = shownInfo,
+                    date = selectedDate,
+                    zone = zone,
+                    onEdit = onEditEvent,
+                    onDelete = { pendingDelete = it },
+                    onClose = onCloseInfo,
+                )
             }
         }
-        DayPanel(
-            date = selectedDate,
-            holidayKey = registry.holidayKey(selectedDate),
-            events = dayEvents,
-            zone = zone,
-        )
+        pendingDelete?.let { event ->
+            ConfirmDeleteDialog(
+                title = event.title,
+                onCancel = { pendingDelete = null },
+                onConfirm = {
+                    pendingDelete = null
+                    onDeleteEvent(event)
+                },
+            )
+        }
     }
 }
 
@@ -272,6 +323,8 @@ private fun DayPanel(
     holidayKey: HolidayKey?,
     events: List<DayOccurrence>,
     zone: ZoneId,
+    onAddEvent: () -> Unit,
+    onEventClick: (Event) -> Unit,
 ) {
     val colors = LocalDesktopColors.current
     Column(
@@ -292,6 +345,9 @@ private fun DayPanel(
             )
             LegendItem(colors.weekend, "Выходной")
             LegendItem(colors.holiday, "Праздник")
+            IconButton(onClick = onAddEvent, modifier = Modifier.testTag("add-event")) {
+                Icon(Icons.Filled.Add, contentDescription = "Добавить событие")
+            }
         }
         if (events.isEmpty()) {
             Text(
@@ -309,14 +365,21 @@ private fun DayPanel(
                     .testTag("day-events"),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                events.forEach { DayEventRow(occurrence = it, date = date, zone = zone) }
+                events.forEach {
+                    DayEventRow(
+                        occurrence = it,
+                        date = date,
+                        zone = zone,
+                        onClick = { onEventClick(it.event) },
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun DayEventRow(occurrence: DayOccurrence, date: LocalDate, zone: ZoneId) {
+private fun DayEventRow(occurrence: DayOccurrence, date: LocalDate, zone: ZoneId, onClick: () -> Unit) {
     val event = occurrence.event
     val colors = LocalDesktopColors.current
     Column(
@@ -324,6 +387,7 @@ private fun DayEventRow(occurrence: DayOccurrence, date: LocalDate, zone: ZoneId
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
             .background(colors.card)
+            .clickable(onClick = onClick)
             .testTag("day-event-${event.id}"),
     ) {
         // Шапка карточки: фирменный градиент бирюза → синий → тёмно-синий.
@@ -357,11 +421,7 @@ private fun DayEventRow(occurrence: DayOccurrence, date: LocalDate, zone: ZoneId
 
 /** Время вхождения в дне; граница, выходящая за день, показывается многоточием. */
 private fun subtitle(occurrence: DayOccurrence, date: LocalDate, zone: ZoneId, rule: RepeatRule?): String {
-    val dayStart = date.atStartOfDay(zone).toInstant().toEpochMilli()
-    val dayEnd = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-    val start = if (occurrence.start < dayStart) "…" else formatTime(occurrence.start, zone)
-    val end = if (occurrence.end > dayEnd) "…" else formatTime(occurrence.end, zone)
-    val time = "$start–$end"
+    val time = timeRange(occurrence.start, occurrence.end, date, zone)
     val repeat = when (rule) {
         RepeatRule.DAILY -> "ежедневно"
         RepeatRule.WEEKLY -> "еженедельно"
@@ -372,11 +432,20 @@ private fun subtitle(occurrence: DayOccurrence, date: LocalDate, zone: ZoneId, r
     return if (repeat != null) "$time · $repeat" else time
 }
 
+/** Границы дня — полуинтервал; открытый край (начался раньше или кончается позже) — «…». */
+internal fun timeRange(start: Long, end: Long, date: LocalDate, zone: ZoneId): String {
+    val dayStart = date.atStartOfDay(zone).toInstant().toEpochMilli()
+    val dayEnd = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+    val startText = if (start < dayStart) "…" else formatTime(start, zone)
+    val endText = if (end > dayEnd) "…" else formatTime(end, zone)
+    return "$startText–$endText"
+}
+
 private fun formatTime(millis: Long, zone: ZoneId): String =
     TIME_FORMAT.format(Instant.ofEpochMilli(millis).atZone(zone))
 
 /** «Среда, 11 ноября 2026»: в панели дня мало одного числа. */
-private fun dayTitle(date: LocalDate): String =
+internal fun dayTitle(date: LocalDate): String =
     capitalize(date.dayOfWeek.getDisplayName(TextStyle.FULL_STANDALONE, RU)) + ", " + date.format(DATE_FORMAT)
 
 @Composable
