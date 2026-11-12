@@ -1,9 +1,14 @@
 package com.example.mycalendar.domain.model
 
+import kotlinx.serialization.Serializable
+
 /**
  * Доменная модель события — единственный источник правды для presentation-слоя.
  * Соответствует модели из ТЗ.
+ *
+ * Сериализуема: desktop-клиент хранит события файлом JSON, Android — таблицей Room.
  */
+@Serializable
 data class Event(
     val id: String,
     val title: String,

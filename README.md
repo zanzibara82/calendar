@@ -145,9 +145,12 @@ app/src/main/java/com/example/mycalendar/
 ```bash
 ./gradlew :app:assembleDebug          # debug APK
 ./gradlew :app:assembleRelease        # release с R8 и shrinkResources
-./gradlew :app:testDebugUnitTest      # JVM-тесты
+./gradlew :app:testDebugUnitTest      # JVM-тесты приложения
+./gradlew :shared:test                # тесты общего модуля (домен, слияние)
+./gradlew :desktopApp:test            # тесты desktop-клиента
 ./gradlew :app:lintDebug              # Android Lint
 ./gradlew :app:connectedDebugAndroidTest  # тесты на подключённом устройстве/эмуляторе
+./gradlew :desktopApp:createDistributable # образ Windows-клиента со встроенной JRE
 ```
 
 **Подпись release.** Ключ читается из `keystore.properties` в корне проекта:
@@ -166,7 +169,7 @@ keyPassword=...
 
 ## Тесты
 
-- **138 JVM-тестов** — решатель конфликтов, репозитории на фейках, CalDAV-клиент против локального
+- **154 JVM-теста** — 61 в Android-приложении, 81 в `:shared`, 12 в `:desktopApp`; решатель конфликтов, репозитории на фейках, CalDAV-клиент против локального
   mock-сервера (`MiniCalDavServer`), OAuth, планировщик напоминаний, сравнение версий и разбор
   ответа GitHub Releases; тонирование выходных и праздников покрыто реестром праздников
   (`HolidayRegistryTest`, 7), тоном дня (`DayMarkToneTest`, 2), контрастом пар палитры
@@ -175,7 +178,10 @@ keyPassword=...
   и `ReminderSoundPolicyTest` (6), имя коллекции из ответа источника — `YandexCalendarDataSourceTest`
   (6, из них 1 — `calendarName`); текст шапки недели — `WeekTitleTest` (4, включая недели
   на стыке месяцев и лет) и форма счётчика спорных полей — `ContestedFieldsLabelTest` (3);
-  итог 138 и 0 падений сняты с отчёта `testDebugUnitTest` (замер 12.11.2026);
+  итог 154 и 0 падений: `testDebugUnitTest` — 61, `:shared:test` — 81, `:desktopApp:test` — 12
+  (замер 12.11.2026); в desktop-модуле — хранение событий файлом: сохранение переживает перезапуск,
+  tombstone не виден выборкам, но остаётся в очереди отправки, привязка к провайдеру и снимок-предок
+  переживают правку пользователя, повреждённый файл откладывается в сторону;
 - **75 instrumented-тестов** — Room-миграции, сквозные сценарии синхронизации на настоящей базе,
   экраны конфликтов, уведомления и действия, системный календарь, переиспользование OAuth-токена,
   сверка подписи скачанного APK на устройстве, карточки события и недельного вида, тон и
@@ -207,7 +213,8 @@ Instrumented-тесты проходят на эмуляторах API 28 и API
 ## Ограничения
 
 - Windows-клиент — в этом же репозитории: модуль `:shared` (домен, слияние, iCalendar) и заготовка
-  `:desktopApp` на Compose Desktop; Android-приложение собирается как раньше.
+  `:desktopApp` на Compose Desktop; Android-приложение собирается как раньше. События desktop-клиента
+  хранятся одним файлом `%APPDATA%\MyCalendar\events.json` (вне Windows — `~/.mycalendar/events.json`).
 - Обновления ищутся в GitHub Releases репозитория `zanzibara82/calendar`: пока релиз не опубликован,
   приложение честно отвечает «Опубликованных релизов пока нет».
 - Google-синхронизация работает через системный календарь, поэтому требует добавленного аккаунта

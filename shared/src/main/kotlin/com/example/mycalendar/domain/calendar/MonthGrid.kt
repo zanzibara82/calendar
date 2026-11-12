@@ -1,4 +1,4 @@
-package com.example.mycalendar.presentation.calendar
+package com.example.mycalendar.domain.calendar
 
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -6,9 +6,11 @@ import java.time.LocalDate
 /**
  * Сетка месяца: недели Пн–Вс, включая дни соседних месяцев, которые попадают в первую
  * и последнюю неделю. Единственный источник числа клеток — от него зависит и диапазон
- * меток дня ([CalendarUiState.gridBounds]).
+ * меток дня (`CalendarUiState.gridBounds` в Android-клиенте).
+ *
+ * Функция общая для клиентов: обе версии рисуют один и тот же месяц одинаково.
  */
-internal fun monthWeeks(month: LocalDate): List<List<LocalDate>> {
+fun monthWeeks(month: LocalDate): List<List<LocalDate>> {
     val first = month.withDayOfMonth(1)
     val firstCell = first.with(DayOfWeek.MONDAY)
     val daysInMonth = month.lengthOfMonth()
