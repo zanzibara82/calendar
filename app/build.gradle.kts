@@ -160,10 +160,8 @@ dependencies {
 
     // Тесты
     testImplementation(libs.junit)
-    // XML-pull парсер (org.xmlpull.v1) на classpath JVM-тестов: CalDavClient парсит
-    // multistatus через XmlPullParser (на Android это фреймворк, на JVM юнит-тестах
-    // его нет — kxml2 даёт совместимую реализацию). Только для тестов, в APK не попадает.
-    testImplementation(libs.kxml2)
+    // MiniCalDavServer и mock-XML CalDAV живут в фикстурах :shared вместе с клиентом.
+    testImplementation(testFixtures(project(":shared")))
 
     // Instrumented-тесты (androidTest)
     androidTestImplementation(libs.androidx.test.ext.junit)

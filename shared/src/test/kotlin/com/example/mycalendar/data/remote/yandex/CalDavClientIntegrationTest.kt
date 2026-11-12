@@ -12,9 +12,9 @@ import java.util.Base64
  * [IcsMapperTest] не покрывает: цепочку discovery (PROPFIND principal → home-set →
  * список календарей), разбор multistatus (207), REPORT calendar-query, PUT/DELETE.
  *
- * Запускается на JVM (app/src/test), поэтому не требует токена Яндекса и эмулятора.
- * Mock-сервер — [yandexMockServer] на чистом java.base (ServerSocket); XML-парсер
- * (org.xmlpull.v1) берётся из kxml2 (testImplementation).
+ * Запускается на JVM (shared/src/test), поэтому не требует токена Яндекса и эмулятора.
+ * Mock-сервер — [yandexMockServer] на чистом java.base (ServerSocket); multistatus
+ * разбирается JDK DOM, который есть и в JVM, и в Android.
  */
 class CalDavClientIntegrationTest {
 

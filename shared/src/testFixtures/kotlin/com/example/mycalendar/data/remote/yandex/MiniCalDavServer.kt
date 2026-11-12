@@ -7,14 +7,14 @@ import java.nio.charset.StandardCharsets
 
 /**
  * Самодостаточный mock CalDAV-сервер на чистом java.base (ServerSocket),
- * пригодный для JVM-тестов (без com.sun.net.httpserver, которого нет в classpath
- * тестов AGP). Один HTTP-запрос на соединение, ответ с `Connection: close`,
+ * пригодный для JVM- и Android-тестов (без com.sun.net.httpserver, которого нет
+ * в classpath тестов AGP). Один HTTP-запрос на соединение, ответ с `Connection: close`,
  * поэтому OkHttp не переиспользует соединение.
  *
  * Используется в [CalDavClientIntegrationTest] и [YandexCalendarDataSourceTest],
  * чтобы проверять реальный сетевой путь (discovery/fetch/put/delete) без токена
- * Яндекса и без эмулятора. XML-парсер (org.xmlpull.v1) берётся из kxml2
- * (testImplementation).
+ * Яндекса и без эмулятора. Разбором multistatus занимается JDK DOM,
+ * поэтому отдельная реализация XML-парсера не нужна.
  */
 class MiniCalDavServer(private val onRequest: (Request) -> Response) : AutoCloseable {
 
@@ -110,7 +110,7 @@ private fun ByteArray.indexOfSequence(seq: ByteArray, from: Int = 0): Int {
 private fun hrefPrefix(base: String, relativeHrefs: Boolean): String =
     if (relativeHrefs) "" else base
 
-internal fun principalXml(base: String, relativeHrefs: Boolean = false): String {
+fun principalXml(base: String, relativeHrefs: Boolean = false): String {
     val p = hrefPrefix(base, relativeHrefs)
     return """<?xml version="1.0" encoding="utf-8"?>
 <d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
@@ -126,7 +126,7 @@ internal fun principalXml(base: String, relativeHrefs: Boolean = false): String 
 </d:multistatus>"""
 }
 
-internal fun homeSetXml(base: String, relativeHrefs: Boolean = false): String {
+fun homeSetXml(base: String, relativeHrefs: Boolean = false): String {
     val p = hrefPrefix(base, relativeHrefs)
     return """<?xml version="1.0" encoding="utf-8"?>
 <d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
@@ -142,7 +142,7 @@ internal fun homeSetXml(base: String, relativeHrefs: Boolean = false): String {
 </d:multistatus>"""
 }
 
-internal fun calendarsXml(base: String, relativeHrefs: Boolean = false): String {
+fun calendarsXml(base: String, relativeHrefs: Boolean = false): String {
     val p = hrefPrefix(base, relativeHrefs)
     return """<?xml version="1.0" encoding="utf-8"?>
 <d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
@@ -183,7 +183,7 @@ END:VEVENT
 END:VCALENDAR"""
 
 /** REPORT-ответ из произвольных пар uid -> VCALENDAR (по умолчанию — одно [EVENT1_ICS]). */
-internal fun eventsXml(
+fun eventsXml(
     base: String,
     vararg entries: Pair<String, String>,
     relativeHrefs: Boolean = false,
@@ -210,7 +210,7 @@ internal fun eventsXml(
 }
 
 /** REPORT-ответ, где данные события пришли с ошибочным статусом propstat. */
-internal fun failedEventsXml(base: String, status: String, relativeHrefs: Boolean = false): String {
+fun failedEventsXml(base: String, status: String, relativeHrefs: Boolean = false): String {
     val p = hrefPrefix(base, relativeHrefs)
     return """<?xml version="1.0" encoding="utf-8"?>
 <d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
@@ -242,7 +242,7 @@ END:VCALENDAR</c:calendar-data>
  * [relativeHrefs] = true повторяет настоящее поведение caldav.yandex.ru: href в
  * multistatus — это путь (`/dav/...`), а не полный URL.
  */
-internal fun yandexMockServer(
+fun yandexMockServer(
     captured: MutableList<MiniCalDavServer.Request>,
     relativeHrefs: Boolean = false,
     report: (String) -> String = { base -> eventsXml(base, relativeHrefs = relativeHrefs) },

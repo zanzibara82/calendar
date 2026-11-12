@@ -4,12 +4,14 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import org.xmlpull.v1.XmlPullParser
-import org.xmlpull.v1.XmlPullParserFactory
+import org.w3c.dom.Element
+import org.w3c.dom.Node
+import org.xml.sax.InputSource
 import java.io.StringReader
 import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.util.Base64
+import javax.xml.parsers.DocumentBuilderFactory
 
 /**
  * Низкоуровневый клиент CalDAV для Яндекс.Календаря (RFC 4791).
@@ -177,97 +179,69 @@ class CalDavClient(
      * штатный ответ и ошибкой не считается.
      */
     private fun parseMultiStatus(xml: String): List<Response> {
-        val factory = XmlPullParserFactory.newInstance()
-        factory.isNamespaceAware = false
-        val parser = factory.newPullParser()
-        parser.setInput(StringReader(xml))
-
-        val responses = mutableListOf<Response>()
-        var cur: Response? = null
-        var inResourcetype = false
-        var inPropstat = false
-        var propstatStatus: String? = null
-        var propstatHasData = false
-        var pendingTextTag: String? = null
-        var pendingText: String? = null
-
-        var event = parser.next()
-        while (event != XmlPullParser.END_DOCUMENT) {
-            when (event) {
-                XmlPullParser.START_TAG -> {
-                    when (val ln = localName(parser.name)) {
-                        "response" -> {
-                            cur = Response()
-                            pendingTextTag = null
-                            pendingText = null
-                        }
-                        "propstat" -> {
-                            inPropstat = true
-                            propstatStatus = null
-                            propstatHasData = false
-                        }
-                        "resourcetype" -> inResourcetype = true
-                        "calendar" -> if (inResourcetype) cur?.isCalendar = true
-                        "href" -> pendingTextTag = "href"
-                        "displayname" -> pendingTextTag = "displayname"
-                        "getctag" -> pendingTextTag = "getctag"
-                        "calendar-data" -> pendingTextTag = "calendar-data"
-                        "status" -> pendingTextTag = "status"
-                    }
-                }
-                XmlPullParser.TEXT -> {
-                    pendingText = parser.text
-                }
-                XmlPullParser.END_TAG -> {
-                    when (val ln = localName(parser.name)) {
-                        "resourcetype" -> inResourcetype = false
-                        "href" -> if (pendingTextTag == "href") {
-                            cur?.href = pendingText?.trim(); pendingTextTag = null; pendingText = null
-                        }
-                        "displayname" -> if (pendingTextTag == "displayname") {
-                            cur?.displayName = pendingText?.trim().orEmpty(); pendingTextTag = null; pendingText = null
-                        }
-                        "getctag" -> if (pendingTextTag == "getctag") {
-                            cur?.ctag = pendingText?.trim(); pendingTextTag = null; pendingText = null
-                        }
-                        "calendar-data" -> if (pendingTextTag == "calendar-data") {
-                            cur?.calendarData = pendingText
-                            if (inPropstat) propstatHasData = true
-                            pendingTextTag = null; pendingText = null
-                        }
-                        "status" -> if (pendingTextTag == "status") {
-                            val status = pendingText?.trim()
-                            // Внутри propstat статус относится к его свойствам, на уровне
-                            // response — ко всему ответу (например, 404 на исчезнувший ресурс).
-                            if (inPropstat) {
-                                propstatStatus = status
-                            } else if (status != null && !statusCodeIsOk(status)) {
-                                cur?.failedStatus = status
-                            }
-                            pendingTextTag = null; pendingText = null
-                        }
-                        "propstat" -> {
-                            val status = propstatStatus
-                            if (propstatHasData && status != null && !statusCodeIsOk(status)) {
-                                cur?.failedStatus = status
-                            }
-                            inPropstat = false
-                            propstatStatus = null
-                            propstatHasData = false
-                        }
-                        "response" -> {
-                            cur?.let { responses += it }
-                            cur = null
-                        }
-                    }
-                }
-            }
-            event = parser.next()
+        val document = try {
+            documentBuilderFactory().newDocumentBuilder().parse(InputSource(StringReader(xml)))
+        } catch (e: Exception) {
+            throw CalDavException("Не удалось разобрать ответ CalDAV: ${e.message}")
         }
-        return responses
+
+        return document.documentElement.childElements()
+            .filter { localName(it) == "response" }
+            .map { response ->
+                val elements = response.descendants()
+                Response(
+                    href = elements.lastOrNull { localName(it) == "href" }?.textContent?.trim(),
+                    isCalendar = elements.any {
+                        localName(it) == "calendar" && localName(it.parentNode) == "resourcetype"
+                    },
+                    displayName = elements.lastOrNull { localName(it) == "displayname" }
+                        ?.textContent?.trim().orEmpty(),
+                    ctag = elements.lastOrNull { localName(it) == "getctag" }?.textContent?.trim(),
+                    calendarData = elements.lastOrNull { localName(it) == "calendar-data" }?.textContent,
+                    failedStatus = failedStatus(response),
+                )
+            }
     }
 
-    private fun localName(name: String?): String = name?.substringAfter(':') ?: ""
+    private fun failedStatus(response: Element): String? {
+        var failed: String? = null
+        // Статус на уровне response относится ко всему ответу (например, 404 на исчезнувший ресурс).
+        response.childElements().filter { localName(it) == "status" }.forEach { status ->
+            val text = status.textContent?.trim()
+            if (text != null && !statusCodeIsOk(text)) failed = text
+        }
+        // Статус внутри propstat относится только к его свойствам: ошибка в нём
+        // говорит о неполноте выборки лишь когда свойства с данными реально пришли.
+        response.childElements().filter { localName(it) == "propstat" }.forEach { propstat ->
+            val status = propstat.descendants().lastOrNull { localName(it) == "status" }
+                ?.textContent?.trim()
+            val hasData = propstat.descendants().any { localName(it) == "calendar-data" }
+            if (hasData && status != null && !statusCodeIsOk(status)) failed = status
+        }
+        return failed
+    }
+
+    private fun documentBuilderFactory(): DocumentBuilderFactory =
+        DocumentBuilderFactory.newInstance().apply {
+            // Ответы приходят с префиксами (d:, c:); разбор без пространств имён
+            // повторяет прежнее поведение pull-парсера: сравниваем локальные имена.
+            isNamespaceAware = false
+            runCatching { isExpandEntityReferences = false }
+            // Внешние сущности и DOCTYPE в ответах сервера не нужны — закрываем XXE.
+            runCatching { setFeature("http://apache.org/xml/features/disallow-doctype-decl", true) }
+            runCatching { setFeature("http://xml.org/sax/features/external-general-entities", false) }
+            runCatching { setFeature("http://xml.org/sax/features/external-parameter-entities", false) }
+        }
+
+    private fun Element.childElements(): List<Element> =
+        (0 until childNodes.length).mapNotNull { childNodes.item(it) as? Element }
+
+    /** Потомки в порядке документа, без самого элемента. */
+    private fun Element.descendants(): List<Element> =
+        childElements().flatMap { listOf(it) + it.descendants() }
+
+    private fun localName(node: Node?): String =
+        node?.let { it.localName ?: it.nodeName.substringAfter(':') } ?: ""
 
     /** "HTTP/1.1 200 OK" -> true; неразборчивый статус считаем ошибкой. */
     private fun statusCodeIsOk(status: String): Boolean {
@@ -277,12 +251,12 @@ class CalDavClient(
 
     /** Один <response> из multistatus. */
     private data class Response(
-        var href: String? = null,
-        var isCalendar: Boolean = false,
-        var displayName: String = "",
-        var ctag: String? = null,
-        var calendarData: String? = null,
+        val href: String? = null,
+        val isCalendar: Boolean = false,
+        val displayName: String = "",
+        val ctag: String? = null,
+        val calendarData: String? = null,
         /** Не-2xx статус ответа или его данных: выборка событий неполна. */
-        var failedStatus: String? = null,
+        val failedStatus: String? = null,
     )
 }
