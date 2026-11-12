@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -164,8 +165,17 @@ fun SettingsScreen(
                     SegmentedButton(
                         selected = state.themeMode == mode,
                         onClick = { viewModel.setThemeMode(mode) },
+                        // heightIn, а не стандартные 40 dp: при системном «Крупный текст»
+                        // подпись не помещается, и «Системная» рвалась посередине слова.
+                        modifier = Modifier.heightIn(min = AppSizes.segmentedHeight),
                         shape = SegmentedButtonDefaults.itemShape(index = index, count = modes.size),
-                    ) { Text(label) }
+                    ) {
+                        Text(
+                            text = label,
+                            maxLines = 1,
+                            autoSize = TextAutoSize.StepBased(minFontSize = 7.sp, maxFontSize = 14.sp),
+                        )
+                    }
                 }
             }
 

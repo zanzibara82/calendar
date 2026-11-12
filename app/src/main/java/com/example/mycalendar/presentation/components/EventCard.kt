@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.StickyNote2
@@ -82,18 +83,24 @@ fun EventCard(
                     .background(providerColor(event.calendarProvider)),
             )
             Column(
-                modifier = Modifier.width(AppSizes.timeColumn),
+                // Ширина — нижняя граница, а не константа: при системном «Крупный текст»
+                // 48 dp уже не вмещают «19:30», и время рвалось посередине на две строки.
+                modifier = Modifier.widthIn(min = AppSizes.timeColumn),
                 horizontalAlignment = Alignment.End,
             ) {
                 Text(
                     text = timeText(occurrence.startMillis),
                     style = CardTypography.time,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    softWrap = false,
                 )
                 Text(
                     text = timeText(occurrence.endMillis),
                     style = CardTypography.time,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    softWrap = false,
                 )
             }
             Column(
