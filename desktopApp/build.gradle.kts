@@ -1,3 +1,5 @@
+@file:OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
+
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -27,6 +29,7 @@ dependencies {
     implementation(compose.material3)
 
     testImplementation(libs.junit)
+    testImplementation(compose.uiTest)
 }
 
 compose.desktop {

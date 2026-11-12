@@ -5,6 +5,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import com.example.mycalendar.domain.holiday.DayMark
+import com.example.mycalendar.domain.model.CalendarProvider
 
 /**
  * Тёмная схема desktop-клиента. Числа совпадают с Android-палитрой (тёмная схема —
@@ -22,6 +23,9 @@ object Palette {
     val Outline = Color(0xFF2C3C58)
     val WeekendContainer = Color(0xFF173F52)
     val HolidayContainer = Color(0xFF4A2E10)
+    val EventLocal = Color(0xFF7C5CFF)
+    val EventGoogle = Color(0xFF2E8DF5)
+    val EventYandex = Color(0xFFFF5252)
 }
 
 /** Тон клетки дня: выходной — бирюзовый, праздник — янтарный. */
@@ -29,6 +33,13 @@ fun dayContainer(mark: DayMark?): Color = when (mark) {
     DayMark.WEEKEND -> Palette.WeekendContainer
     DayMark.HOLIDAY -> Palette.HolidayContainer
     null -> Palette.Card
+}
+
+/** Цвет точки события. Разведён с primary, чтобы точка не читалась как «выбрано». */
+fun providerColor(provider: CalendarProvider): Color = when (provider) {
+    CalendarProvider.LOCAL -> Palette.EventLocal
+    CalendarProvider.GOOGLE -> Palette.EventGoogle
+    CalendarProvider.YANDEX -> Palette.EventYandex
 }
 
 @Composable

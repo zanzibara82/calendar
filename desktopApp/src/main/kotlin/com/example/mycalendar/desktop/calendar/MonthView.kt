@@ -20,12 +20,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -35,9 +37,13 @@ import com.example.mycalendar.domain.calendar.monthWeeks
 import com.example.mycalendar.domain.holiday.DayMark
 import com.example.mycalendar.domain.holiday.HolidayKey
 import com.example.mycalendar.domain.holiday.HolidayRegistry
+import com.example.mycalendar.domain.model.CalendarProvider
+import com.example.mycalendar.domain.model.Event
+import com.example.mycalendar.domain.repository.EventRepository
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
@@ -45,15 +51,30 @@ import java.util.Locale
 private val RU = Locale.forLanguageTag("ru")
 private val DATE_FORMAT = DateTimeFormatter.ofPattern("d MMMM yyyy", RU)
 
-/** Месячный вид: сетка Пн–Вс, тон выходного и праздника из общего домена. */
+/** Как на Android: больше трёх точек клетка не вмещает. */
+private const val MAX_DAY_DOTS = 3
+
+/** Месячный вид: сетка Пн–Вс, тон выходного и праздника из общего домена, точки событий. */
 @Composable
-fun MonthView() {
-    var visibleMonth by remember { mutableStateOf(YearMonth.now()) }
+fun MonthView(
+    repository: EventRepository,
+    initialMonth: YearMonth = YearMonth.now(),
+) {
+    var visibleMonth by remember { mutableStateOf(initialMonth) }
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
     val registry = remember { HolidayRegistry() }
 
     val weeks = remember(visibleMonth) { monthWeeks(visibleMonth.atDay(1)) }
     val marks = remember(weeks) { registry.marksBetween(weeks.first().first(), weeks.last().last()) }
+
+    val days = remember(weeks) { weeks.flatten() }
+    val events by produceState(initialValue = emptyList<Event>(), repository, weeks) {
+        val zone = ZoneId.systemDefault()
+        val from = days.first().atStartOfDay(zone).toInstant().toEpochMilli()
+        val to = days.last().plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() - 1
+        repository.observeEventsBetween(from, to).collect { value = it }
+    }
+    val dots = remember(events, days) { eventsByDay(events, days.first(), days.last()) }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
@@ -82,6 +103,7 @@ fun MonthView() {
                         mark = marks[date],
                         isToday = date == LocalDate.now(),
                         isSelected = date == selectedDate,
+                        dots = dots[date].orEmpty(),
                         modifier = Modifier.weight(1f).fillMaxHeight(),
                         onClick = { selectedDate = date },
                     )
@@ -140,6 +162,7 @@ private fun DayCell(
     mark: DayMark?,
     isToday: Boolean,
     isSelected: Boolean,
+    dots: List<CalendarProvider>,
     modifier: Modifier,
     onClick: () -> Unit,
 ) {
@@ -155,14 +178,26 @@ private fun DayCell(
             .background(dayContainer(mark))
             .border(borderWidth, borderColor, RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
+            .testTag("day-$date")
             .padding(8.dp),
     ) {
-        Text(
-            text = date.dayOfMonth.toString(),
-            color = if (inMonth) Palette.OnSurface else Palette.OnSurfaceVariant,
-            fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
-            style = MaterialTheme.typography.bodyLarge,
-        )
+        Column {
+            Text(
+                text = date.dayOfMonth.toString(),
+                color = if (inMonth) Palette.OnSurface else Palette.OnSurfaceVariant,
+                fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Row(
+                modifier = Modifier.padding(top = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                dots.take(MAX_DAY_DOTS).forEachIndexed { index, provider ->
+                    ProviderDot(provider, Modifier.testTag("event-dot-$date-$index"))
+                }
+            }
+        }
         if (mark == DayMark.HOLIDAY) {
             // Форма-маркер: по одному тону праздник не отличить от выходного (WCAG 1.4.1).
             Box(
@@ -170,7 +205,8 @@ private fun DayCell(
                     .align(Alignment.TopEnd)
                     .size(6.dp)
                     .clip(CircleShape)
-                    .background(Palette.Primary),
+                    .background(Palette.Primary)
+                    .testTag("holiday-marker-$date"),
             )
         }
     }

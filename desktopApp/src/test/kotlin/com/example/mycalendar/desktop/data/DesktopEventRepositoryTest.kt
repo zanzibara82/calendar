@@ -8,6 +8,10 @@ import com.example.mycalendar.domain.model.SyncSnapshot
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -199,5 +203,21 @@ class DesktopEventRepositoryTest {
             stream.toList().filter { it.fileName.toString().startsWith("events.json.corrupt-") }
         }
         assertEquals(1, backups.size)
+    }
+
+    @Test
+    fun `parallel saves keep every record and leave no temp files`() = runBlocking {
+        coroutineScope {
+            (1..50).map { index ->
+                async(Dispatchers.Default) { repository.saveFromUser(event("e$index")) }
+            }.awaitAll()
+        }
+
+        assertEquals(50, repository.getUpcomingEvents(0).size)
+        assertEquals(50, newRepository().getUpcomingEvents(0).size)
+        val tempFiles = Files.list(file.parent).use { stream ->
+            stream.toList().filter { it.fileName.toString().endsWith(".tmp") }
+        }
+        assertTrue(tempFiles.isEmpty())
     }
 }
