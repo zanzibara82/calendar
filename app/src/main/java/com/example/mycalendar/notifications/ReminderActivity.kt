@@ -24,6 +24,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -35,8 +36,11 @@ import androidx.compose.ui.unit.dp
 import com.example.mycalendar.R
 import com.example.mycalendar.domain.model.Event
 import com.example.mycalendar.domain.model.ReminderSound
+import com.example.mycalendar.domain.model.ThemeMode
+import com.example.mycalendar.domain.repository.SettingsRepository
 import com.example.mycalendar.presentation.theme.MyCalendarTheme
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 /**
  * Полноэкранный "аларм"-экран напоминания (аналог первой версии приложения).
@@ -53,6 +57,8 @@ import dagger.hilt.android.AndroidEntryPoint
  */
 @AndroidEntryPoint
 class ReminderActivity : ComponentActivity() {
+
+    @Inject lateinit var settingsRepository: SettingsRepository
 
     private var mediaPlayer: MediaPlayer? = null
     private var vibrationLoop: VibrationLoop? = null
@@ -86,7 +92,12 @@ class ReminderActivity : ComponentActivity() {
         startLoopingSound()
 
         setContent {
-            MyCalendarTheme {
+            // Тема — как в приложении, а не по системной: при выбранной «Тёмной»
+            // карточка на светлой схеме выглядела чужой, а иконки статус-бара —
+            // чёрными на затемнённом фоне.
+            val themeMode by settingsRepository.themeMode
+                .collectAsState(initial = ThemeMode.SYSTEM)
+            MyCalendarTheme(themeMode = themeMode) {
                 AlarmOverlay(
                     title = title,
                     timeText = timeText,
