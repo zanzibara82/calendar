@@ -24,7 +24,9 @@ import com.example.mycalendar.presentation.theme.LightOnSurface
 import com.example.mycalendar.presentation.theme.LightOnSurfaceVariant
 import com.example.mycalendar.presentation.theme.LightPrimary
 import com.example.mycalendar.presentation.theme.LightPrimaryContainer
+import com.example.mycalendar.presentation.theme.dayBorder
 import com.example.mycalendar.presentation.theme.dayMarkContainer
+import com.example.mycalendar.presentation.theme.weekdayContainer
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.pow
@@ -102,6 +104,30 @@ class PaletteContrastTest {
         assertAtLeast(GRAPHICS, LightPrimary, dayMarkContainer(DayMark.HOLIDAY, dark = false))
     }
 
+    @Test
+    fun `weekday tone keeps day text at AA`() {
+        assertAtLeast(AA, DarkOnSurface, weekdayContainer(dark = true))
+        assertAtLeast(AA, LightOnSurface, weekdayContainer(dark = false))
+        assertAtLeast(AA, DarkOnSurfaceVariant, weekdayContainer(dark = true))
+        assertAtLeast(AA, LightOnSurfaceVariant, weekdayContainer(dark = false))
+    }
+
+    @Test
+    fun `day border stays visible on every day tone`() {
+        // Рамка — не текст, поэтому порог ниже AA, но линия, совпадающая с тоном,
+        // не отделяет клетки вовсе (у прежней рамки desktop разница была около 1.0).
+        for (dark in listOf(true, false)) {
+            val border = dayBorder(dark)
+            listOf(
+                weekdayContainer(dark),
+                dayMarkContainer(DayMark.WEEKEND, dark),
+                dayMarkContainer(DayMark.HOLIDAY, dark),
+            ).forEach { tone ->
+                assertAtLeast(BORDER_VISIBILITY, border, tone)
+            }
+        }
+    }
+
     private fun assertAtLeast(min: Double, fg: Color, bg: Color) {
         val ratio = wcagRatio(fg, bg)
         assertTrue("Контраст $ratio < $min: fg=$fg bg=$bg", ratio >= min)
@@ -110,6 +136,7 @@ class PaletteContrastTest {
     private companion object {
         const val AA = 4.5
         const val GRAPHICS = 3.0
+        const val BORDER_VISIBILITY = 1.3
     }
 }
 

@@ -34,6 +34,8 @@ data class DesktopColors(
     val outline: Color,
     val weekend: Color,
     val holiday: Color,
+    val weekday: Color,
+    val dayBorder: Color,
     val eventLocal: Color,
     val eventGoogle: Color,
     val eventYandex: Color,
@@ -50,8 +52,10 @@ val DarkColors = DesktopColors(
     secondaryContainer = Color(0xFF24334D),
     onSecondaryContainer = Color(0xFFE8EEF9),
     outline = Color(0xFF2C3C58),
-    weekend = Color(0xFF173F52),
-    holiday = Color(0xFF4A2E10),
+    weekend = Color(0xFF1A4657),
+    holiday = Color(0xFF5A3810),
+    weekday = Color(0xFF203A63),
+    dayBorder = Color(0xFF46658F),
     eventLocal = Color(0xFF7C5CFF),
     eventGoogle = Color(0xFF2E8DF5),
     eventYandex = Color(0xFFFF5252),
@@ -68,8 +72,10 @@ val LightColors = DesktopColors(
     secondaryContainer = Color(0xFFDCE6F5),
     onSecondaryContainer = Color(0xFF06234F),
     outline = Color(0xFFC6D2E4),
-    weekend = Color(0xFFB9DCC9),
-    holiday = Color(0xFFF3D6A2),
+    weekend = Color(0xFFA5E2C4),
+    holiday = Color(0xFFF7CF88),
+    weekday = Color(0xFFDCE6F5),
+    dayBorder = Color(0xFFA6BAD6),
     eventLocal = Color(0xFF5B44D6),
     eventGoogle = Color(0xFF1A73E8),
     eventYandex = Color(0xFFDB3A22),
@@ -81,14 +87,14 @@ val LocalIsDarkTheme = staticCompositionLocalOf { true }
 /** Шапка карточки события: фирменный градиент бирюза → синий → тёмно-синий. */
 val EventCardGradient = listOf(Color(0xFF05CD99), Color(0xFF0075FF), Color(0xFF09235E))
 
-/** Тон клетки дня: выходной — бирюзовый, праздник — янтарный. */
+/** Тон клетки дня: выходной — бирюзовый, праздник — янтарный, будни — голубые. */
 @Composable
 fun dayContainer(mark: DayMark?): Color {
     val colors = LocalDesktopColors.current
     return when (mark) {
         DayMark.WEEKEND -> colors.weekend
         DayMark.HOLIDAY -> colors.holiday
-        null -> colors.card
+        null -> colors.weekday
     }
 }
 

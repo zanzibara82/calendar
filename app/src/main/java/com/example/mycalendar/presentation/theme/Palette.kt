@@ -47,10 +47,20 @@ val LightError = Color(0xFFB3261E)
 // Различаются только оттенком (бирюзовый против янтарного): по яркости разница
 // 1.06–1.11, поэтому у праздника есть ещё и форма-маркер — WCAG 1.4.1.
 
-val DarkDayWeekendContainer = Color(0xFF173F52)
-val DarkDayHolidayContainer = Color(0xFF4A2E10)
-val LightDayWeekendContainer = Color(0xFFB9DCC9)
-val LightDayHolidayContainer = Color(0xFFF3D6A2)
+val DarkDayWeekendContainer = Color(0xFF1A4657)
+val DarkDayHolidayContainer = Color(0xFF5A3810)
+val LightDayWeekendContainer = Color(0xFFA5E2C4)
+val LightDayHolidayContainer = Color(0xFFF7CF88)
+
+// ---------- Тон буднего дня и рамка клеток ----------
+// Будни голубее нейтральной поверхности, но легче по весу, чем выходные и праздники:
+// текст дня держится в AA (5.2–5.6). Рамка отделяет соседние клетки при любом тоне —
+// её разница с тоном не ниже 1.3, иначе линия сливается с заливкой.
+
+val DarkDayWeekdayContainer = Color(0xFF203A63)
+val LightDayWeekdayContainer = Color(0xFFDCE6F5)
+val DarkDayBorder = Color(0xFF46658F)
+val LightDayBorder = Color(0xFFA6BAD6)
 
 // ---------- Провайдеры: полоса и точка карточки ----------
 // Разведены относительно primary, чтобы полоса не читалась как «выбрано».

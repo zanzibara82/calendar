@@ -224,7 +224,7 @@ private fun DayCell(
     val borderColor = when {
         isSelected -> colors.primary
         isToday -> colors.outline
-        else -> colors.background
+        else -> colors.dayBorder
     }
     Box(
         modifier = modifier

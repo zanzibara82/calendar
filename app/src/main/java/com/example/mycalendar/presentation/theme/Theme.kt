@@ -66,13 +66,31 @@ fun dayMarkContainer(mark: DayMark, dark: Boolean): Color = when (mark) {
     DayMark.HOLIDAY -> if (dark) DarkDayHolidayContainer else LightDayHolidayContainer
 }
 
+/** Тон буднего дня: день без метки тоже получает собственный фон, а не поверхность. */
+fun weekdayContainer(dark: Boolean): Color =
+    if (dark) DarkDayWeekdayContainer else LightDayWeekdayContainer
+
+/** Обводка клетки дня: держит границу при тоне будней, выходных и праздников. */
+fun dayBorder(dark: Boolean): Color = if (dark) DarkDayBorder else LightDayBorder
+
 /**
- * Тон дня для текущей схемы. Нет метки — нет и тона: вызывающий компонент оставляет
- * прежний фон (`?: colorScheme.surface`), поэтому поведение не меняется, пока реестр молчит.
+ * Тон дня для текущей схемы. `null` — метки нет: вызывающий компонент решает сам,
+ * красить ли поверхность (клетки красят будним тоном, шапка дня остаётся прозрачной).
  */
 @Composable
 fun dayMarkColor(mark: DayMark?): Color? =
     mark?.let { dayMarkContainer(it, LocalIsDarkTheme.current) }
+
+/**
+ * Фон клетки дня по метке. Нет метки — будний тон: клетка не сливается с фоном экрана.
+ */
+@Composable
+fun dayContainerColor(mark: DayMark?): Color =
+    mark?.let { dayMarkContainer(it, LocalIsDarkTheme.current) }
+        ?: weekdayContainer(LocalIsDarkTheme.current)
+
+@Composable
+fun dayBorderColor(): Color = dayBorder(LocalIsDarkTheme.current)
 
 /**
  * Тема приложения. Схема цветов детерминирована палитрой: динамические цвета обоев

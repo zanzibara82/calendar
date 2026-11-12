@@ -70,7 +70,8 @@ import com.example.mycalendar.presentation.theme.AppShapes
 import com.example.mycalendar.presentation.theme.AppSizes
 import com.example.mycalendar.presentation.theme.AppSpacing
 import com.example.mycalendar.presentation.theme.HeaderTypography
-import com.example.mycalendar.presentation.theme.dayMarkColor
+import com.example.mycalendar.presentation.theme.dayBorderColor
+import com.example.mycalendar.presentation.theme.dayContainerColor
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.WeekFields
@@ -270,13 +271,17 @@ private fun MonthView(
                             .background(
                                 color = when {
                                     isSelected -> MaterialTheme.colorScheme.primary
-                                    else -> dayMarkColor(mark) ?: MaterialTheme.colorScheme.surface
+                                    else -> dayContainerColor(mark)
                                 },
                                 shape = AppShapes.calendarCell,
                             )
                             .border(
-                                width = if (isToday && !isSelected) AppSizes.stroke else 0.dp,
-                                color = MaterialTheme.colorScheme.primary,
+                                width = AppSizes.stroke,
+                                color = if (isToday && !isSelected) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    dayBorderColor()
+                                },
                                 shape = AppShapes.calendarCell,
                             )
                             .clickable { onDayClick(date) }

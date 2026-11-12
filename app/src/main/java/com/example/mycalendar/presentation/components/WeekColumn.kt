@@ -33,9 +33,9 @@ import com.example.mycalendar.presentation.common.weekColDateFormatter
 import com.example.mycalendar.presentation.theme.AppShapes
 import com.example.mycalendar.presentation.theme.AppSizes
 import com.example.mycalendar.presentation.theme.AppSpacing
-import com.example.mycalendar.presentation.theme.LocalIsDarkTheme
 import com.example.mycalendar.presentation.theme.WeekColumnTypography
-import com.example.mycalendar.presentation.theme.dayMarkColor
+import com.example.mycalendar.presentation.theme.dayBorderColor
+import com.example.mycalendar.presentation.theme.dayContainerColor
 import java.time.LocalDate
 
 /**
@@ -54,7 +54,6 @@ fun WeekDayColumn(
     isToday: Boolean = date == LocalDate.now(),
     mark: DayMark? = null,
 ) {
-    val dark = LocalIsDarkTheme.current
     val visible = events.sortedBy { it.startMillis }.take(AppSizes.weekVisibleCells)
     val extra = events.size - visible.size
     Card(
@@ -63,14 +62,10 @@ fun WeekDayColumn(
             .testTag(dayMarkTag(WEEK_CARD_TAG, date, mark)),
         shape = AppShapes.card,
         colors = CardDefaults.cardColors(
-            containerColor = dayMarkColor(mark) ?: MaterialTheme.colorScheme.surfaceVariant,
+            containerColor = dayContainerColor(mark),
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = if (dark) {
-            null
-        } else {
-            BorderStroke(AppSizes.stroke, MaterialTheme.colorScheme.outline)
-        },
+        border = BorderStroke(AppSizes.stroke, dayBorderColor()),
     ) {
         Column(
             modifier = Modifier

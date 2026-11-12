@@ -2,10 +2,13 @@ package com.example.mycalendar
 
 import com.example.mycalendar.domain.holiday.DayMark
 import com.example.mycalendar.presentation.theme.DarkDayHolidayContainer
+import com.example.mycalendar.presentation.theme.DarkDayWeekdayContainer
 import com.example.mycalendar.presentation.theme.DarkDayWeekendContainer
 import com.example.mycalendar.presentation.theme.LightDayHolidayContainer
+import com.example.mycalendar.presentation.theme.LightDayWeekdayContainer
 import com.example.mycalendar.presentation.theme.LightDayWeekendContainer
 import com.example.mycalendar.presentation.theme.dayMarkContainer
+import com.example.mycalendar.presentation.theme.weekdayContainer
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -30,5 +33,11 @@ class DayMarkToneTest {
     fun `holiday tone comes from the palette`() {
         assertEquals(DarkDayHolidayContainer, dayMarkContainer(DayMark.HOLIDAY, dark = true))
         assertEquals(LightDayHolidayContainer, dayMarkContainer(DayMark.HOLIDAY, dark = false))
+    }
+
+    @Test
+    fun `weekday tone comes from the palette`() {
+        assertEquals(DarkDayWeekdayContainer, weekdayContainer(dark = true))
+        assertEquals(LightDayWeekdayContainer, weekdayContainer(dark = false))
     }
 }
