@@ -12,7 +12,6 @@ import com.example.mycalendar.data.remote.RemoteEvent
 import com.example.mycalendar.data.remote.RemoteFetch
 import com.example.mycalendar.data.repository.ConflictRepositoryImpl
 import com.example.mycalendar.data.repository.EventRepositoryImpl
-import com.example.mycalendar.data.repository.SyncConflictResolver
 import com.example.mycalendar.data.repository.SyncRepositoryImpl
 import com.example.mycalendar.domain.model.CalendarProvider
 import com.example.mycalendar.domain.model.ConflictKind
@@ -27,6 +26,7 @@ import com.example.mycalendar.domain.repository.CalendarConnection
 import com.example.mycalendar.domain.repository.ConflictRepository
 import com.example.mycalendar.domain.repository.EventRepository
 import com.example.mycalendar.domain.repository.SettingsRepository
+import com.example.mycalendar.domain.sync.SyncConflictResolver
 import com.example.mycalendar.domain.usecase.DeletionChoice
 import com.example.mycalendar.domain.usecase.ResolveConflictUseCase
 import com.example.mycalendar.work.ReminderScheduler
