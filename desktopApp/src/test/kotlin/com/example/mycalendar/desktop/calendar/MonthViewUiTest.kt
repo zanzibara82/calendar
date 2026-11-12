@@ -2,6 +2,7 @@ package com.example.mycalendar.desktop.calendar
 
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -11,7 +12,9 @@ import com.example.mycalendar.desktop.data.EventFileStore
 import com.example.mycalendar.desktop.theme.DesktopTheme
 import com.example.mycalendar.domain.model.CalendarProvider
 import com.example.mycalendar.domain.model.Event
+import com.example.mycalendar.domain.model.RepeatRule
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.TextStyle
@@ -62,7 +65,7 @@ class MonthViewUiTest {
     }
 
     @Test
-    fun `clicking a day shows its date and holiday in the footer`() = runComposeUiTest {
+    fun `clicking a day shows its date and holiday in the panel header`() = runComposeUiTest {
         val repository = newRepository()
         setContent { DesktopTheme { MonthView(repository, initialMonth = november) } }
 
@@ -123,6 +126,102 @@ class MonthViewUiTest {
         onNodeWithTag("event-dot-2026-11-04-0", useUnmergedTree = true).assertDoesNotExist()
     }
 
+    @Test
+    fun `day panel lists events of the selected day with times`() = runComposeUiTest {
+        val repository = newRepository()
+        runBlocking {
+            repository.saveFromUser(event("a", LocalDate.of(2026, 11, 10), 9, CalendarProvider.LOCAL))
+            repository.saveFromUser(event("b", LocalDate.of(2026, 11, 10), 18, CalendarProvider.GOOGLE))
+        }
+        setContent { DesktopTheme { MonthView(repository, initialMonth = november) } }
+
+        onNodeWithTag("day-2026-11-10").performClick()
+        waitUntil("события дня загружены", 5_000) {
+            onAllNodesWithText("Событие a").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        onNodeWithText("Событие b").assertExists()
+        onNodeWithText("09:00–10:00").assertExists()
+        onNodeWithText("18:00–19:00").assertExists()
+    }
+
+    @Test
+    fun `empty day says there are no events`() = runComposeUiTest {
+        val repository = newRepository()
+        runBlocking {
+            repository.saveFromUser(event("a", LocalDate.of(2026, 11, 10), 9, CalendarProvider.LOCAL))
+        }
+        setContent { DesktopTheme { MonthView(repository, initialMonth = november) } }
+
+        onNodeWithTag("day-2026-11-05").performClick()
+
+        onNodeWithText("Событий нет").assertExists()
+    }
+
+    @Test
+    fun `switching day updates the list`() = runComposeUiTest {
+        val repository = newRepository()
+        runBlocking {
+            repository.saveFromUser(event("a", LocalDate.of(2026, 11, 10), 9, CalendarProvider.LOCAL))
+        }
+        setContent { DesktopTheme { MonthView(repository, initialMonth = november) } }
+
+        onNodeWithTag("day-2026-11-10").performClick()
+        waitUntil("событие показано", 5_000) {
+            onAllNodesWithText("Событие a").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        onNodeWithTag("day-2026-11-05").performClick()
+
+        onNodeWithText("Событие a").assertDoesNotExist()
+        onNodeWithText("Событий нет").assertExists()
+    }
+
+    @Test
+    fun `multi-day event shows open start on the following day`() = runComposeUiTest {
+        val repository = newRepository()
+        runBlocking {
+            repository.saveFromUser(
+                event(
+                    id = "night",
+                    start = LocalDateTime.of(2026, 11, 9, 23, 0),
+                    end = LocalDateTime.of(2026, 11, 10, 1, 0),
+                ),
+            )
+        }
+        setContent { DesktopTheme { MonthView(repository, initialMonth = november) } }
+
+        onNodeWithTag("day-2026-11-10").performClick()
+        waitUntil("ночное событие показано", 5_000) {
+            onAllNodesWithText("Событие night").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        onNodeWithText("…–01:00").assertExists()
+    }
+
+    @Test
+    fun `repeating event shows its repeat label`() = runComposeUiTest {
+        val repository = newRepository()
+        runBlocking {
+            repository.saveFromUser(
+                event(
+                    id = "weekly",
+                    start = LocalDateTime.of(2026, 11, 3, 9, 0),
+                    end = LocalDateTime.of(2026, 11, 3, 10, 0),
+                    repeatRule = RepeatRule.WEEKLY,
+                ),
+            )
+        }
+        setContent { DesktopTheme { MonthView(repository, initialMonth = november) } }
+
+        onNodeWithTag("day-2026-11-10").performClick()
+        waitUntil("повторяющееся событие показано", 5_000) {
+            onAllNodesWithText("Событие weekly").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        onNodeWithText("09:00–10:00 · еженедельно").assertExists()
+    }
+
     private fun newRepository(): DesktopEventRepository {
         val dir = folder.newFolder().toPath()
         return DesktopEventRepository(EventFileStore(dir.resolve("events.json")))
@@ -136,6 +235,22 @@ class MonthViewUiTest {
             startTime = start,
             endTime = start + 3_600_000,
             calendarProvider = provider,
+        )
+    }
+
+    private fun event(
+        id: String,
+        start: LocalDateTime,
+        end: LocalDateTime,
+        repeatRule: RepeatRule? = null,
+    ): Event {
+        val zone = ZoneId.systemDefault()
+        return Event(
+            id = id,
+            title = "Событие $id",
+            startTime = start.atZone(zone).toInstant().toEpochMilli(),
+            endTime = end.atZone(zone).toInstant().toEpochMilli(),
+            repeatRule = repeatRule,
         )
     }
 

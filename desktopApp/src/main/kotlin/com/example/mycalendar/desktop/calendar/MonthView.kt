@@ -10,10 +10,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -30,17 +33,21 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.mycalendar.desktop.theme.Palette
 import com.example.mycalendar.desktop.theme.dayContainer
+import com.example.mycalendar.desktop.theme.providerColor
 import com.example.mycalendar.domain.calendar.monthWeeks
 import com.example.mycalendar.domain.holiday.DayMark
 import com.example.mycalendar.domain.holiday.HolidayKey
 import com.example.mycalendar.domain.holiday.HolidayRegistry
 import com.example.mycalendar.domain.model.CalendarProvider
 import com.example.mycalendar.domain.model.Event
+import com.example.mycalendar.domain.model.RepeatRule
 import com.example.mycalendar.domain.repository.EventRepository
 import java.time.DayOfWeek
+import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
@@ -50,9 +57,13 @@ import java.util.Locale
 
 private val RU = Locale.forLanguageTag("ru")
 private val DATE_FORMAT = DateTimeFormatter.ofPattern("d MMMM yyyy", RU)
+private val TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm")
 
 /** Как на Android: больше трёх точек клетка не вмещает. */
 private const val MAX_DAY_DOTS = 3
+
+/** Высота списка событий дня: прокрутка вместо того, чтобы отнимать сетку целиком. */
+private val DAY_EVENTS_MAX_HEIGHT = 180.dp
 
 /** Месячный вид: сетка Пн–Вс, тон выходного и праздника из общего домена, точки событий. */
 @Composable
@@ -63,18 +74,19 @@ fun MonthView(
     var visibleMonth by remember { mutableStateOf(initialMonth) }
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
     val registry = remember { HolidayRegistry() }
+    val zone = remember { ZoneId.systemDefault() }
 
     val weeks = remember(visibleMonth) { monthWeeks(visibleMonth.atDay(1)) }
     val marks = remember(weeks) { registry.marksBetween(weeks.first().first(), weeks.last().last()) }
 
     val days = remember(weeks) { weeks.flatten() }
     val events by produceState(initialValue = emptyList<Event>(), repository, weeks) {
-        val zone = ZoneId.systemDefault()
         val from = days.first().atStartOfDay(zone).toInstant().toEpochMilli()
         val to = days.last().plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() - 1
         repository.observeEventsBetween(from, to).collect { value = it }
     }
-    val dots = remember(events, days) { eventsByDay(events, days.first(), days.last()) }
+    val dots = remember(events, days) { eventsByDay(events, days.first(), days.last(), zone) }
+    val dayEvents = remember(events, selectedDate) { dayOccurrences(events, selectedDate, zone) }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
@@ -110,7 +122,12 @@ fun MonthView(
                 }
             }
         }
-        Footer(date = selectedDate, holidayKey = registry.holidayKey(selectedDate))
+        DayPanel(
+            date = selectedDate,
+            holidayKey = registry.holidayKey(selectedDate),
+            events = dayEvents,
+            zone = zone,
+        )
     }
 }
 
@@ -213,23 +230,108 @@ private fun DayCell(
 }
 
 @Composable
-private fun Footer(date: LocalDate, holidayKey: HolidayKey?) {
-    Row(
+private fun DayPanel(
+    date: LocalDate,
+    holidayKey: HolidayKey?,
+    events: List<DayOccurrence>,
+    zone: ZoneId,
+) {
+    Column(
         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        val title = holidayKey?.let(::holidayTitle)
-        Text(
-            text = if (title != null) "${date.format(DATE_FORMAT)} — $title" else date.format(DATE_FORMAT),
-            color = Palette.OnSurfaceVariant,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f),
-        )
-        LegendItem(Palette.WeekendContainer, "Выходной")
-        LegendItem(Palette.HolidayContainer, "Праздник")
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            val title = holidayKey?.let(::holidayTitle)
+            Text(
+                text = if (title != null) "${date.format(DATE_FORMAT)} — $title" else date.format(DATE_FORMAT),
+                color = Palette.OnSurfaceVariant,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f),
+            )
+            LegendItem(Palette.WeekendContainer, "Выходной")
+            LegendItem(Palette.HolidayContainer, "Праздник")
+        }
+        if (events.isEmpty()) {
+            Text(
+                text = "Событий нет",
+                color = Palette.OnSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.testTag("day-events-empty"),
+            )
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = DAY_EVENTS_MAX_HEIGHT)
+                    .verticalScroll(rememberScrollState())
+                    .testTag("day-events"),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                events.forEach { DayEventRow(occurrence = it, date = date, zone = zone) }
+            }
+        }
     }
 }
+
+@Composable
+private fun DayEventRow(occurrence: DayOccurrence, date: LocalDate, zone: ZoneId) {
+    val event = occurrence.event
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(Palette.Card)
+            .testTag("day-event-${event.id}")
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(width = 4.dp, height = 28.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(providerColor(event.calendarProvider)),
+        )
+        Column {
+            Text(
+                text = event.title,
+                color = Palette.OnSurface,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = subtitle(occurrence, date, zone, event.repeatRule),
+                color = Palette.OnSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
+}
+
+/** Время вхождения в дне; граница, выходящая за день, показывается многоточием. */
+private fun subtitle(occurrence: DayOccurrence, date: LocalDate, zone: ZoneId, rule: RepeatRule?): String {
+    val dayStart = date.atStartOfDay(zone).toInstant().toEpochMilli()
+    val dayEnd = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+    val start = if (occurrence.start < dayStart) "…" else formatTime(occurrence.start, zone)
+    val end = if (occurrence.end > dayEnd) "…" else formatTime(occurrence.end, zone)
+    val time = "$start–$end"
+    val repeat = when (rule) {
+        RepeatRule.DAILY -> "ежедневно"
+        RepeatRule.WEEKLY -> "еженедельно"
+        RepeatRule.MONTHLY -> "ежемесячно"
+        RepeatRule.YEARLY -> "ежегодно"
+        null -> null
+    }
+    return if (repeat != null) "$time · $repeat" else time
+}
+
+private fun formatTime(millis: Long, zone: ZoneId): String =
+    TIME_FORMAT.format(Instant.ofEpochMilli(millis).atZone(zone))
 
 @Composable
 private fun LegendItem(color: Color, label: String) {
