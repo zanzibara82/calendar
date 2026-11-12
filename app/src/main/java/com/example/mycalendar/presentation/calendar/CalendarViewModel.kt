@@ -2,7 +2,9 @@ package com.example.mycalendar.presentation.calendar
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.mycalendar.R
 import com.example.mycalendar.domain.holiday.DayMark
+import com.example.mycalendar.domain.holiday.HolidayKey
 import com.example.mycalendar.domain.holiday.HolidayRegistry
 import com.example.mycalendar.domain.model.Event
 import com.example.mycalendar.domain.repository.SettingsRepository
@@ -114,7 +116,7 @@ class CalendarViewModel @Inject constructor(
             val marks = holidayRegistry.marksBetween(from, to)
             val titles = marks
                 .filterValues { it == DayMark.HOLIDAY }
-                .mapNotNull { (date, _) -> holidayRegistry.holidayTitleRes(date)?.let { date to it } }
+                .mapNotNull { (date, _) -> holidayRegistry.holidayKey(date)?.let { date to it.titleRes() } }
                 .toMap()
             state.copy(dayMarks = marks, holidayTitles = titles)
         }
@@ -183,4 +185,21 @@ class CalendarViewModel @Inject constructor(
         val to = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() - 1
         return all.filter { it.startMillis <= to && it.endMillis >= from }
     }
+}
+
+/** Подпись праздника: домен отдаёт [HolidayKey], текст — ресурс Android-клиента. */
+private fun HolidayKey.titleRes(): Int = when (this) {
+    HolidayKey.NEW_YEAR_HOLIDAYS -> R.string.holiday_new_year_holidays
+    HolidayKey.CHRISTMAS_ORTHODOX -> R.string.holiday_christmas_orthodox
+    HolidayKey.VALENTINES -> R.string.holiday_valentines
+    HolidayKey.DEFENDER_OF_FATHERLAND -> R.string.holiday_defender_of_fatherland
+    HolidayKey.WOMENS_DAY -> R.string.holiday_womens_day
+    HolidayKey.SPRING_LABOR -> R.string.holiday_spring_labor
+    HolidayKey.VICTORY_DAY -> R.string.holiday_victory_day
+    HolidayKey.CHILDRENS_DAY -> R.string.holiday_childrens_day
+    HolidayKey.RUSSIA_DAY -> R.string.holiday_russia_day
+    HolidayKey.HALLOWEEN -> R.string.holiday_halloween
+    HolidayKey.NATIONAL_UNITY -> R.string.holiday_national_unity
+    HolidayKey.CHRISTMAS_WEST -> R.string.holiday_christmas_west
+    HolidayKey.NEW_YEAR_EVE -> R.string.holiday_new_year_eve
 }

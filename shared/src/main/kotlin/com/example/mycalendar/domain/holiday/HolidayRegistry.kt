@@ -1,6 +1,5 @@
 package com.example.mycalendar.domain.holiday
 
-import com.example.mycalendar.R
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.MonthDay
@@ -10,9 +9,9 @@ import javax.inject.Inject
  * Твёрдые даты праздников и правило выходного дня.
  *
  * Ключ таблицы — (месяц, день): год не участвует, поэтому високосное 29 февраля просто
- * отсутствует в наборе и не требует специальной ветки. Название — id строки, потому что
- * текст, который видит пользователь, остаётся ресурсом (спека, §2): домен знает id, но не
- * локализацию.
+ * отсутствует в наборе и не требует специальной ветки. Название — [HolidayKey], потому что
+ * текст, который видит пользователь, остаётся ресурсом клиента (спека, §2): домен знает
+ * праздник, но не его подпись.
  *
  * Вне набора сознательно: переносы праздников, пасхальный круг и лунные даты (спека, §1).
  */
@@ -25,8 +24,8 @@ class HolidayRegistry @Inject constructor() {
         return if (isWeekend) DayMark.WEEKEND else null
     }
 
-    /** Ресурс названия праздника, или null, если день не праздничный. */
-    fun holidayTitleRes(date: LocalDate): Int? = HOLIDAYS[monthDayOf(date)]
+    /** Ключ названия праздника, или null, если день не праздничный. */
+    fun holidayKey(date: LocalDate): HolidayKey? = HOLIDAYS[monthDayOf(date)]
 
     /**
      * Метки всех дней диапазона включительно. Ключи есть только у помеченных дней, поэтому
@@ -52,25 +51,25 @@ class HolidayRegistry @Inject constructor() {
     private fun monthDayOf(date: LocalDate): MonthDay = MonthDay.from(date)
 
     private companion object {
-        val HOLIDAYS: Map<MonthDay, Int> = mapOf(
-            MonthDay.of(1, 1) to R.string.holiday_new_year_holidays,
-            MonthDay.of(1, 2) to R.string.holiday_new_year_holidays,
-            MonthDay.of(1, 3) to R.string.holiday_new_year_holidays,
-            MonthDay.of(1, 4) to R.string.holiday_new_year_holidays,
-            MonthDay.of(1, 5) to R.string.holiday_new_year_holidays,
-            MonthDay.of(1, 6) to R.string.holiday_new_year_holidays,
-            MonthDay.of(1, 7) to R.string.holiday_christmas_orthodox,
-            MonthDay.of(2, 14) to R.string.holiday_valentines,
-            MonthDay.of(2, 23) to R.string.holiday_defender_of_fatherland,
-            MonthDay.of(3, 8) to R.string.holiday_womens_day,
-            MonthDay.of(5, 1) to R.string.holiday_spring_labor,
-            MonthDay.of(5, 9) to R.string.holiday_victory_day,
-            MonthDay.of(6, 1) to R.string.holiday_childrens_day,
-            MonthDay.of(6, 12) to R.string.holiday_russia_day,
-            MonthDay.of(10, 31) to R.string.holiday_halloween,
-            MonthDay.of(11, 4) to R.string.holiday_national_unity,
-            MonthDay.of(12, 25) to R.string.holiday_christmas_west,
-            MonthDay.of(12, 31) to R.string.holiday_new_year_eve,
+        val HOLIDAYS: Map<MonthDay, HolidayKey> = mapOf(
+            MonthDay.of(1, 1) to HolidayKey.NEW_YEAR_HOLIDAYS,
+            MonthDay.of(1, 2) to HolidayKey.NEW_YEAR_HOLIDAYS,
+            MonthDay.of(1, 3) to HolidayKey.NEW_YEAR_HOLIDAYS,
+            MonthDay.of(1, 4) to HolidayKey.NEW_YEAR_HOLIDAYS,
+            MonthDay.of(1, 5) to HolidayKey.NEW_YEAR_HOLIDAYS,
+            MonthDay.of(1, 6) to HolidayKey.NEW_YEAR_HOLIDAYS,
+            MonthDay.of(1, 7) to HolidayKey.CHRISTMAS_ORTHODOX,
+            MonthDay.of(2, 14) to HolidayKey.VALENTINES,
+            MonthDay.of(2, 23) to HolidayKey.DEFENDER_OF_FATHERLAND,
+            MonthDay.of(3, 8) to HolidayKey.WOMENS_DAY,
+            MonthDay.of(5, 1) to HolidayKey.SPRING_LABOR,
+            MonthDay.of(5, 9) to HolidayKey.VICTORY_DAY,
+            MonthDay.of(6, 1) to HolidayKey.CHILDRENS_DAY,
+            MonthDay.of(6, 12) to HolidayKey.RUSSIA_DAY,
+            MonthDay.of(10, 31) to HolidayKey.HALLOWEEN,
+            MonthDay.of(11, 4) to HolidayKey.NATIONAL_UNITY,
+            MonthDay.of(12, 25) to HolidayKey.CHRISTMAS_WEST,
+            MonthDay.of(12, 31) to HolidayKey.NEW_YEAR_EVE,
         )
     }
 }

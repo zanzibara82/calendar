@@ -5,6 +5,7 @@ agp = "9.4.1"
 kotlin = "2.3.21"
 ksp = "2.3.12"
 hilt = "2.60.1"
+javaxInject = "1"
 # AndroidX
 # Стек собран под compileSdk 37
 coreKtx = "1.19.1"
@@ -86,6 +87,10 @@ okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor",
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
+
+# JSR-330: @Inject/@Singleton в общем модуле, без привязки к Hilt
+javax-inject = { group = "javax.inject", name = "javax.inject", version.ref = "javaxInject" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 kxml2 = { group = "net.sf.kxml", name = "kxml2", version.ref = "kxml2" }
@@ -108,6 +113,7 @@ androidx-baselineprofile = { id = "androidx.baselineprofile", version.ref = "bas
 android-test = { id = "com.android.test", version.ref = "agp" }
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }

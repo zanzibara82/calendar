@@ -103,6 +103,8 @@ ksp {
 }
 
 dependencies {
+    // Домен и CalDAV-разбор, общие с desktop-клиентом
+    implementation(project(":shared"))
     // Ядро AndroidX + splash screen
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)

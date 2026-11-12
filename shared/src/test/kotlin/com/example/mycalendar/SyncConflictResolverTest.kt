@@ -2,8 +2,6 @@ package com.example.mycalendar
 
 import com.example.mycalendar.data.remote.RemoteEvent
 import com.example.mycalendar.data.remote.toEvent
-import com.example.mycalendar.data.repository.PullDecision
-import com.example.mycalendar.data.repository.SyncConflictResolver
 import com.example.mycalendar.domain.model.CalendarProvider
 import com.example.mycalendar.domain.model.ConflictKind
 import com.example.mycalendar.domain.model.Event
@@ -12,6 +10,8 @@ import com.example.mycalendar.domain.model.SyncField
 import com.example.mycalendar.domain.model.SyncSnapshot
 import com.example.mycalendar.domain.model.SyncedRecord
 import com.example.mycalendar.domain.model.diffFields
+import com.example.mycalendar.domain.sync.PullDecision
+import com.example.mycalendar.domain.sync.SyncConflictResolver
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

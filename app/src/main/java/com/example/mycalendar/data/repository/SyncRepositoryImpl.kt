@@ -14,6 +14,8 @@ import com.example.mycalendar.domain.repository.EventRepository
 import com.example.mycalendar.domain.repository.SettingsRepository
 import com.example.mycalendar.domain.repository.SyncRepository
 import com.example.mycalendar.domain.repository.SyncResult
+import com.example.mycalendar.domain.sync.PullDecision
+import com.example.mycalendar.domain.sync.SyncConflictResolver
 import com.example.mycalendar.work.ReminderScheduler
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
@@ -329,26 +331,28 @@ class SyncRepositoryImpl @Inject constructor(
             val event = item.event
             // Отправленное состояние и есть новый предок — после подтверждения провайдера.
             val sent = SyncSnapshot.of(event)
+            // Локальная копия: remoteId объявлен в другом модуле, смарт-каст на нём недоступен.
+            val remoteId = event.remoteId
             when {
                 item.isDeleted -> {
                     // Tombstone: удалить в облаке (если событие там есть) и локально
-                    event.remoteId?.let { remote.delete(it) }
+                    remoteId?.let { remote.delete(it) }
                     eventRepository.purge(event.id)
                     reminderScheduler.cancel(event)
                     pushed++
                 }
 
-                event.remoteId == null -> {
+                remoteId == null -> {
                     // Новое локальное событие -> create в облаке и привязка к провайдеру
-                    val remoteId = remote.insert(event)
-                    eventRepository.attachToProvider(event.id, remoteId, provider, sent)
+                    val createdId = remote.insert(event)
+                    eventRepository.attachToProvider(event.id, createdId, provider, sent)
                     reminderScheduler.schedule(event)
                     pushed++
                 }
 
                 else -> {
                     // Локальное изменение существующего события -> update в облаке
-                    remote.update(event.remoteId, event)
+                    remote.update(remoteId, event)
                     eventRepository.markSynced(event.id, sent)
                     reminderScheduler.schedule(event)
                     pushed++

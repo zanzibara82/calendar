@@ -149,11 +149,12 @@ fun EventDetailsScreen(
             }
 
             // Повтор
-            if (event.repeatRule != null) {
+            val repeatRule = event.repeatRule
+            if (repeatRule != null) {
                 DetailsBlock(title = stringResource(R.string.event_repeat)) {
                     AssistChip(
                         onClick = {},
-                        label = { Text(stringResource(repeatLabel(event.repeatRule))) },
+                        label = { Text(stringResource(repeatLabel(repeatRule))) },
                     )
                 }
             }

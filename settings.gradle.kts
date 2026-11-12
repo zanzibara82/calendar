@@ -25,3 +25,5 @@ dependencyResolutionManagement {
 rootProject.name = "MyCalendar"
 include(":app")
 include(":baselineprofile")
+// Общий JVM-код для Android и desktop: домен, слияние, протокол CalDAV.
+include(":shared")

@@ -1,6 +1,5 @@
 package com.example.mycalendar.domain.holiday
 
-import com.example.mycalendar.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -20,7 +19,7 @@ class HolidayRegistryTest {
     fun `holiday beats weekend on the same date`() {
         // 9 мая 2026 — суббота: тон один, и это тон праздника
         assertEquals(DayMark.HOLIDAY, registry.markFor(LocalDate.of(2026, 5, 9)))
-        assertEquals(R.string.holiday_victory_day, registry.holidayTitleRes(LocalDate.of(2026, 5, 9)))
+        assertEquals(HolidayKey.VICTORY_DAY, registry.holidayKey(LocalDate.of(2026, 5, 9)))
     }
 
     @Test
@@ -28,7 +27,7 @@ class HolidayRegistryTest {
         // 7 и 8 ноября 2026 — суббота и воскресенье без праздника
         assertEquals(DayMark.WEEKEND, registry.markFor(LocalDate.of(2026, 11, 7)))
         assertEquals(DayMark.WEEKEND, registry.markFor(LocalDate.of(2026, 11, 8)))
-        assertNull(registry.holidayTitleRes(LocalDate.of(2026, 11, 7)))
+        assertNull(registry.holidayKey(LocalDate.of(2026, 11, 7)))
     }
 
     @Test
@@ -50,7 +49,7 @@ class HolidayRegistryTest {
         )
         dates.forEach { date ->
             assertEquals("нет метки у $date", DayMark.HOLIDAY, registry.markFor(date))
-            assertNotNull("нет названия у $date", registry.holidayTitleRes(date))
+            assertNotNull("нет названия у $date", registry.holidayKey(date))
         }
         // Лист закрывает все ключи таблицы: 18 различных пар (месяц, день). Раньше в листе
         // не было 2, 3, 4 и 5 января: они дают тот же ресурс, что и 1 января, но это

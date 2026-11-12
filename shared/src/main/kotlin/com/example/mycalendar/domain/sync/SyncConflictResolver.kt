@@ -1,4 +1,4 @@
-package com.example.mycalendar.data.repository
+package com.example.mycalendar.domain.sync
 
 import com.example.mycalendar.data.remote.RemoteEvent
 import com.example.mycalendar.data.remote.toEvent
