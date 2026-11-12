@@ -35,7 +35,7 @@ adb install -r app/build/outputs/apk/release/app-release.apk
 ```
 
 Debug и release подписаны разными ключами, поэтому поверх одной сборки другую поставить нельзя:
-сначала `adb uninstall com.example.mycalendar`.
+сначала `adb uninstall ru.zanzibara82.calendar`.
 
 `adb` не в PATH, полный путь: `%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe`
 (в Git Bash — `"$LOCALAPPDATA/Android/Sdk/platform-tools/adb.exe"`).
@@ -163,13 +163,13 @@ Android и будущего Windows-приложения, поэтому дин�
 ```bash
 ./gradlew :app:testDebugUnitTest --tests '*PaletteContrastTest'  # контраст пар текст/поверхность
 adb shell am instrument -w -r -e class com.example.mycalendar.EventCardUiTest \
-    com.example.mycalendar.test/com.example.mycalendar.HiltTestRunner
+    ru.zanzibara82.calendar.test/com.example.mycalendar.HiltTestRunner
 adb shell am instrument -w -r -e class com.example.mycalendar.ThemePaletteTest \
-    com.example.mycalendar.test/com.example.mycalendar.HiltTestRunner
+    ru.zanzibara82.calendar.test/com.example.mycalendar.HiltTestRunner
 adb shell am instrument -w -r -e class com.example.mycalendar.WeekViewCardsUiTest \
-    com.example.mycalendar.test/com.example.mycalendar.HiltTestRunner
+    ru.zanzibara82.calendar.test/com.example.mycalendar.HiltTestRunner
 adb shell am instrument -w -r -e class com.example.mycalendar.DayViewHolidayUiTest \
-    com.example.mycalendar.test/com.example.mycalendar.HiltTestRunner
+    ru.zanzibara82.calendar.test/com.example.mycalendar.HiltTestRunner
 ```
 
 Ожидается (замерено 12.11.2026 по отчётам полных прогонов): JVM — 131 тест, 0 падений;
@@ -195,8 +195,8 @@ adb shell am instrument -w -r -e class com.example.mycalendar.DayViewHolidayUiTe
 а без них прогон нестабилен (18/73 и падение `EventLog`/`EventCardUiTest`):
 
 ```bash
-"$LOCALAPPDATA/Android/Sdk/platform-tools/adb.exe" shell appops set com.example.mycalendar SCHEDULE_EXACT_ALARM allow
-"$LOCALAPPDATA/Android/Sdk/platform-tools/adb.exe" shell pm grant com.example.mycalendar android.permission.POST_NOTIFICATIONS
+"$LOCALAPPDATA/Android/Sdk/platform-tools/adb.exe" shell appops set ru.zanzibara82.calendar SCHEDULE_EXACT_ALARM allow
+"$LOCALAPPDATA/Android/Sdk/platform-tools/adb.exe" shell pm grant ru.zanzibara82.calendar android.permission.POST_NOTIFICATIONS
 ```
 
 Если пакета на устройстве ещё нет, сначала поставьте APK:
@@ -219,19 +219,19 @@ APK не даёт, а отсутствие разрешения списывал
 
 ```bash
 adb shell am instrument -w -r -e class com.example.mycalendar.YandexSignInReuseTokenTest \
-    com.example.mycalendar.test/com.example.mycalendar.HiltTestRunner
+    ru.zanzibara82.calendar.test/com.example.mycalendar.HiltTestRunner
 adb shell am instrument -w -r -e class com.example.mycalendar.ReminderActivityIntentTest \
-    com.example.mycalendar.test/com.example.mycalendar.HiltTestRunner
+    ru.zanzibara82.calendar.test/com.example.mycalendar.HiltTestRunner
 adb shell am instrument -w -r -e class com.example.mycalendar.QuietModeChannelTest \
-    com.example.mycalendar.test/com.example.mycalendar.HiltTestRunner
+    ru.zanzibara82.calendar.test/com.example.mycalendar.HiltTestRunner
 adb shell am instrument -w -r -e class com.example.mycalendar.OverlayQuietModeTest \
-    com.example.mycalendar.test/com.example.mycalendar.HiltTestRunner
+    ru.zanzibara82.calendar.test/com.example.mycalendar.HiltTestRunner
 adb shell am instrument -w -r -e class com.example.mycalendar.OverlaySnoozeTest \
-    com.example.mycalendar.test/com.example.mycalendar.HiltTestRunner
+    ru.zanzibara82.calendar.test/com.example.mycalendar.HiltTestRunner
 adb shell am instrument -w -r -e class com.example.mycalendar.SettingsRemindersCardTest \
-    com.example.mycalendar.test/com.example.mycalendar.HiltTestRunner
+    ru.zanzibara82.calendar.test/com.example.mycalendar.HiltTestRunner
 adb shell am instrument -w -r -e class com.example.mycalendar.QuietModeIndicatorTest \
-    com.example.mycalendar.test/com.example.mycalendar.HiltTestRunner
+    ru.zanzibara82.calendar.test/com.example.mycalendar.HiltTestRunner
 ```
 
 **Важно:** `connectedDebugAndroidTest` снимает приложение с устройства после прогона и стирает

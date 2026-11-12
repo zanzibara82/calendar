@@ -33,7 +33,9 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.example.mycalendar"
+        // Пакет com.example.mycalendar занят чужим приложением в RuStore:
+        // id берём от GitHub-хэндла, namespace остаётся прежним.
+        applicationId = "ru.zanzibara82.calendar"
         minSdk = 26          // по требованиям ТЗ
         targetSdk = 37
         versionCode = 5

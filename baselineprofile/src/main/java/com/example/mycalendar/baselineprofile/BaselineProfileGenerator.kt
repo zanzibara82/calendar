@@ -45,7 +45,7 @@ class BaselineProfileGenerator {
     }
 
     private companion object {
-        const val PACKAGE_NAME = "com.example.mycalendar"
+        const val PACKAGE_NAME = "ru.zanzibara82.calendar"
         const val TEXT_ENTER_APP = "Войти"   // R.string.enter_app
         const val TEXT_VIEW_MONTH = "Месяц"  // R.string.view_month
     }

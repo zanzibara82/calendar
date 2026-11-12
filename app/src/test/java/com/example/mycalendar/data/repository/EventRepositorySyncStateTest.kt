@@ -14,7 +14,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-private const val VOICE_PATH = "/data/user/0/com.example.mycalendar/files/voice_notes/e1.m4a"
+private const val VOICE_PATH = "/data/user/0/ru.zanzibara82.calendar/files/voice_notes/e1.m4a"
 
 /**
  * Служебные колонки строки (предок, pendingSync) переживают правки контента:

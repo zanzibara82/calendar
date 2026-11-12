@@ -39,7 +39,7 @@ class SyncPullLocalFieldsTest {
         repeatRule = RepeatRule.WEEKLY,
         textNote = "Купить молоко и позвонить маме",
         tags = listOf(EventTag.BIRTHDAY, EventTag.CINEMA),
-        voiceNotePath = "/data/user/0/com.example.mycalendar/files/voice_notes/1.m4a",
+        voiceNotePath = "/data/user/0/ru.zanzibara82.calendar/files/voice_notes/1.m4a",
         calendarProvider = CalendarProvider.GOOGLE,
         remoteId = "remote-1",
         updatedAt = 100L,
