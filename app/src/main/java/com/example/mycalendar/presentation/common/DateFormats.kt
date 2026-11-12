@@ -31,6 +31,10 @@ internal val timeFormatter: DateTimeFormatter =
 internal val monthTitleFormatter: DateTimeFormatter =
     DateTimeFormatter.ofPattern("LLLL yyyy", russianLocale)
 
+/** «марта» — месяц в родительном падеже: «9 – 15 марта 2026». */
+internal val monthGenitiveFormatter: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("MMMM", russianLocale)
+
 /** «12 марта» — подпись дня. */
 internal val dayTitleFormatter: DateTimeFormatter =
     DateTimeFormatter.ofPattern("d MMMM", russianLocale)

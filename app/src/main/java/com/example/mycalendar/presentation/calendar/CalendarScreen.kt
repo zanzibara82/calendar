@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.example.mycalendar.R
 import com.example.mycalendar.domain.holiday.DayMark
+import com.example.mycalendar.presentation.common.monthGenitiveFormatter
 import com.example.mycalendar.presentation.common.monthTitleFormatter
 import com.example.mycalendar.presentation.common.russianLocale
 import com.example.mycalendar.presentation.common.weekdayTitleFormatter
@@ -324,8 +325,10 @@ private fun WeekView(
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            horizontal = AppSpacing.screen,
-            vertical = AppSpacing.listVPad,
+            start = AppSpacing.screen,
+            top = AppSpacing.listVPad,
+            end = AppSpacing.screen,
+            bottom = AppSpacing.listVPad + AppSpacing.fabClearance,
         ),
         verticalArrangement = Arrangement.spacedBy(AppSpacing.cardGap),
     ) {
@@ -356,8 +359,10 @@ private fun DayView(
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            horizontal = AppSpacing.screen,
-            vertical = AppSpacing.listVPad,
+            start = AppSpacing.screen,
+            top = AppSpacing.listVPad,
+            end = AppSpacing.screen,
+            bottom = AppSpacing.listVPad + AppSpacing.fabClearance,
         ),
         verticalArrangement = Arrangement.spacedBy(AppSpacing.cardGap),
     ) {
@@ -399,8 +404,10 @@ private fun EventList(events: List<EventOccurrence>, onEventClick: (String) -> U
     } else {
         LazyColumn(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                horizontal = AppSpacing.screen,
-                vertical = AppSpacing.listVPad,
+                start = AppSpacing.screen,
+                top = AppSpacing.listVPad,
+                end = AppSpacing.screen,
+                bottom = AppSpacing.listVPad + AppSpacing.fabClearance,
             ),
             verticalArrangement = Arrangement.spacedBy(AppSpacing.cardGap),
         ) {
@@ -415,11 +422,14 @@ private fun EventList(events: List<EventOccurrence>, onEventClick: (String) -> U
 @Composable
 private fun headerTitle(state: CalendarUiState): String = when (state.viewMode) {
     CalendarViewMode.MONTH -> monthTitle(state.visibleMonth)
-    CalendarViewMode.WEEK -> {
-        val start = state.selectedDate.with(DayOfWeek.MONDAY)
-        "${start.dayOfMonth} – ${start.plusDays(6).dayOfMonth} ${monthTitle(start.plusDays(6))}"
-    }
+    CalendarViewMode.WEEK -> weekTitle(state.selectedDate.with(DayOfWeek.MONDAY))
     CalendarViewMode.DAY -> fullDateTitle(state.selectedDate)
+}
+
+/** «9 – 15 ноября 2026» — месяц в родительном падеже, как в подписи дня. */
+internal fun weekTitle(weekStart: LocalDate): String {
+    val end = weekStart.plusDays(6)
+    return "${weekStart.dayOfMonth} – ${end.dayOfMonth} ${end.format(monthGenitiveFormatter)} ${end.year}"
 }
 
 /** Сокращённые названия дней недели ровно по три буквы: пн..вс. */
