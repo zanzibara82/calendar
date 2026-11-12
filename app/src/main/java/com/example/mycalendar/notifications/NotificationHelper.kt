@@ -43,7 +43,9 @@ class NotificationHelper @Inject constructor(
         private const val TAG = "NotificationHelper"
         // v2: новая версия канала, чтобы звук/атрибутика применились у обновившихся установок
         const val CHANNEL_REMINDERS = "channel_event_reminders_v2"
-        const val CHANNEL_REMINDERS_QUIET = "channel_event_reminders_quiet"
+        // v2 тихого канала: прежний создавался с IMPORTANCE_MIN, а импортанс неизменяем
+        const val CHANNEL_REMINDERS_QUIET = "channel_event_reminders_quiet_v2"
+        private const val CHANNEL_REMINDERS_QUIET_LEGACY = "channel_event_reminders_quiet"
         const val EXTRA_EVENT_ID = "extra_event_id"
 
         /** Размер отсрочки кнопки «Отложить» — один источник правды с ReminderScheduler. */
@@ -81,6 +83,10 @@ class NotificationHelper @Inject constructor(
         // startActivity из BroadcastReceiver запрещён (точные будильники не входят
         // в исключения BAL), а FSI доставляется только с канала HIGH и выше.
         // Существующий v2 не пересоздаём.
+        // Импортанс неизменяем после создания, а пересоздание канала с тем же id
+        // восстанавливает прежние настройки: канал с IMPORTANCE_MIN навсегда глушит FSI.
+        // Поэтому у тихого канала новый id, а прежний удаляем, чтобы не висел в настройках.
+        manager.deleteNotificationChannel(CHANNEL_REMINDERS_QUIET_LEGACY)
         val quietChannel = NotificationChannel(
             CHANNEL_REMINDERS_QUIET,
             context.getString(R.string.notification_channel_reminders_quiet),

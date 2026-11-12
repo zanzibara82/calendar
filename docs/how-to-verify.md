@@ -136,7 +136,7 @@ Debug и release подписаны разными ключами, поэтом�
    выключает режим. Включить режим можно только из настроек.
 4. Напоминание в тихом режиме: оверлей молчит (без звука), вибрирует пульсом, кнопка «Отложить»
    работает; при погашенном экране оверлей всплывает поверх блокировки. Это делает канал
-   `channel_event_reminders_quiet` с `IMPORTANCE_HIGH` без звука/вибрации/lights: full-screen
+   `channel_event_reminders_quiet_v2` с `IMPORTANCE_HIGH` без звука/вибрации/lights: full-screen
    intent доставляется только с HIGH и выше, а прямой `startActivity` из receiver на API 29+
    запрещён. Побочное следствие: при разблокированном экране возможен беззвучный heads-up.
 5. Событие с меткой «День рождения» или из коллекции «Дни рождения» звучит выбранным сигналом
@@ -172,8 +172,8 @@ adb shell am instrument -w -r -e class com.example.mycalendar.DayViewHolidayUiTe
     com.example.mycalendar.test/com.example.mycalendar.HiltTestRunner
 ```
 
-Ожидается (замерено 11.11.2026 по отчётам полных прогонов): JVM — 131 тест, 0 падений;
-линт — 0 ошибок, 15 предупреждений (состав ниже); connected — 74 теста, 0 падений.
+Ожидается (замерено 12.11.2026 по отчётам полных прогонов): JVM — 131 тест, 0 падений;
+линт — 0 ошибок, 16 предупреждений (состав ниже); connected — 75 тестов, 0 падений.
 `WeekViewCardsUiTest` проверяет карточки и в понедельник, и в воскресенье: даты в нём считаются от
 текущего дня, а не зашиты, и стрелками периодов он не пользуется. По месяцам сеткой ездит только
 `DayViewHolidayUiTest` — через `testTag` стрелок периодов `period_prev` / `period_next`, поэтому
@@ -187,8 +187,8 @@ adb shell am instrument -w -r -e class com.example.mycalendar.DayViewHolidayUiTe
 
 ```bash
 ./gradlew :app:testDebugUnitTest            # JVM: 131 тест, 0 падений
-./gradlew :app:lintDebug                    # 0 ошибок, 15 предупреждений
-./gradlew :app:connectedDebugAndroidTest    # эмулятор/устройство: 74 теста
+./gradlew :app:lintDebug                    # 0 ошибок, 16 предупреждений
+./gradlew :app:connectedDebugAndroidTest    # эмулятор/устройство: 75 тестов
 ```
 
 Перед полным connected-прогоном выдайте пакету разрешения вручную: установка APK их не даёт,
@@ -202,17 +202,17 @@ adb shell am instrument -w -r -e class com.example.mycalendar.DayViewHolidayUiTe
 Если пакета на устройстве ещё нет, сначала поставьте APK:
 `adb install -r -t app/build/outputs/apk/debug/app-debug.apk` (или `./gradlew :app:installDebug`).
 
-Ожидаемый результат connected: **74 теста, 0 падений** (сумма классовых `<testsuite>` в JUnit-отчёте
-`connectedDebugAndroidTest`, сверка по `<testcase>`; замер 11.11.2026).
+Ожидаемый результат connected: **75 тестов, 0 падений** (сумма классовых `<testsuite>` в JUnit-отчёте
+`connectedDebugAndroidTest`, сверка по `<testcase>`; замер 12.11.2026).
 `SchedulerAndMediaTest.voiceRecorder_recordsM4aFile` пишет настоящий `.m4a` и проходит даже на
 headless-эмуляторе с `-no-audio` (замер 05.11.2026). Прежде тест молча пропускался:
 `MediaRecorder.setAudioSource` не стартует без runtime-разрешения `RECORD_AUDIO`, которого установка
 APK не даёт, а отсутствие разрешения списывали на отсутствие микрофона у эмулятора. Теперь
 `RECORD_AUDIO` и `POST_NOTIFICATIONS` выдаются в `setUp` через `pm grant`.
 
-Состав линта — 15 предупреждений: `UseKtx` (5, из них 4 — в новых файлах сигнала и тихого режима),
+Состав линта — 16 предупреждений: `UseKtx` (5, из них 4 — в новых файлах сигнала и тихого режима),
 `IconXmlAndPng` (3), `UnusedAttribute` (2), `AndroidGradlePluginVersion` (2),
-`NewerVersionAvailable` (2), `GradleDependency` (1). Ошибок нет: подписи пикера сигнала берутся
+`NewerVersionAvailable` (3), `GradleDependency` (1). Ошибок нет: подписи пикера сигнала берутся
 через `stringResource` до лямбды, а не через `context.getString`.
 
 Отдельные тесты без полного прогона:

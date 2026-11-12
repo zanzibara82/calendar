@@ -1,5 +1,6 @@
 package com.example.mycalendar
 
+import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -54,6 +55,33 @@ class QuietModeChannelTest {
         assertNull("У тихого канала нет звука", channel.sound)
         assertFalse("Тихий канал не вибрирует", channel.shouldVibrate())
         assertFalse("Тихий канал без lights", channel.shouldShowLights())
+    }
+
+    /**
+     * Импортанс канала неизменяем после создания, поэтому канал прежней сборки
+     * (id без `_v2`, IMPORTANCE_MIN) должен быть удалён, а новый создан с HIGH —
+     * иначе full-screen intent останется подавленным на обновившейся установке.
+     */
+    @Test
+    fun legacyQuietChannel_withMin_isReplacedByHighVersion() {
+        manager.createNotificationChannel(
+            NotificationChannel(
+                "channel_event_reminders_quiet",
+                "тихий режим (прежняя сборка)",
+                NotificationManager.IMPORTANCE_MIN,
+            ),
+        )
+        notificationHelper.createChannels()
+        val channel = manager.getNotificationChannel(NotificationHelper.CHANNEL_REMINDERS_QUIET)
+        assertEquals(
+            "Новый тихий канал должен создаться с IMPORTANCE_HIGH",
+            NotificationManager.IMPORTANCE_HIGH,
+            channel!!.importance,
+        )
+        assertNull(
+            "Прежний канал с IMPORTANCE_MIN должен быть удалён",
+            manager.getNotificationChannel("channel_event_reminders_quiet"),
+        )
     }
 
     @Test

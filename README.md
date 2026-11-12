@@ -178,18 +178,18 @@ keyPassword=...
   (`CalendarUiStateTest`, 4); сигнал напоминания и признак дня рождения — `BirthdayCalendarTest` (7)
   и `ReminderSoundPolicyTest` (6), имя коллекции из ответа источника — `YandexCalendarDataSourceTest`
   (6, из них 1 — `calendarName`);
-  итог 131 и 0 падений сняты с отчёта `testDebugUnitTest` (замер 11.11.2026);
-- **74 instrumented-теста** — Room-миграции, сквозные сценарии синхронизации на настоящей базе,
+  итог 131 и 0 падений сняты с отчёта `testDebugUnitTest` (замер 12.11.2026);
+- **75 instrumented-тестов** — Room-миграции, сквозные сценарии синхронизации на настоящей базе,
   экраны конфликтов, уведомления и действия, системный календарь, переиспользование OAuth-токена,
   сверка подписи скачанного APK на устройстве, карточки события и недельного вида, тон и
   маркер праздничного дня в месячной сетке и в шапке дня (`DayViewHolidayUiTest`, 6) и в карточках
   недели (`WeekViewCardsUiTest`, 6 — 1 тест добавлен этой серией), контраст палитры токенов;
   выбор сигнала и тихий режим — интент напоминания (`ReminderActivityIntentTest`, 4), тихий канал
-  (`QuietModeChannelTest`, 3), оверлей тихого режима и «Отложить» (`OverlayQuietModeTest`, 1;
+  (`QuietModeChannelTest`, 4), оверлей тихого режима и «Отложить» (`OverlayQuietModeTest`, 1;
   `OverlaySnoozeTest`, 1), карточка «Напоминания» (`SettingsRemindersCardTest`, 2) и индикатор
   в шапке (`QuietModeIndicatorTest`, 1);
-  итог 74 и 0 падений сняты с JUnit-отчёта `connectedDebugAndroidTest` (замер 11.11.2026);
-- Lint — 0 ошибок, 15 предупреждений: дубли иконок xml/png, атрибуты,
+  итог 75 и 0 падений сняты с JUnit-отчёта `connectedDebugAndroidTest` (замер 12.11.2026);
+- Lint — 0 ошибок, 16 предупреждений: дубли иконок xml/png, атрибуты,
   игнорируемые на старых API, `UseKtx` в новом коде и предложения обновить зависимости.
 
 Connected-тесты выдают себе runtime-разрешения через `pm grant` — установка APK их не даёт. Без
