@@ -192,12 +192,12 @@
     <string name="conflict_remote_deleted">Событие удалено в облаке, локально есть ваши правки</string>
     <string name="conflict_local_deleted">Событие удалено локально, а в облаке есть версия</string>
     <string name="conflict_detail_title">Разбор конфликта</string>
-    <plurals name="conflict_contested_fields">
-        <item quantity="one">%d спорное поле</item>
-        <item quantity="few">%d спорных поля</item>
-        <item quantity="many">%d спорных полей</item>
-        <item quantity="other">%d спорного поля</item>
-    </plurals>
+    <!-- Три формы, а не plurals: правила склонения Android берёт из локали
+         устройства, а интерфейс всегда русский — на en-US для «2» выбирался
+         бы quantity="other". Форму выбирает код по русским правилам. -->
+    <string name="conflict_contested_fields_one">%d спорное поле</string>
+    <string name="conflict_contested_fields_few">%d спорных поля</string>
+    <string name="conflict_contested_fields_many">%d спорных полей</string>
 
     <string name="conflict_content_help">Выберите, какое значение оставить; непересекающиеся правки приложение объединило само</string>
     <string name="conflict_apply">Применить</string>

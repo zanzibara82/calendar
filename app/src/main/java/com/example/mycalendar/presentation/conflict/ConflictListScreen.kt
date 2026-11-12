@@ -20,7 +20,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -94,11 +93,7 @@ fun ConflictListScreen(
                         )
                         Text(
                             text = when (conflict.kind) {
-                                ConflictKind.CONTENT -> pluralStringResource(
-                                    R.plurals.conflict_contested_fields,
-                                    conflict.contested.size,
-                                    conflict.contested.size,
-                                )
+                                ConflictKind.CONTENT -> contestedFieldsText(conflict.contested.size)
                                 ConflictKind.REMOTE_DELETED ->
                                     stringResource(R.string.conflict_remote_deleted)
                                 ConflictKind.LOCAL_DELETED ->
@@ -111,6 +106,17 @@ fun ConflictListScreen(
             }
         }
     }
+}
+
+/** Русское склонение независимо от локали устройства: интерфейс всегда русский. */
+@Composable
+private fun contestedFieldsText(count: Int): String {
+    val id = when {
+        count % 10 == 1 && count % 100 != 11 -> R.string.conflict_contested_fields_one
+        count % 10 in 2..4 && count % 100 !in 12..14 -> R.string.conflict_contested_fields_few
+        else -> R.string.conflict_contested_fields_many
+    }
+    return stringResource(id, count)
 }
 
 private fun formatDetectedAt(millis: Long): String =
