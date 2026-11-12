@@ -50,6 +50,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimeInput
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDatePickerState
@@ -64,6 +65,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -480,6 +482,9 @@ private fun TimePickerDialogComposable(
         initialMinute = initial.minute,
         is24Hour = true,
     )
+    // Циферблат рассчитан на обычный кегль: при системном «Крупный текст» метки
+    // часов и минут наезжают друг на друга, поэтому показываем поля ввода.
+    val largeText = LocalDensity.current.fontScale >= 1.5f
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
@@ -490,7 +495,13 @@ private fun TimePickerDialogComposable(
         dismissButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         },
-        text = { TimePicker(state = timeState) },
+        text = {
+            if (largeText) {
+                TimeInput(state = timeState)
+            } else {
+                TimePicker(state = timeState)
+            }
+        },
     )
 }
 
