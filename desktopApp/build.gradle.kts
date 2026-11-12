@@ -27,6 +27,7 @@ dependencies {
     implementation(project(":shared"))
     implementation(compose.desktop.currentOs)
     implementation(compose.material3)
+    implementation(compose.materialIconsExtended)
 
     testImplementation(libs.junit)
     testImplementation(compose.uiTest)
@@ -41,6 +42,9 @@ compose.desktop {
             targetFormats(TargetFormat.Exe)
             packageName = "MyCalendar"
             packageVersion = "0.1.0"
+            // Без jdk.localedata в jlink-образе нет русских данных CLDR, и месяцы
+            // с днями недели молча печатаются по-английски, хотя в коде локаль ru.
+            modules("jdk.localedata")
         }
     }
 }

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -17,6 +18,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -29,15 +34,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.example.mycalendar.desktop.theme.Palette
+import com.example.mycalendar.desktop.theme.EventCardGradient
+import com.example.mycalendar.desktop.theme.LocalDesktopColors
 import com.example.mycalendar.desktop.theme.dayContainer
-import com.example.mycalendar.desktop.theme.providerColor
 import com.example.mycalendar.domain.calendar.monthWeeks
 import com.example.mycalendar.domain.holiday.DayMark
 import com.example.mycalendar.domain.holiday.HolidayKey
@@ -70,13 +76,37 @@ private val DAY_EVENTS_MAX_HEIGHT = 180.dp
 fun MonthView(
     repository: EventRepository,
     initialMonth: YearMonth = YearMonth.now(),
+    onOpenSettings: () -> Unit = {},
 ) {
-    var visibleMonth by remember { mutableStateOf(initialMonth) }
-    var selectedDate by remember { mutableStateOf(LocalDate.now()) }
+    var month by remember { mutableStateOf(initialMonth) }
+    var selected by remember { mutableStateOf(LocalDate.now()) }
+    MonthView(
+        repository = repository,
+        month = month,
+        selectedDate = selected,
+        onMonthChange = { month = it },
+        onSelectDate = { selected = it },
+        onOpenSettings = onOpenSettings,
+    )
+}
+
+/**
+ * Та же сетка с состоянием снаружи: экран настроек заменяет календарь в окне,
+ * и месяц с выбранным днём хранит вызывающий, чтобы возврат ничего не сбрасывал.
+ */
+@Composable
+fun MonthView(
+    repository: EventRepository,
+    month: YearMonth,
+    selectedDate: LocalDate,
+    onMonthChange: (YearMonth) -> Unit,
+    onSelectDate: (LocalDate) -> Unit,
+    onOpenSettings: () -> Unit = {},
+) {
     val registry = remember { HolidayRegistry() }
     val zone = remember { ZoneId.systemDefault() }
 
-    val weeks = remember(visibleMonth) { monthWeeks(visibleMonth.atDay(1)) }
+    val weeks = remember(month) { monthWeeks(month.atDay(1)) }
     val marks = remember(weeks) { registry.marksBetween(weeks.first().first(), weeks.last().last()) }
 
     val days = remember(weeks) { weeks.flatten() }
@@ -93,14 +123,15 @@ fun MonthView(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Header(
-            month = visibleMonth,
-            onPrevious = { visibleMonth = visibleMonth.minusMonths(1) },
-            onNext = { visibleMonth = visibleMonth.plusMonths(1) },
+            month = month,
+            onPrevious = { onMonthChange(month.minusMonths(1)) },
+            onNext = { onMonthChange(month.plusMonths(1)) },
             onToday = {
                 val today = LocalDate.now()
-                visibleMonth = YearMonth.from(today)
-                selectedDate = today
+                onMonthChange(YearMonth.from(today))
+                onSelectDate(today)
             },
+            onOpenSettings = onOpenSettings,
         )
         WeekdayHeader()
         weeks.forEach { week ->
@@ -111,13 +142,13 @@ fun MonthView(
                 week.forEach { date ->
                     DayCell(
                         date = date,
-                        inMonth = YearMonth.from(date) == visibleMonth,
+                        inMonth = YearMonth.from(date) == month,
                         mark = marks[date],
                         isToday = date == LocalDate.now(),
                         isSelected = date == selectedDate,
                         dots = dots[date].orEmpty(),
                         modifier = Modifier.weight(1f).fillMaxHeight(),
-                        onClick = { selectedDate = date },
+                        onClick = { onSelectDate(date) },
                     )
                 }
             }
@@ -137,6 +168,7 @@ private fun Header(
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     onToday: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -151,11 +183,15 @@ private fun Header(
         TextButton(onClick = onPrevious) { Text("‹") }
         TextButton(onClick = onToday) { Text("Сегодня") }
         TextButton(onClick = onNext) { Text("›") }
+        IconButton(onClick = onOpenSettings, modifier = Modifier.testTag("open-settings")) {
+            Icon(Icons.Filled.Settings, contentDescription = "Настройки")
+        }
     }
 }
 
 @Composable
 private fun WeekdayHeader() {
+    val colors = LocalDesktopColors.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -165,7 +201,7 @@ private fun WeekdayHeader() {
                 text = capitalize(day.getDisplayName(TextStyle.SHORT_STANDALONE, RU)),
                 modifier = Modifier.weight(1f),
                 textAlign = TextAlign.Center,
-                color = Palette.OnSurfaceVariant,
+                color = colors.onSurfaceVariant,
                 style = MaterialTheme.typography.labelLarge,
             )
         }
@@ -183,11 +219,12 @@ private fun DayCell(
     modifier: Modifier,
     onClick: () -> Unit,
 ) {
+    val colors = LocalDesktopColors.current
     val borderWidth = if (isSelected) 2.dp else 1.dp
     val borderColor = when {
-        isSelected -> Palette.Primary
-        isToday -> Palette.Outline
-        else -> Palette.Background
+        isSelected -> colors.primary
+        isToday -> colors.outline
+        else -> colors.background
     }
     Box(
         modifier = modifier
@@ -201,7 +238,7 @@ private fun DayCell(
         Column {
             Text(
                 text = date.dayOfMonth.toString(),
-                color = if (inMonth) Palette.OnSurface else Palette.OnSurfaceVariant,
+                color = if (inMonth) colors.onSurface else colors.onSurfaceVariant,
                 fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
                 style = MaterialTheme.typography.bodyLarge,
             )
@@ -222,7 +259,7 @@ private fun DayCell(
                     .align(Alignment.TopEnd)
                     .size(6.dp)
                     .clip(CircleShape)
-                    .background(Palette.Primary)
+                    .background(colors.primary)
                     .testTag("holiday-marker-$date"),
             )
         }
@@ -236,6 +273,7 @@ private fun DayPanel(
     events: List<DayOccurrence>,
     zone: ZoneId,
 ) {
+    val colors = LocalDesktopColors.current
     Column(
         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -247,18 +285,18 @@ private fun DayPanel(
         ) {
             val title = holidayKey?.let(::holidayTitle)
             Text(
-                text = if (title != null) "${date.format(DATE_FORMAT)} — $title" else date.format(DATE_FORMAT),
-                color = Palette.OnSurfaceVariant,
+                text = if (title != null) "${dayTitle(date)} — $title" else dayTitle(date),
+                color = colors.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.weight(1f),
             )
-            LegendItem(Palette.WeekendContainer, "Выходной")
-            LegendItem(Palette.HolidayContainer, "Праздник")
+            LegendItem(colors.weekend, "Выходной")
+            LegendItem(colors.holiday, "Праздник")
         }
         if (events.isEmpty()) {
             Text(
                 text = "Событий нет",
-                color = Palette.OnSurfaceVariant,
+                color = colors.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.testTag("day-events-empty"),
             )
@@ -280,35 +318,39 @@ private fun DayPanel(
 @Composable
 private fun DayEventRow(occurrence: DayOccurrence, date: LocalDate, zone: ZoneId) {
     val event = occurrence.event
-    Row(
+    val colors = LocalDesktopColors.current
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
-            .background(Palette.Card)
-            .testTag("day-event-${event.id}")
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+            .background(colors.card)
+            .testTag("day-event-${event.id}"),
     ) {
+        // Шапка карточки: фирменный градиент бирюза → синий → тёмно-синий.
         Box(
             modifier = Modifier
-                .size(width = 4.dp, height = 28.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(providerColor(event.calendarProvider)),
+                .fillMaxWidth()
+                .height(3.dp)
+                .background(Brush.horizontalGradient(EventCardGradient)),
         )
-        Column {
-            Text(
-                text = event.title,
-                color = Palette.OnSurface,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = subtitle(occurrence, date, zone, event.repeatRule),
-                color = Palette.OnSurfaceVariant,
-                style = MaterialTheme.typography.bodySmall,
-            )
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column {
+                Text(
+                    text = event.title,
+                    color = colors.onSurface,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = subtitle(occurrence, date, zone, event.repeatRule),
+                    color = colors.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
         }
     }
 }
@@ -333,6 +375,10 @@ private fun subtitle(occurrence: DayOccurrence, date: LocalDate, zone: ZoneId, r
 private fun formatTime(millis: Long, zone: ZoneId): String =
     TIME_FORMAT.format(Instant.ofEpochMilli(millis).atZone(zone))
 
+/** «Среда, 11 ноября 2026»: в панели дня мало одного числа. */
+private fun dayTitle(date: LocalDate): String =
+    capitalize(date.dayOfWeek.getDisplayName(TextStyle.FULL_STANDALONE, RU)) + ", " + date.format(DATE_FORMAT)
+
 @Composable
 private fun LegendItem(color: Color, label: String) {
     Row(
@@ -340,7 +386,7 @@ private fun LegendItem(color: Color, label: String) {
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Box(Modifier.size(12.dp).clip(RoundedCornerShape(3.dp)).background(color))
-        Text(label, color = Palette.OnSurfaceVariant, style = MaterialTheme.typography.labelMedium)
+        Text(label, color = LocalDesktopColors.current.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
     }
 }
 

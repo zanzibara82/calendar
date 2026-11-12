@@ -1,59 +1,145 @@
 package com.example.mycalendar.desktop.theme
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import com.example.mycalendar.domain.holiday.DayMark
 import com.example.mycalendar.domain.model.CalendarProvider
+import kotlinx.serialization.Serializable
+
+/** Тема оформления: как на Android — по системе, всегда светлая или всегда тёмная. */
+@Serializable
+enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 /**
- * Тёмная схема desktop-клиента. Числа совпадают с Android-палитрой (тёмная схема —
- * эталон, см. app/.../presentation/theme/Palette.kt): пока общий UI-модуль не выделен,
+ * Роли палитры desktop-клиента. Числа совпадают с Android-палитрой
+ * (app/.../presentation/theme/Palette.kt): пока общий UI-модуль не выделен,
  * значения живут в двух местах и меняются только вместе.
  */
-object Palette {
-    val Background = Color(0xFF0B1220)
-    val Surface = Color(0xFF101B2E)
-    val Card = Color(0xFF1B2A44)
-    val OnSurface = Color(0xFFE8EEF9)
-    val OnSurfaceVariant = Color(0xFF9FB0CC)
-    val Primary = Color(0xFF4790FF)
-    val OnPrimary = Color(0xFF04122B)
-    val Outline = Color(0xFF2C3C58)
-    val WeekendContainer = Color(0xFF173F52)
-    val HolidayContainer = Color(0xFF4A2E10)
-    val EventLocal = Color(0xFF7C5CFF)
-    val EventGoogle = Color(0xFF2E8DF5)
-    val EventYandex = Color(0xFFFF5252)
-}
+data class DesktopColors(
+    val background: Color,
+    val surface: Color,
+    val card: Color,
+    val onSurface: Color,
+    val onSurfaceVariant: Color,
+    val primary: Color,
+    val onPrimary: Color,
+    val secondaryContainer: Color,
+    val onSecondaryContainer: Color,
+    val outline: Color,
+    val weekend: Color,
+    val holiday: Color,
+    val eventLocal: Color,
+    val eventGoogle: Color,
+    val eventYandex: Color,
+)
+
+val DarkColors = DesktopColors(
+    background = Color(0xFF0B1220),
+    surface = Color(0xFF101B2E),
+    card = Color(0xFF1B2A44),
+    onSurface = Color(0xFFE8EEF9),
+    onSurfaceVariant = Color(0xFF9FB0CC),
+    primary = Color(0xFF4790FF),
+    onPrimary = Color(0xFF04122B),
+    secondaryContainer = Color(0xFF24334D),
+    onSecondaryContainer = Color(0xFFE8EEF9),
+    outline = Color(0xFF2C3C58),
+    weekend = Color(0xFF173F52),
+    holiday = Color(0xFF4A2E10),
+    eventLocal = Color(0xFF7C5CFF),
+    eventGoogle = Color(0xFF2E8DF5),
+    eventYandex = Color(0xFFFF5252),
+)
+
+val LightColors = DesktopColors(
+    background = Color(0xFFF4F7FC),
+    surface = Color(0xFFFFFFFF),
+    card = Color(0xFFEAF0FA),
+    onSurface = Color(0xFF0F1B2D),
+    onSurfaceVariant = Color(0xFF4A5A73),
+    primary = Color(0xFF2766D6),
+    onPrimary = Color(0xFFFFFFFF),
+    secondaryContainer = Color(0xFFDCE6F5),
+    onSecondaryContainer = Color(0xFF06234F),
+    outline = Color(0xFFC6D2E4),
+    weekend = Color(0xFFB9DCC9),
+    holiday = Color(0xFFF3D6A2),
+    eventLocal = Color(0xFF5B44D6),
+    eventGoogle = Color(0xFF1A73E8),
+    eventYandex = Color(0xFFDB3A22),
+)
+
+val LocalDesktopColors = staticCompositionLocalOf { DarkColors }
+val LocalIsDarkTheme = staticCompositionLocalOf { true }
+
+/** Шапка карточки события: фирменный градиент бирюза → синий → тёмно-синий. */
+val EventCardGradient = listOf(Color(0xFF05CD99), Color(0xFF0075FF), Color(0xFF09235E))
 
 /** Тон клетки дня: выходной — бирюзовый, праздник — янтарный. */
-fun dayContainer(mark: DayMark?): Color = when (mark) {
-    DayMark.WEEKEND -> Palette.WeekendContainer
-    DayMark.HOLIDAY -> Palette.HolidayContainer
-    null -> Palette.Card
+@Composable
+fun dayContainer(mark: DayMark?): Color {
+    val colors = LocalDesktopColors.current
+    return when (mark) {
+        DayMark.WEEKEND -> colors.weekend
+        DayMark.HOLIDAY -> colors.holiday
+        null -> colors.card
+    }
 }
 
 /** Цвет точки события. Разведён с primary, чтобы точка не читалась как «выбрано». */
-fun providerColor(provider: CalendarProvider): Color = when (provider) {
-    CalendarProvider.LOCAL -> Palette.EventLocal
-    CalendarProvider.GOOGLE -> Palette.EventGoogle
-    CalendarProvider.YANDEX -> Palette.EventYandex
+@Composable
+fun providerColor(provider: CalendarProvider): Color {
+    val colors = LocalDesktopColors.current
+    return when (provider) {
+        CalendarProvider.LOCAL -> colors.eventLocal
+        CalendarProvider.GOOGLE -> colors.eventGoogle
+        CalendarProvider.YANDEX -> colors.eventYandex
+    }
 }
 
 @Composable
-fun DesktopTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = darkColorScheme(
-            background = Palette.Background,
-            surface = Palette.Surface,
-            onSurface = Palette.OnSurface,
-            onSurfaceVariant = Palette.OnSurfaceVariant,
-            primary = Palette.Primary,
-            onPrimary = Palette.OnPrimary,
-            outline = Palette.Outline,
-        ),
-        content = content,
-    )
+fun DesktopTheme(mode: ThemeMode = ThemeMode.SYSTEM, content: @Composable () -> Unit) {
+    val dark = when (mode) {
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+    }
+    val colors = if (dark) DarkColors else LightColors
+    val scheme = if (dark) {
+        darkColorScheme(
+            background = colors.background,
+            surface = colors.surface,
+            onSurface = colors.onSurface,
+            onSurfaceVariant = colors.onSurfaceVariant,
+            primary = colors.primary,
+            onPrimary = colors.onPrimary,
+            secondaryContainer = colors.secondaryContainer,
+            onSecondaryContainer = colors.onSecondaryContainer,
+            outline = colors.outline,
+        )
+    } else {
+        lightColorScheme(
+            background = colors.background,
+            surface = colors.surface,
+            onSurface = colors.onSurface,
+            onSurfaceVariant = colors.onSurfaceVariant,
+            primary = colors.primary,
+            onPrimary = colors.onPrimary,
+            secondaryContainer = colors.secondaryContainer,
+            onSecondaryContainer = colors.onSecondaryContainer,
+            outline = colors.outline,
+        )
+    }
+    CompositionLocalProvider(
+        LocalDesktopColors provides colors,
+        LocalIsDarkTheme provides dark,
+    ) {
+        MaterialTheme(colorScheme = scheme, content = content)
+    }
 }

@@ -71,7 +71,7 @@ class MonthViewUiTest {
 
         onNodeWithTag("day-2026-11-04").performClick()
 
-        onNodeWithText("4 ноября 2026 — День народного единства").assertExists()
+        onNodeWithText("Среда, 4 ноября 2026 — День народного единства").assertExists()
     }
 
     @Test
@@ -220,6 +220,19 @@ class MonthViewUiTest {
         }
 
         onNodeWithText("09:00–10:00 · еженедельно").assertExists()
+    }
+
+    @Test
+    fun `gear button opens settings`() = runComposeUiTest {
+        val repository = newRepository()
+        var opened = false
+        setContent {
+            DesktopTheme { MonthView(repository, initialMonth = november, onOpenSettings = { opened = true }) }
+        }
+
+        onNodeWithTag("open-settings").performClick()
+
+        org.junit.Assert.assertTrue(opened)
     }
 
     private fun newRepository(): DesktopEventRepository {

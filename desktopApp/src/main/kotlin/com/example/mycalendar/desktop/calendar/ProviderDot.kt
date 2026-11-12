@@ -8,7 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.mycalendar.desktop.theme.Palette
+import com.example.mycalendar.desktop.theme.LocalDesktopColors
 import com.example.mycalendar.desktop.theme.providerColor
 import com.example.mycalendar.domain.model.CalendarProvider
 
@@ -22,6 +22,6 @@ fun ProviderDot(provider: CalendarProvider, modifier: Modifier = Modifier) {
         modifier = modifier
             .size(5.dp)
             .background(providerColor(provider), CircleShape)
-            .border(1.dp, Palette.OnSurfaceVariant, CircleShape),
+            .border(1.dp, LocalDesktopColors.current.onSurfaceVariant, CircleShape),
     )
 }

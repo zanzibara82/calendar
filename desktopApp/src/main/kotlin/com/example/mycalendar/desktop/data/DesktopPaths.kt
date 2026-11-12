@@ -18,4 +18,6 @@ object DesktopPaths {
     }
 
     fun eventsFile(): Path = dataDir().resolve("events.json")
+
+    fun settingsFile(): Path = dataDir().resolve("settings.json")
 }
