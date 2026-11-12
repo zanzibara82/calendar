@@ -11,11 +11,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -48,10 +49,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.example.mycalendar.R
 import com.example.mycalendar.domain.holiday.DayMark
+import com.example.mycalendar.presentation.common.dayTitleFormatter
 import com.example.mycalendar.presentation.common.monthGenitiveFormatter
 import com.example.mycalendar.presentation.common.monthTitleFormatter
 import com.example.mycalendar.presentation.common.russianLocale
-import com.example.mycalendar.presentation.common.weekdayTitleFormatter
 import com.example.mycalendar.presentation.components.DayHeader
 import com.example.mycalendar.presentation.components.EmptyState
 import com.example.mycalendar.presentation.components.EventCard
@@ -67,6 +68,7 @@ import com.example.mycalendar.presentation.components.dayMarkTag
 import com.example.mycalendar.presentation.theme.AppShapes
 import com.example.mycalendar.presentation.theme.AppSizes
 import com.example.mycalendar.presentation.theme.AppSpacing
+import com.example.mycalendar.presentation.theme.HeaderTypography
 import com.example.mycalendar.presentation.theme.dayMarkColor
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -93,7 +95,24 @@ fun CalendarScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(text = headerTitle(state), style = MaterialTheme.typography.headlineMedium) },
+                title = {
+                    // В виде «День» дата уже стоит в заголовке дня (DayHeader) — верхняя строка
+                    // её только дублировала, поэтому шапка в этом режиме остаётся без подписи.
+                    headerTitle(state)?.let { title ->
+                        val style = MaterialTheme.typography.headlineMedium
+                        // Неделя на стыке месяцев («26 октября – 1 ноября 2026») длиннее обычной:
+                        // вместо переноса года на вторую строку кегль ужимается в этих пределах.
+                        Text(
+                            text = title,
+                            style = style,
+                            maxLines = 1,
+                            autoSize = TextAutoSize.StepBased(
+                                minFontSize = HeaderTypography.titleMinSize,
+                                maxFontSize = style.fontSize,
+                            ),
+                        )
+                    }
+                },
                 actions = {
                     if (quietMode) {
                         IconButton(
@@ -147,7 +166,9 @@ fun CalendarScreen(
                     SegmentedButton(
                         selected = state.viewMode == mode,
                         onClick = { viewModel.setViewMode(mode) },
-                        modifier = Modifier.height(AppSizes.segmentedHeight),
+                        // heightIn, а не height: при системном «Крупный текст» подпись
+                        // выше 40 dp, и фиксированная высота обрезает её сверху и снизу.
+                        modifier = Modifier.heightIn(min = AppSizes.segmentedHeight),
                         shape = SegmentedButtonDefaults.itemShape(index = index, count = modes.size),
                     ) { Text(label) }
                 }
@@ -418,18 +439,29 @@ private fun EventList(events: List<EventOccurrence>, onEventClick: (String) -> U
     }
 }
 
-/** Заголовок TopAppBar по режиму: «Сентябрь 2026» / «1 – 7 сентября» / «5 сентября, суббота». */
+/**
+ * Заголовок TopAppBar по режиму: «Сентябрь 2026» / «1 – 7 сентября».
+ * В виде «День» подписи нет: дату показывает заголовок дня.
+ */
 @Composable
-private fun headerTitle(state: CalendarUiState): String = when (state.viewMode) {
+private fun headerTitle(state: CalendarUiState): String? = when (state.viewMode) {
     CalendarViewMode.MONTH -> monthTitle(state.visibleMonth)
     CalendarViewMode.WEEK -> weekTitle(state.selectedDate.with(DayOfWeek.MONDAY))
-    CalendarViewMode.DAY -> fullDateTitle(state.selectedDate)
+    CalendarViewMode.DAY -> null
 }
 
-/** «9 – 15 ноября 2026» — месяц в родительном падеже, как в подписи дня. */
+/**
+ * «9 – 15 ноября 2026» — месяц в родительном падеже, как в подписи дня.
+ * На стыке месяцев общий месяц не выводится: «26 октября – 1 ноября 2026»,
+ * иначе «26 – 1 ноября» читается как ноябрь–декабрь.
+ */
 internal fun weekTitle(weekStart: LocalDate): String {
     val end = weekStart.plusDays(6)
-    return "${weekStart.dayOfMonth} – ${end.dayOfMonth} ${end.format(monthGenitiveFormatter)} ${end.year}"
+    return if (weekStart.month == end.month) {
+        "${weekStart.dayOfMonth} – ${end.dayOfMonth} ${end.format(monthGenitiveFormatter)} ${end.year}"
+    } else {
+        "${weekStart.format(dayTitleFormatter)} – ${end.format(dayTitleFormatter)} ${end.year}"
+    }
 }
 
 /** Сокращённые названия дней недели ровно по три буквы: пн..вс. */
@@ -448,6 +480,3 @@ private fun dayShortName(dayOfWeek: DayOfWeek): String =
 
 private fun monthTitle(date: LocalDate): String =
     date.format(monthTitleFormatter).replaceFirstChar { it.uppercase(russianLocale) }
-
-private fun fullDateTitle(date: LocalDate): String =
-    date.format(weekdayTitleFormatter).replaceFirstChar { it.uppercase(russianLocale) }
