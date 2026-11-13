@@ -172,8 +172,8 @@ adb shell am instrument -w -r -e class com.example.mycalendar.DayViewHolidayUiTe
     ru.zanzibara82.calendar.test/com.example.mycalendar.HiltTestRunner
 ```
 
-Ожидается (замерено 12.11.2026 по отчётам полных прогонов): JVM — 228 тестов
-(54 в `:app`, 91 в `:shared`, 83 в `:desktopApp`), 0 падений; линт — 0 ошибок,
+Ожидается (замерено 13.11.2026 по отчётам полных прогонов): JVM — 251 тест
+(54 в `:app`, 91 в `:shared`, 106 в `:desktopApp`), 0 падений; линт — 0 ошибок,
 17 предупреждений (состав ниже); connected — 75 тестов, 0 падений.
 `WeekViewCardsUiTest` проверяет карточки и в понедельник, и в воскресенье: даты в нём считаются от
 текущего дня, а не зашиты, и стрелками периодов он не пользуется. По месяцам сеткой ездит только
@@ -187,7 +187,7 @@ adb shell am instrument -w -r -e class com.example.mycalendar.DayViewHolidayUiTe
 ## Автоматические проверки
 
 ```bash
-./gradlew :app:testDebugUnitTest :shared:test :desktopApp:test  # JVM: 228 тестов, 0 падений
+./gradlew :app:testDebugUnitTest :shared:test :desktopApp:test  # JVM: 251 тест, 0 падений
 ./gradlew :app:lintDebug                                        # 0 ошибок, 17 предупреждений
 ./gradlew :app:connectedDebugAndroidTest                        # эмулятор/устройство: 75 тестов
 ```

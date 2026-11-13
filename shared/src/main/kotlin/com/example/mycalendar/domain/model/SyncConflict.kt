@@ -1,6 +1,9 @@
 package com.example.mycalendar.domain.model
 
+import kotlinx.serialization.Serializable
+
 /** Чем именно столкнулись локальная запись и облако. */
+@Serializable
 enum class ConflictKind {
     /** Разные значения в одном и том же поле — разбирается по полям. */
     CONTENT,
@@ -20,7 +23,9 @@ enum class ConflictKind {
  * Открытый конфликт синхронизации — то, что пользователь разбирает на экране.
  *
  * Локальная версия не хранится: разбор идёт против текущего значения строки.
+ * Сериализуема: desktop-клиент хранит очередь конфликтов файлом JSON, Android — таблицей Room.
  */
+@Serializable
 data class SyncConflict(
     val id: String,
     val eventId: String,
