@@ -59,7 +59,7 @@ class DesktopSyncEngineTest {
             conflictResolver = SyncConflictResolver(),
             conflictRepository = conflicts,
             dataSourceProvider = RemoteDataSourceProvider { remote },
-            reminderScheduler = DesktopReminderScheduler(),
+            reminderScheduler = DesktopReminderScheduler(onReminder = {}),
         )
     }
 

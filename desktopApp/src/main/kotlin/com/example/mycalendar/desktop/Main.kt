@@ -2,6 +2,8 @@ package com.example.mycalendar.desktop
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -9,6 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -44,6 +47,10 @@ import com.example.mycalendar.desktop.data.DesktopSettingsRepository
 import com.example.mycalendar.desktop.data.DesktopSettingsStore
 import com.example.mycalendar.desktop.data.EventFileStore
 import com.example.mycalendar.desktop.reminder.DesktopReminderScheduler
+import com.example.mycalendar.desktop.reminder.DesktopReminderSoundPlayer
+import com.example.mycalendar.desktop.reminder.DueReminder
+import com.example.mycalendar.desktop.reminder.ReminderBanner
+import com.example.mycalendar.desktop.reminder.reminderLabel
 import com.example.mycalendar.desktop.settings.DesktopSettings
 import com.example.mycalendar.desktop.settings.SettingsScreen
 import com.example.mycalendar.desktop.settings.YandexLoginDialog
@@ -52,6 +59,7 @@ import com.example.mycalendar.desktop.theme.DesktopTheme
 import com.example.mycalendar.desktop.theme.EventCardGradient
 import com.example.mycalendar.domain.model.CalendarProvider
 import com.example.mycalendar.domain.model.Event
+import com.example.mycalendar.domain.reminder.ReminderSoundPolicy
 import com.example.mycalendar.domain.repository.SyncResult
 import com.example.mycalendar.domain.sync.SyncConflictResolver
 import com.example.mycalendar.domain.usecase.ResolveConflictUseCase
@@ -135,7 +143,32 @@ fun main() {
                 .firstOrNull { it.provider == CalendarProvider.YANDEX }
                 ?.account
 
-            val reminderScheduler = remember { DesktopReminderScheduler() }
+            var reminder by remember { mutableStateOf<DueReminder?>(null) }
+            val soundPolicy = remember { ReminderSoundPolicy(settingsRepository) }
+            val soundPlayer = remember { DesktopReminderSoundPlayer() }
+            val reminderScheduler = remember {
+                DesktopReminderScheduler(
+                    onReminder = { due ->
+                        scope.launch {
+                            reminder = due
+                            showWindow()
+                            val calendarName = settingsStore.settings.value
+                                ?.providers
+                                ?.get(due.event.calendarProvider.name)
+                                ?.calendarName
+                            soundPlayer.play(soundPolicy.resolve(due.event, calendarName))
+                        }
+                    },
+                )
+            }
+            LaunchedEffect(reminderScheduler) {
+                reminderScheduler.rescheduleAll(
+                    repository.getUpcomingEvents(System.currentTimeMillis()),
+                )
+            }
+            DisposableEffect(reminderScheduler) {
+                onDispose { reminderScheduler.shutdown() }
+            }
             val syncEngine = remember {
                 SyncRepositoryImpl(
                     eventRepository = repository,
@@ -184,151 +217,188 @@ fun main() {
             }
 
             DesktopTheme(settings.themeMode) {
-                when (screen) {
-                    Screen.MONTH -> Box(Modifier.fillMaxSize()) {
-                        MonthView(
-                            repository = repository,
-                            month = month,
-                            selectedDate = selectedDate,
-                            onMonthChange = { month = it },
-                            onSelectDate = {
-                                selectedDate = it
-                                info = null
-                            },
-                            infoEvent = info,
-                            onOpenSettings = { screen = Screen.SETTINGS },
-                            onAddEvent = { editor = EditorTarget.New(it) },
-                            onEventClick = { info = it },
-                            onCloseInfo = { info = null },
-                            onEditEvent = {
-                                info = it
-                                editor = EditorTarget.Existing(it)
-                            },
-                            onDeleteEvent = { event ->
-                                scope.launch { repository.markDeleted(event.id) }
-                                info = null
-                            },
-                        )
-                        when (val target = editor) {
-                            is EditorTarget.New -> EventEditorDialog(
-                                base = null,
-                                date = target.date,
-                                newId = target.id,
-                                zone = zone,
-                                onDismiss = { editor = null },
-                                onSave = { event ->
-                                    scope.launch { repository.saveFromUser(event) }
-                                    editor = null
+                Box(Modifier.fillMaxSize()) {
+                    when (screen) {
+                        Screen.MONTH -> Box(Modifier.fillMaxSize()) {
+                            MonthView(
+                                repository = repository,
+                                month = month,
+                                selectedDate = selectedDate,
+                                onMonthChange = { month = it },
+                                onSelectDate = {
+                                    selectedDate = it
+                                    info = null
                                 },
-                            )
-
-                            is EditorTarget.Existing -> EventEditorDialog(
-                                base = target.event,
-                                date = Instant.ofEpochMilli(target.event.startTime).atZone(zone).toLocalDate(),
-                                newId = target.id,
-                                zone = zone,
-                                onDismiss = { editor = null },
-                                onSave = { event ->
-                                    scope.launch { repository.saveFromUser(event) }
-                                    editor = null
+                                infoEvent = info,
+                                onOpenSettings = { screen = Screen.SETTINGS },
+                                onAddEvent = { editor = EditorTarget.New(it) },
+                                onEventClick = { info = it },
+                                onCloseInfo = { info = null },
+                                onEditEvent = {
+                                    info = it
+                                    editor = EditorTarget.Existing(it)
                                 },
-                                onDelete = { event ->
-                                    scope.launch { repository.markDeleted(event.id) }
-                                    editor = null
+                                onDeleteEvent = { event ->
+                                    scope.launch {
+                                        repository.markDeleted(event.id)
+                                        reminderScheduler.cancel(event)
+                                    }
                                     info = null
                                 },
                             )
+                            when (val target = editor) {
+                                is EditorTarget.New -> EventEditorDialog(
+                                    base = null,
+                                    date = target.date,
+                                    newId = target.id,
+                                    zone = zone,
+                                    onDismiss = { editor = null },
+                                    onSave = { event ->
+                                        scope.launch {
+                                            repository.saveFromUser(event)
+                                            reminderScheduler.schedule(event)
+                                        }
+                                        editor = null
+                                    },
+                                )
 
-                            null -> Unit
+                                is EditorTarget.Existing -> EventEditorDialog(
+                                    base = target.event,
+                                    date = Instant.ofEpochMilli(target.event.startTime)
+                                        .atZone(zone)
+                                        .toLocalDate(),
+                                    newId = target.id,
+                                    zone = zone,
+                                    onDismiss = { editor = null },
+                                    onSave = { event ->
+                                        scope.launch {
+                                            repository.saveFromUser(event)
+                                            reminderScheduler.schedule(event)
+                                        }
+                                        editor = null
+                                    },
+                                    onDelete = { event ->
+                                        scope.launch {
+                                            repository.markDeleted(event.id)
+                                            reminderScheduler.cancel(event)
+                                        }
+                                        editor = null
+                                        info = null
+                                    },
+                                )
+
+                                null -> Unit
+                            }
                         }
+
+                        Screen.SETTINGS -> SettingsScreen(
+                            settings = settings,
+                            dataDir = DesktopPaths.dataDir().toString(),
+                            version = APP_VERSION,
+                            onBack = { screen = Screen.MONTH },
+                            onThemeChange = { mode ->
+                                scope.launch { settingsStore.update { it.copy(themeMode = mode) } }
+                            },
+                            onQuietChange = { quiet ->
+                                scope.launch { settingsStore.update { it.copy(quietMode = quiet) } }
+                            },
+                            onMinimizeToTrayChange = { tray ->
+                                scope.launch { settingsStore.update { it.copy(minimizeToTray = tray) } }
+                            },
+                            onPickAlarm = {
+                                pickSoundFile()?.let { uri ->
+                                    scope.launch { settingsStore.update { it.copy(alarmSoundUri = uri) } }
+                                }
+                            },
+                            onResetAlarm = {
+                                scope.launch { settingsStore.update { it.copy(alarmSoundUri = null) } }
+                            },
+                            onPickBirthday = {
+                                pickSoundFile()?.let { uri ->
+                                    scope.launch { settingsStore.update { it.copy(birthdaySoundUri = uri) } }
+                                }
+                            },
+                            onResetBirthday = {
+                                scope.launch { settingsStore.update { it.copy(birthdaySoundUri = null) } }
+                            },
+                            account = yandexAccount,
+                            loginError = loginError,
+                            onSignIn = {
+                                loginError = null
+                                deviceCode = null
+                                loginJob = scope.launch {
+                                    authRepository.signInWithYandex().onFailure { error ->
+                                        loginError = error.message ?: "Не удалось войти через Яндекс"
+                                    }
+                                    deviceCode = null
+                                    loginJob = null
+                                }
+                            },
+                            onSignOut = {
+                                loginError = null
+                                scope.launch { authRepository.signOut(CalendarProvider.YANDEX) }
+                            },
+                            syncStatus = syncStatus,
+                            syncing = syncing,
+                            onSync = startSync,
+                            conflictCount = conflicts.size,
+                            onOpenConflicts = { screen = Screen.CONFLICTS },
+                        )
+
+                        Screen.CONFLICTS -> ConflictsScreen(
+                            conflicts = conflicts,
+                            state = conflictState,
+                            zone = zone,
+                            onBack = { screen = Screen.SETTINGS },
+                            onOpen = { id -> scope.launch { conflictsController.open(id) } },
+                            onChoose = conflictsController::choose,
+                            onApply = { scope.launch { conflictsController.apply() } },
+                            onResolveDeletion = { choice ->
+                                scope.launch { conflictsController.resolveDeletion(choice) }
+                            },
+                            onDismissNotice = conflictsController::dismissNotice,
+                        )
                     }
 
-                    Screen.SETTINGS -> SettingsScreen(
-                        settings = settings,
-                        dataDir = DesktopPaths.dataDir().toString(),
-                        version = APP_VERSION,
-                        onBack = { screen = Screen.MONTH },
-                        onThemeChange = { mode ->
-                            scope.launch { settingsStore.update { it.copy(themeMode = mode) } }
-                        },
-                        onQuietChange = { quiet ->
-                            scope.launch { settingsStore.update { it.copy(quietMode = quiet) } }
-                        },
-                        onMinimizeToTrayChange = { tray ->
-                            scope.launch { settingsStore.update { it.copy(minimizeToTray = tray) } }
-                        },
-                        onPickAlarm = {
-                            pickSoundFile()?.let { uri ->
-                                scope.launch { settingsStore.update { it.copy(alarmSoundUri = uri) } }
-                            }
-                        },
-                        onResetAlarm = {
-                            scope.launch { settingsStore.update { it.copy(alarmSoundUri = null) } }
-                        },
-                        onPickBirthday = {
-                            pickSoundFile()?.let { uri ->
-                                scope.launch { settingsStore.update { it.copy(birthdaySoundUri = uri) } }
-                            }
-                        },
-                        onResetBirthday = {
-                            scope.launch { settingsStore.update { it.copy(birthdaySoundUri = null) } }
-                        },
-                        account = yandexAccount,
-                        loginError = loginError,
-                        onSignIn = {
-                            loginError = null
-                            deviceCode = null
-                            loginJob = scope.launch {
-                                authRepository.signInWithYandex().onFailure { error ->
-                                    loginError = error.message ?: "Не удалось войти через Яндекс"
+                    deviceCode?.let { code ->
+                        YandexLoginDialog(
+                            code = code,
+                            onCopy = { copyToClipboard(code.userCode) },
+                            onOpenPage = {
+                                if (!openInBrowser(code.verificationUrl)) {
+                                    loginError = "Не удалось открыть браузер. " +
+                                        "Откройте ${code.verificationUrl} вручную."
                                 }
-                                deviceCode = null
+                            },
+                            onCancel = {
+                                loginJob?.cancel()
                                 loginJob = null
-                            }
-                        },
-                        onSignOut = {
-                            loginError = null
-                            scope.launch { authRepository.signOut(CalendarProvider.YANDEX) }
-                        },
-                        syncStatus = syncStatus,
-                        syncing = syncing,
-                        onSync = startSync,
-                        conflictCount = conflicts.size,
-                        onOpenConflicts = { screen = Screen.CONFLICTS },
-                    )
+                                deviceCode = null
+                            },
+                            error = loginError,
+                        )
+                    }
 
-                    Screen.CONFLICTS -> ConflictsScreen(
-                        conflicts = conflicts,
-                        state = conflictState,
-                        zone = zone,
-                        onBack = { screen = Screen.SETTINGS },
-                        onOpen = { id -> scope.launch { conflictsController.open(id) } },
-                        onChoose = conflictsController::choose,
-                        onApply = { scope.launch { conflictsController.apply() } },
-                        onResolveDeletion = { choice ->
-                            scope.launch { conflictsController.resolveDeletion(choice) }
-                        },
-                        onDismissNotice = conflictsController::dismissNotice,
-                    )
-                }
-
-                deviceCode?.let { code ->
-                    YandexLoginDialog(
-                        code = code,
-                        onCopy = { copyToClipboard(code.userCode) },
-                        onOpenPage = {
-                            if (!openInBrowser(code.verificationUrl)) {
-                                loginError = "Не удалось открыть браузер. " +
-                                    "Откройте ${code.verificationUrl} вручную."
-                            }
-                        },
-                        onCancel = {
-                            loginJob?.cancel()
-                            loginJob = null
-                            deviceCode = null
-                        },
-                        error = loginError,
-                    )
+                    reminder?.let { due ->
+                        ReminderBanner(
+                            title = due.event.title,
+                            label = reminderLabel(due.occurrenceStart, due.minutes, zone),
+                            onOpen = {
+                                val date = Instant.ofEpochMilli(due.event.startTime)
+                                    .atZone(zone)
+                                    .toLocalDate()
+                                month = YearMonth.from(date)
+                                selectedDate = date
+                                info = due.event
+                                screen = Screen.MONTH
+                                reminder = null
+                            },
+                            onDismiss = { reminder = null },
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .padding(16.dp),
+                        )
+                    }
                 }
             }
         }

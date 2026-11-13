@@ -55,7 +55,11 @@ class ConflictsControllerTest {
         controller = ConflictsController(
             conflictRepository = conflicts,
             eventRepository = events,
-            resolveConflict = ResolveConflictUseCase(conflicts, events, DesktopReminderScheduler()),
+            resolveConflict = ResolveConflictUseCase(
+                conflicts,
+                events,
+                DesktopReminderScheduler(onReminder = {}),
+            ),
         )
     }
 
