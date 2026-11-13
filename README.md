@@ -149,7 +149,7 @@ app/src/main/java/com/example/mycalendar/
 ./gradlew :app:assembleDebug          # debug APK
 ./gradlew :app:assembleRelease        # release с R8 и shrinkResources
 ./gradlew :app:testDebugUnitTest      # JVM-тесты приложения
-./gradlew :shared:test                # тесты общего модуля (домен, слияние)
+./gradlew :shared:test                # тесты общего модуля (домен, слияние, синхронизация)
 ./gradlew :desktopApp:test            # тесты desktop-клиента
 ./gradlew :app:lintDebug              # Android Lint
 ./gradlew :app:connectedDebugAndroidTest  # тесты на подключённом устройстве/эмуляторе
@@ -172,7 +172,7 @@ keyPassword=...
 
 ## Тесты
 
-- **228 JVM-тестов** — 60 в Android-приложении, 85 в `:shared`, 83 в `:desktopApp`; решатель конфликтов, репозитории на фейках, CalDAV-клиент против локального
+- **228 JVM-тестов** — 54 в Android-приложении, 91 в `:shared`, 83 в `:desktopApp`; решатель конфликтов, репозитории на фейках, CalDAV-клиент против локального
   mock-сервера (`MiniCalDavServer`, вместе с клиентом живёт в `:shared`), OAuth, планировщик напоминаний, сравнение версий и разбор
   ответа GitHub Releases; тонирование выходных и праздников покрыто реестром праздников
   (`HolidayRegistryTest`, 7), тоном дня (`DayMarkToneTest`, 3), контрастом пар палитры
@@ -181,7 +181,7 @@ keyPassword=...
   и `ReminderSoundPolicyTest` (6), имя коллекции из ответа источника — `YandexCalendarDataSourceTest`
   (6, из них 1 — `calendarName`); текст шапки недели — `WeekTitleTest` (4, включая недели
   на стыке месяцев и лет) и форма счётчика спорных полей — `ContestedFieldsLabelTest` (3);
-  итог 228 и 0 падений: `testDebugUnitTest` — 60, `:shared:test` — 85, `:desktopApp:test` — 83
+  итог 228 и 0 падений: `testDebugUnitTest` — 54, `:shared:test` — 91, `:desktopApp:test` — 83
   (замер 12.11.2026); в desktop-модуле — хранение событий файлом: сохранение переживает перезапуск,
   tombstone не виден выборкам, но остаётся в очереди отправки, привязка к провайдеру и снимок-предок
   переживают правку пользователя, повреждённый файл откладывается в сторону, параллельные записи
@@ -241,7 +241,7 @@ Instrumented-тесты проходят на эмуляторах API 28 и API
 ## Ограничения
 
 - Windows-клиент — в этом же репозитории: модуль `:shared` (домен, слияние, iCalendar,
-  CalDAV-клиент) и заготовка
+  CalDAV-клиент, движок синхронизации) и заготовка
   `:desktopApp` на Compose Desktop с месячным видом: тона выходных и праздников, маркер праздника,
   точки событий по провайдерам (как на Android, не больше трёх на клетку), список событий
   выбранного дня под сеткой и фирменный градиент в шапке карточки события. Клик по карточке в

@@ -10,12 +10,14 @@ import com.example.mycalendar.data.repository.AuthRepositoryImpl
 import com.example.mycalendar.data.repository.ConflictRepositoryImpl
 import com.example.mycalendar.data.repository.EventRepositoryImpl
 import com.example.mycalendar.data.repository.SyncRepositoryImpl
+import com.example.mycalendar.domain.reminder.ReminderScheduler as ReminderSchedulerContract
 import com.example.mycalendar.domain.repository.AuthRepository
 import com.example.mycalendar.domain.repository.ConflictRepository
 import com.example.mycalendar.domain.repository.EventRepository
 import com.example.mycalendar.domain.repository.SettingsRepository
 import com.example.mycalendar.domain.repository.SyncRepository
 import com.example.mycalendar.domain.repository.VoiceNoteCleanup
+import com.example.mycalendar.work.ReminderScheduler
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -61,4 +63,9 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindRemoteDataSourceProvider(impl: CalendarDataSourceProvider): RemoteDataSourceProvider
+
+    /** Движок синхронизации живёт в :shared и знает напоминания только по доменному контракту. */
+    @Binds
+    @Singleton
+    abstract fun bindReminderScheduler(impl: ReminderScheduler): ReminderSchedulerContract
 }

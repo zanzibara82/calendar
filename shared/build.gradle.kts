@@ -1,7 +1,8 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 // Общий JVM-код Android- и desktop-клиента: домен, правила напоминаний,
-// трёхстороннее слияние, разбор iCalendar, CalDAV-клиент. UI и хранилища остаются у клиентов.
+// трёхстороннее слияние, разбор iCalendar, CalDAV-клиент, движок синхронизации
+// и контракт доставки напоминаний. UI и конкретные хранилища остаются у клиентов.
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.serialization)

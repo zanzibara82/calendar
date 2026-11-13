@@ -8,6 +8,7 @@ import com.example.mycalendar.domain.model.CalendarProvider
 import com.example.mycalendar.domain.model.SyncConflict
 import com.example.mycalendar.domain.model.scheduleChangedFrom
 import com.example.mycalendar.domain.model.SyncSnapshot
+import com.example.mycalendar.domain.reminder.ReminderScheduler
 import com.example.mycalendar.domain.repository.AuthRepository
 import com.example.mycalendar.domain.repository.ConflictRepository
 import com.example.mycalendar.domain.repository.EventRepository
@@ -16,7 +17,6 @@ import com.example.mycalendar.domain.repository.SyncRepository
 import com.example.mycalendar.domain.repository.SyncResult
 import com.example.mycalendar.domain.sync.PullDecision
 import com.example.mycalendar.domain.sync.SyncConflictResolver
-import com.example.mycalendar.work.ReminderScheduler
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
@@ -26,7 +26,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Двусторонняя синхронизация локальной БД с календарями провайдеров.
+ * Двусторонняя синхронизация локального хранилища с календарями провайдеров.
  *
  * Провайдеры НЕЗАВИСИМЫ: событие принадлежит одному из них (поле calendarProvider),
  * поэтому Google и Яндекс могут быть подключены одновременно и не затирают друг друга.
@@ -50,7 +50,7 @@ import javax.inject.Singleton
  *  Метки, текстовая и голосовая заметки есть только локально: при перезаписи события
  *  удалённой версией они переносятся из локальной записи (`Event.withLocalFieldsFrom`)
  *  и потому не могут быть спорными. Файл голосовой заметки удаляется вместе со строкой
- *  БД ([EventRepository.purge]).
+ *  локального хранилища ([EventRepository.purge]).
  */
 @Singleton
 class SyncRepositoryImpl @Inject constructor(

@@ -8,6 +8,7 @@ import android.os.Build
 import android.util.Log
 import androidx.core.net.toUri
 import com.example.mycalendar.domain.model.Event
+import com.example.mycalendar.domain.reminder.ReminderScheduler as ReminderSchedulerContract
 import com.example.mycalendar.domain.util.RepeatRuleHelper
 import com.example.mycalendar.notifications.AlarmReceiver
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -28,18 +29,21 @@ import javax.inject.Singleton
  *    AlarmReceiver после срабатывания планирует следующее (цепочка);
  *  - будильник идентифицируется data-URI "mycalendar://reminder/{eventId}/{minutes}",
  *    поэтому cancel по списку минут события снимает именно его будильники.
+ *
+ * Реализует доменный [ReminderSchedulerContract], чтобы общий движок синхронизации
+ * не зависел от AlarmManager.
  */
 @Singleton
 class ReminderScheduler @Inject constructor(
     @ApplicationContext private val context: Context,
-) {
+) : ReminderSchedulerContract {
     private val alarmManager =
         context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
     private val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
 
     /** (Пере)планирует все напоминания события для ближайшего вхождения в будущем. */
-    fun schedule(event: Event) {
+    override fun schedule(event: Event) {
         Log.d(TAG, "schedule() called for event id=${event.id} title='${event.title}' " +
             "startTime=${sdf.format(Date(event.startTime))} repeatRule=${event.repeatRule} " +
             "reminders=${event.reminderMinutes}")
@@ -157,7 +161,7 @@ class ReminderScheduler @Inject constructor(
      * напоминания ([SNOOZE_MINUTES_MARKER]) — иначе «Отложить на 10 мин»
      * выстрелило бы уже по удалённому событию.
      */
-    fun cancel(event: Event) {
+    override fun cancel(event: Event) {
         (event.reminderMinutes.distinct() + SNOOZE_MINUTES_MARKER).forEach { minutes ->
             alarmManager.cancel(buildPendingIntent(event.id, minutes, 0L, 0L))
         }
