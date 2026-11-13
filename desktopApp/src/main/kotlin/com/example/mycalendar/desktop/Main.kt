@@ -24,24 +24,34 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.isTraySupported
 import androidx.compose.ui.window.rememberWindowState
+import com.example.mycalendar.data.remote.yandex.CalDavClient
+import com.example.mycalendar.data.remote.yandex.YandexCalendarDataSource
+import com.example.mycalendar.data.repository.SyncRepositoryImpl
 import com.example.mycalendar.desktop.auth.DeviceCode
 import com.example.mycalendar.desktop.auth.DesktopYandexLogin
 import com.example.mycalendar.desktop.calendar.EventEditorDialog
 import com.example.mycalendar.desktop.calendar.MonthView
 import com.example.mycalendar.desktop.data.DesktopAuthRepository
 import com.example.mycalendar.desktop.data.DesktopAuthStore
+import com.example.mycalendar.desktop.data.DesktopConflictRepository
+import com.example.mycalendar.desktop.data.DesktopConflictStore
 import com.example.mycalendar.desktop.data.DesktopEventRepository
 import com.example.mycalendar.desktop.data.DesktopPaths
+import com.example.mycalendar.desktop.data.DesktopRemoteDataSourceProvider
 import com.example.mycalendar.desktop.data.DesktopSettingsRepository
 import com.example.mycalendar.desktop.data.DesktopSettingsStore
 import com.example.mycalendar.desktop.data.EventFileStore
+import com.example.mycalendar.desktop.reminder.DesktopReminderScheduler
 import com.example.mycalendar.desktop.settings.DesktopSettings
 import com.example.mycalendar.desktop.settings.SettingsScreen
 import com.example.mycalendar.desktop.settings.YandexLoginDialog
+import com.example.mycalendar.desktop.settings.syncStatusText
 import com.example.mycalendar.desktop.theme.DesktopTheme
 import com.example.mycalendar.desktop.theme.EventCardGradient
 import com.example.mycalendar.domain.model.CalendarProvider
 import com.example.mycalendar.domain.model.Event
+import com.example.mycalendar.domain.repository.SyncResult
+import com.example.mycalendar.domain.sync.SyncConflictResolver
 import java.awt.Desktop
 import java.awt.FileDialog
 import java.awt.Frame
@@ -56,6 +66,7 @@ import java.time.ZoneId
 import java.util.UUID
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
 
 /** Версия из nativeDistributions.packageVersion; отдельной подписи в градле нет. */
 private const val APP_VERSION = "0.1.0"
@@ -77,6 +88,8 @@ fun main() {
     val settingsStore = DesktopSettingsStore(DesktopPaths.settingsFile())
     val settingsRepository = DesktopSettingsRepository(settingsStore)
     val authStore = DesktopAuthStore(DesktopPaths.accountFile())
+    val conflictRepository =
+        DesktopConflictRepository(DesktopConflictStore(DesktopPaths.conflictsFile()))
     application {
         val stored by settingsStore.settings.collectAsState()
         LaunchedEffect(settingsStore) { settingsStore.load() }
@@ -118,6 +131,39 @@ fun main() {
             val yandexAccount = connections
                 .firstOrNull { it.provider == CalendarProvider.YANDEX }
                 ?.account
+
+            val syncEngine = remember {
+                SyncRepositoryImpl(
+                    eventRepository = repository,
+                    authRepository = authRepository,
+                    settingsRepository = settingsRepository,
+                    conflictResolver = SyncConflictResolver(),
+                    conflictRepository = conflictRepository,
+                    dataSourceProvider = DesktopRemoteDataSourceProvider(
+                        YandexCalendarDataSource(
+                            caldav = CalDavClient(OkHttpClient()),
+                            auth = authRepository,
+                            authRepository = authRepository,
+                        ),
+                    ),
+                    reminderScheduler = DesktopReminderScheduler(),
+                )
+            }
+            var syncing by remember { mutableStateOf(false) }
+            var syncResult by remember { mutableStateOf<SyncResult?>(null) }
+            val syncStatus = syncStatusText(syncResult, settings.lastSyncTime, syncing)
+            val startSync = {
+                if (!syncing) {
+                    syncing = true
+                    scope.launch {
+                        try {
+                            syncResult = syncEngine.syncNow()
+                        } finally {
+                            syncing = false
+                        }
+                    }
+                }
+            }
 
             DesktopTheme(settings.themeMode) {
                 when (screen) {
@@ -226,6 +272,9 @@ fun main() {
                             loginError = null
                             scope.launch { authRepository.signOut(CalendarProvider.YANDEX) }
                         },
+                        syncStatus = syncStatus,
+                        syncing = syncing,
+                        onSync = startSync,
                     )
                 }
 

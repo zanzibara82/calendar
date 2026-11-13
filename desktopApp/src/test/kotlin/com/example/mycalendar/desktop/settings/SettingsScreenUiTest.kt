@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -283,5 +284,88 @@ class SettingsScreenUiTest {
 
         onNodeWithTag("settings-login-error").assertExists()
         onNodeWithText("Нет сети").assertExists()
+    }
+
+    @Test
+    fun `sync button needs a connected account`() = runComposeUiTest {
+        setContent {
+            DesktopTheme(ThemeMode.DARK) {
+                SettingsScreen(
+                    settings = defaults,
+                    dataDir = "dir",
+                    version = "0.1.0",
+                    onBack = {},
+                    onThemeChange = {},
+                    onQuietChange = {},
+                    onMinimizeToTrayChange = {},
+                    onPickAlarm = {},
+                    onResetAlarm = {},
+                    onPickBirthday = {},
+                    onResetBirthday = {},
+                    account = null,
+                    syncStatus = "Синхронизация ещё не выполнялась",
+                )
+            }
+        }
+
+        onNodeWithTag("settings-sync").assertIsNotEnabled()
+        onNodeWithText("Синхронизация ещё не выполнялась").assertExists()
+    }
+
+    @Test
+    fun `sync button reports click with a connected account`() = runComposeUiTest {
+        var synced = false
+        setContent {
+            DesktopTheme(ThemeMode.DARK) {
+                SettingsScreen(
+                    settings = defaults,
+                    dataDir = "dir",
+                    version = "0.1.0",
+                    onBack = {},
+                    onThemeChange = {},
+                    onQuietChange = {},
+                    onMinimizeToTrayChange = {},
+                    onPickAlarm = {},
+                    onResetAlarm = {},
+                    onPickBirthday = {},
+                    onResetBirthday = {},
+                    account = UserAccount(CalendarProvider.YANDEX, "ivanov@yandex.ru"),
+                    syncStatus = "Готово: отправлено 2, получено 5, конфликтов 1",
+                    onSync = { synced = true },
+                )
+            }
+        }
+
+        onNodeWithText("Готово: отправлено 2, получено 5, конфликтов 1").assertExists()
+        onNodeWithTag("settings-sync").performClick()
+
+        assertTrue(synced)
+    }
+
+    @Test
+    fun `running sync disables the button and says so`() = runComposeUiTest {
+        setContent {
+            DesktopTheme(ThemeMode.DARK) {
+                SettingsScreen(
+                    settings = defaults,
+                    dataDir = "dir",
+                    version = "0.1.0",
+                    onBack = {},
+                    onThemeChange = {},
+                    onQuietChange = {},
+                    onMinimizeToTrayChange = {},
+                    onPickAlarm = {},
+                    onResetAlarm = {},
+                    onPickBirthday = {},
+                    onResetBirthday = {},
+                    account = UserAccount(CalendarProvider.YANDEX, "ivanov@yandex.ru"),
+                    syncStatus = "Синхронизация…",
+                    syncing = true,
+                )
+            }
+        }
+
+        onNodeWithTag("settings-sync").assertIsNotEnabled()
+        onNodeWithText("Синхронизация…").assertExists()
     }
 }

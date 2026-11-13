@@ -34,8 +34,8 @@ import com.example.mycalendar.domain.model.UserAccount
 import java.net.URI
 
 /**
- * Настройки в духе Android-приложения: оформление, напоминания и сведения о программе.
- * Календари и обновления появятся вместе с синхронизацией desktop-клиента.
+ * Настройки в духе Android-приложения: оформление, календари, напоминания и сведения
+ * о программе. Обновления появятся позже.
  */
 @Composable
 fun SettingsScreen(
@@ -54,6 +54,9 @@ fun SettingsScreen(
     loginError: String? = null,
     onSignIn: () -> Unit = {},
     onSignOut: () -> Unit = {},
+    syncStatus: String? = null,
+    syncing: Boolean = false,
+    onSync: () -> Unit = {},
 ) {
     val colors = LocalDesktopColors.current
     Column(
@@ -133,6 +136,30 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.testTag("settings-login-error"),
                 )
+            }
+            syncStatus?.let { status ->
+                HorizontalDivider()
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Text(
+                        text = status,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.onSurfaceVariant,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("settings-sync-status"),
+                    )
+                    TextButton(
+                        onClick = onSync,
+                        enabled = account != null && !syncing,
+                        modifier = Modifier.testTag("settings-sync"),
+                    ) {
+                        Text("Синхронизировать")
+                    }
+                }
             }
         }
 
