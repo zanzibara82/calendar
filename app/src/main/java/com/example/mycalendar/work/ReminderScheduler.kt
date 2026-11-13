@@ -8,6 +8,7 @@ import android.os.Build
 import android.util.Log
 import androidx.core.net.toUri
 import com.example.mycalendar.domain.model.Event
+import com.example.mycalendar.domain.reminder.ReminderOccurrenceHelper
 import com.example.mycalendar.domain.reminder.ReminderScheduler as ReminderSchedulerContract
 import com.example.mycalendar.domain.util.RepeatRuleHelper
 import com.example.mycalendar.notifications.AlarmReceiver
@@ -52,8 +53,8 @@ class ReminderScheduler @Inject constructor(
         val now = System.currentTimeMillis()
         Log.d(TAG, "  now=${sdf.format(Date(now))}")
 
-        val occurrenceStart = RepeatRuleHelper.nextOccurrenceAfter(event.startTime, event.repeatRule, now - 1)
-            ?: event.startTime.takeIf { it > now }
+        val occurrenceStart = ReminderOccurrenceHelper
+            .closestOccurrenceStart(event.startTime, event.repeatRule, now)
             ?: run {
                 Log.d(TAG, "  SKIP: event is in the past and not repeating")
                 return // событие в прошлом и не повторяется
