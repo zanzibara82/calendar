@@ -38,8 +38,8 @@ android {
         applicationId = "ru.zanzibara82.calendar"
         minSdk = 26          // по требованиям ТЗ
         targetSdk = 37
-        versionCode = 5
-        versionName = "1.1.3"
+        versionCode = 6
+        versionName = "1.2.0"
 
         testInstrumentationRunner = "com.example.mycalendar.HiltTestRunner"
         vectorDrawables { useSupportLibrary = true }
