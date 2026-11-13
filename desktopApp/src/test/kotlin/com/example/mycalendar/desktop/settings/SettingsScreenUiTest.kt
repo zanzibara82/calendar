@@ -343,6 +343,62 @@ class SettingsScreenUiTest {
     }
 
     @Test
+    fun `no conflicts means no conflicts row`() = runComposeUiTest {
+        setContent {
+            DesktopTheme(ThemeMode.DARK) {
+                SettingsScreen(
+                    settings = defaults,
+                    dataDir = "dir",
+                    version = "0.1.0",
+                    onBack = {},
+                    onThemeChange = {},
+                    onQuietChange = {},
+                    onMinimizeToTrayChange = {},
+                    onPickAlarm = {},
+                    onResetAlarm = {},
+                    onPickBirthday = {},
+                    onResetBirthday = {},
+                    account = UserAccount(CalendarProvider.YANDEX, "ivanov@yandex.ru"),
+                    syncStatus = "Готово",
+                    conflictCount = 0,
+                )
+            }
+        }
+
+        onNodeWithTag("settings-conflicts").assertDoesNotExist()
+        onNodeWithTag("settings-open-conflicts").assertDoesNotExist()
+    }
+
+    @Test
+    fun `open conflicts row counts them and opens the screen`() = runComposeUiTest {
+        var opened = false
+        setContent {
+            DesktopTheme(ThemeMode.DARK) {
+                SettingsScreen(
+                    settings = defaults,
+                    dataDir = "dir",
+                    version = "0.1.0",
+                    onBack = {},
+                    onThemeChange = {},
+                    onQuietChange = {},
+                    onMinimizeToTrayChange = {},
+                    onPickAlarm = {},
+                    onResetAlarm = {},
+                    onPickBirthday = {},
+                    onResetBirthday = {},
+                    conflictCount = 2,
+                    onOpenConflicts = { opened = true },
+                )
+            }
+        }
+
+        onNodeWithText("Конфликты: 2").assertExists()
+        onNodeWithTag("settings-open-conflicts").performClick()
+
+        assertTrue(opened)
+    }
+
+    @Test
     fun `running sync disables the button and says so`() = runComposeUiTest {
         setContent {
             DesktopTheme(ThemeMode.DARK) {

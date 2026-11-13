@@ -41,3 +41,13 @@ data class SyncConflict(
 ) {
     val isDeletion: Boolean get() = kind.isDeletion
 }
+
+/**
+ * Совпадает ли всё, что видит пользователь в разборе: вид, набор спорных полей и облачная версия.
+ * Сравнение облачных значений нормализованное, как у решателя: `null` и пустая строка описания,
+ * а также порядок минут одним значением не считаются.
+ */
+fun SyncConflict.showsSameState(other: SyncConflict): Boolean =
+    kind == other.kind &&
+        contested == other.contested &&
+        diffFields(remote, other.remote).isEmpty()

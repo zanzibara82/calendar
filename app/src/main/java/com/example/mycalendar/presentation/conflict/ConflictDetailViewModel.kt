@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.mycalendar.domain.model.Event
 import com.example.mycalendar.domain.model.SyncConflict
 import com.example.mycalendar.domain.model.SyncField
-import com.example.mycalendar.domain.model.diffFields
+import com.example.mycalendar.domain.model.showsSameState
 import com.example.mycalendar.domain.repository.ConflictRepository
 import com.example.mycalendar.domain.repository.EventRepository
 import com.example.mycalendar.domain.usecase.DeletionChoice
@@ -138,13 +138,3 @@ class ConflictDetailViewModel @Inject constructor(
         }
     }
 }
-
-/**
- * Совпадает ли всё, что видит пользователь: вид, набор спорных полей и облачная версия.
- * Сравнение облачных значений нормализованное, как у решателя: `null` и пустая строка описания,
- * а также порядок минут одним значением не считаются.
- */
-private fun SyncConflict.showsSameState(other: SyncConflict): Boolean =
-    kind == other.kind &&
-        contested == other.contested &&
-        diffFields(remote, other.remote).isEmpty()

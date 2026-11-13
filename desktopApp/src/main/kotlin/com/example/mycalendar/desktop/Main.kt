@@ -31,6 +31,8 @@ import com.example.mycalendar.desktop.auth.DeviceCode
 import com.example.mycalendar.desktop.auth.DesktopYandexLogin
 import com.example.mycalendar.desktop.calendar.EventEditorDialog
 import com.example.mycalendar.desktop.calendar.MonthView
+import com.example.mycalendar.desktop.conflict.ConflictsController
+import com.example.mycalendar.desktop.conflict.ConflictsScreen
 import com.example.mycalendar.desktop.data.DesktopAuthRepository
 import com.example.mycalendar.desktop.data.DesktopAuthStore
 import com.example.mycalendar.desktop.data.DesktopConflictRepository
@@ -52,6 +54,7 @@ import com.example.mycalendar.domain.model.CalendarProvider
 import com.example.mycalendar.domain.model.Event
 import com.example.mycalendar.domain.repository.SyncResult
 import com.example.mycalendar.domain.sync.SyncConflictResolver
+import com.example.mycalendar.domain.usecase.ResolveConflictUseCase
 import java.awt.Desktop
 import java.awt.FileDialog
 import java.awt.Frame
@@ -71,7 +74,7 @@ import okhttp3.OkHttpClient
 /** Версия из nativeDistributions.packageVersion; отдельной подписи в градле нет. */
 private const val APP_VERSION = "0.1.0"
 
-private enum class Screen { MONTH, SETTINGS }
+private enum class Screen { MONTH, SETTINGS, CONFLICTS }
 
 /** Что открыто в редакторе: новый слот выбранного дня или существующее событие. */
 private sealed interface EditorTarget {
@@ -132,6 +135,7 @@ fun main() {
                 .firstOrNull { it.provider == CalendarProvider.YANDEX }
                 ?.account
 
+            val reminderScheduler = remember { DesktopReminderScheduler() }
             val syncEngine = remember {
                 SyncRepositoryImpl(
                     eventRepository = repository,
@@ -146,9 +150,23 @@ fun main() {
                             authRepository = authRepository,
                         ),
                     ),
-                    reminderScheduler = DesktopReminderScheduler(),
+                    reminderScheduler = reminderScheduler,
                 )
             }
+            val conflictsController = remember {
+                ConflictsController(
+                    conflictRepository = conflictRepository,
+                    eventRepository = repository,
+                    resolveConflict = ResolveConflictUseCase(
+                        conflictRepository = conflictRepository,
+                        eventRepository = repository,
+                        reminderScheduler = reminderScheduler,
+                    ),
+                )
+            }
+            val conflicts by remember { conflictRepository.observeConflicts() }
+                .collectAsState(initial = emptyList())
+            val conflictState by conflictsController.state.collectAsState()
             var syncing by remember { mutableStateOf(false) }
             var syncResult by remember { mutableStateOf<SyncResult?>(null) }
             val syncStatus = syncStatusText(syncResult, settings.lastSyncTime, syncing)
@@ -275,6 +293,22 @@ fun main() {
                         syncStatus = syncStatus,
                         syncing = syncing,
                         onSync = startSync,
+                        conflictCount = conflicts.size,
+                        onOpenConflicts = { screen = Screen.CONFLICTS },
+                    )
+
+                    Screen.CONFLICTS -> ConflictsScreen(
+                        conflicts = conflicts,
+                        state = conflictState,
+                        zone = zone,
+                        onBack = { screen = Screen.SETTINGS },
+                        onOpen = { id -> scope.launch { conflictsController.open(id) } },
+                        onChoose = conflictsController::choose,
+                        onApply = { scope.launch { conflictsController.apply() } },
+                        onResolveDeletion = { choice ->
+                            scope.launch { conflictsController.resolveDeletion(choice) }
+                        },
+                        onDismissNotice = conflictsController::dismissNotice,
                     )
                 }
 

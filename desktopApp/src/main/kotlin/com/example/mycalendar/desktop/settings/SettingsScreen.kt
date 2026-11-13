@@ -57,6 +57,8 @@ fun SettingsScreen(
     syncStatus: String? = null,
     syncing: Boolean = false,
     onSync: () -> Unit = {},
+    conflictCount: Int = 0,
+    onOpenConflicts: () -> Unit = {},
 ) {
     val colors = LocalDesktopColors.current
     Column(
@@ -158,6 +160,29 @@ fun SettingsScreen(
                         modifier = Modifier.testTag("settings-sync"),
                     ) {
                         Text("Синхронизировать")
+                    }
+                }
+            }
+            // Разбор уже открыт в очереди: конфликты без решения блокируют отправку правок.
+            if (conflictCount > 0) {
+                HorizontalDivider()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("settings-conflicts"),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Text(
+                        text = "Конфликты: $conflictCount",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(
+                        onClick = onOpenConflicts,
+                        modifier = Modifier.testTag("settings-open-conflicts"),
+                    ) {
+                        Text("Разобрать")
                     }
                 }
             }

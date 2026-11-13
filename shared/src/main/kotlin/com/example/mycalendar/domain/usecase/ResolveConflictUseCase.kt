@@ -7,9 +7,9 @@ import com.example.mycalendar.domain.model.SyncField
 import com.example.mycalendar.domain.model.SyncSnapshot
 import com.example.mycalendar.domain.model.diffFields
 import com.example.mycalendar.domain.model.scheduleChangedFrom
+import com.example.mycalendar.domain.reminder.ReminderScheduler
 import com.example.mycalendar.domain.repository.ConflictRepository
 import com.example.mycalendar.domain.repository.EventRepository
-import com.example.mycalendar.work.ReminderScheduler
 import javax.inject.Inject
 
 /** Что пользователь выбрал для конфликта-удаления. */
@@ -45,7 +45,7 @@ fun resolvedEvent(conflict: SyncConflict, local: Event, remoteChosen: Set<SyncFi
     conflict.remote.appliedTo(local, remoteChosen intersect conflict.contested)
 
 /**
- * Разбор открытого конфликта (экран `conflict/{id}`, задача 10).
+ * Разбор открытого конфликта: экран разбора работает с текущей строкой и очередью.
  *
  * Снимок с экрана может устареть: очередь переиспользует идентификатор строки и перезаписывает вид,
  * поэтому оба метода начинают с перечитывания конфликта и работают только с прочитанным объектом.
