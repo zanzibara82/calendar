@@ -154,7 +154,19 @@ app/src/main/java/com/example/mycalendar/
 ./gradlew :app:lintDebug              # Android Lint
 ./gradlew :app:connectedDebugAndroidTest  # тесты на подключённом устройстве/эмуляторе
 ./gradlew :desktopApp:createDistributable # образ Windows-клиента со встроенной JRE
+./gradlew :desktopApp:packageMsi          # MSI-установщик (нужен WiX 3 в PATH)
+./gradlew :desktopApp:packageExe          # EXE-установщик
 ```
+
+**Сборка MSI.** Отдельно ставить WiX не нужно: плагин Compose сам скачивает WiX 3.11 в
+`~/.gradle/compose-jb/wix311.zip` при упаковке (нужна сеть на первом запуске). `jpackage` из
+JDK 21 умеет только WiX 3 (`candle.exe`/`light.exe`), поэтому внешний WiX 4+ не подойдёт;
+проверено и с внешним WiX 3.14.1 в `PATH` (портативно в `%LOCALAPPDATA%\wix314`) — это запасной
+вариант для сборки без сети. Артефакты — в
+`desktopApp/build/compose/binaries/main/{msi,exe}/MyCalendar-0.1.0.msi` (около 107 МиБ каждый).
+MSI ставит программу для всех пользователей (Windows запросит права администратора), кладёт
+ярлыки на рабочий стол и в меню «Пуск» (группа `MyCalendar`); `upgradeUuid` закреплён в
+`build.gradle.kts`, поэтому следующая версия обновляет установленную, а не встаёт рядом.
 
 **Подпись release.** Ключ читается из `keystore.properties` в корне проекта:
 

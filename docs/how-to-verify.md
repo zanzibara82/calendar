@@ -9,6 +9,8 @@
 |---|---|
 | Debug APK | `app/build/outputs/apk/debug/app-debug.apk` |
 | Release APK (подписан, если есть `keystore.properties`) | `app/build/outputs/apk/release/app-release.apk` |
+| Windows MSI | `desktopApp/build/compose/binaries/main/msi/MyCalendar-0.1.0.msi` |
+| Windows EXE | `desktopApp/build/compose/binaries/main/exe/MyCalendar-0.1.0.exe` |
 | Отчёт unit-тестов | `app/build/reports/tests/testDebugUnitTest/index.html` |
 | Отчёт instrumented-тестов | `app/build/reports/androidTests/connected/debug/index.html` |
 | JUnit-XML instrumented | `app/build/outputs/androidTest-results/connected/debug/` |
@@ -39,6 +41,37 @@ Debug и release подписаны разными ключами, поэтом�
 
 `adb` не в PATH, полный путь: `%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe`
 (в Git Bash — `"$LOCALAPPDATA/Android/Sdk/platform-tools/adb.exe"`).
+
+## Установка на Windows
+
+Сборка установщиков:
+
+```bash
+./gradlew :desktopApp:packageMsi :desktopApp:packageExe
+```
+
+**WiX ставить не нужно.** Плагин Compose при упаковке MSI сам кладёт WiX 3.11 в
+`~/.gradle/compose-jb/wix311.zip` — первый `packageMsi` требует сети. `jpackage` из JDK 21
+работает только с WiX 3 (`candle.exe`/`light.exe`), WiX 4+ не подойдёт. Запасной вариант без
+сети: скачать `wix314-binaries.zip` из релиза `wix3141rtm` (`github.com/wixtoolset/wix3/releases`),
+распаковать в `%LOCALAPPDATA%\wix314` и добавить папку в пользовательский `PATH`; проверено —
+сборка проходит и с этим WiX 3.14.1 (проверка: `candle.exe -?` печатает версию 3.14.1).
+
+1. Запустите `MyCalendar-0.1.0.msi` двойным кликом или командой
+   `msiexec /i MyCalendar-0.1.0.msi`. Установка идёт для всех пользователей — Windows запросит
+   права администратора.
+2. Появятся ярлыки на рабочем столе и в меню «Пуск» (группа `MyCalendar`); запуск — любой из них.
+3. Данные лежат не в папке программы, а в `%APPDATA%\MyCalendar` (события, настройки, очередь
+   конфликтов, учётные записи): удаление и переустановка их не трогают.
+4. Удаление — «Параметры» → «Приложения» → «Установленные приложения» → MyCalendar → «Удалить».
+5. Проверка обновления: `upgradeUuid` закреплён в `desktopApp/build.gradle.kts`. Поднимите
+   `packageVersion`, соберите MSI заново и поставьте поверх — Windows обновит установленную
+   версию. Если поменять UUID, новый MSI встанет отдельной копией рядом.
+
+Проверить содержимое MSI без установки можно через COM-интерфейс Windows Installer
+(`WindowsInstaller.Installer`, `OpenDatabase`): у рабочей сборки `ProductName` — `MyCalendar`,
+`Manufacturer` — `zanzibara82`, `ALLUSERS = 1`, есть таблица `Shortcut` с ярлыками
+`DesktopFolder` и группы «Пуск», `UpgradeCode` совпадает с `upgradeUuid` из `build.gradle.kts`.
 
 ## Запуск эмулятора
 
