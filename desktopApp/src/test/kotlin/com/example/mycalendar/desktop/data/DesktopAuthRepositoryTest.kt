@@ -4,6 +4,7 @@ import com.example.mycalendar.domain.model.CalendarProvider
 import com.example.mycalendar.domain.model.UserAccount
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -118,6 +119,20 @@ class DesktopAuthRepositoryTest {
         assertEquals("Нет сети", result.exceptionOrNull()?.message)
         assertEquals(account, repository.accountFor(CalendarProvider.YANDEX))
         assertEquals("token-1", repository.getAccessToken())
+    }
+
+    @Test
+    fun `cancelled sign in stays a cancellation`() = runBlocking {
+        val (repository, _) = repository(newFiles()) {
+            throw CancellationException("пользователь закрыл диалог")
+        }
+
+        try {
+            repository.signInWithYandex()
+            throw AssertionError("ожидалась отмена, а не Result.failure")
+        } catch (expected: CancellationException) {
+            assertNull(repository.accountFor(CalendarProvider.YANDEX))
+        }
     }
 
     @Test

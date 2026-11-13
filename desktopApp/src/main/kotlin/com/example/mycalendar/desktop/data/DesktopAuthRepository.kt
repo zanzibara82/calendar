@@ -6,6 +6,7 @@ import com.example.mycalendar.domain.model.UserAccount
 import com.example.mycalendar.domain.repository.AuthRepository
 import com.example.mycalendar.domain.repository.CalendarConnection
 import com.example.mycalendar.domain.repository.SettingsRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.filterNotNull
@@ -22,8 +23,8 @@ data class YandexSession(
  * [AuthRepository] desktop-клиента.
  *
  * На Windows пока есть только Яндекс: системного календаря, через который Android
- * подключает Google, здесь нет. Сам вход вынесен в [authorize] — OAuth-редирект
- * на loopback появится отдельным шагом; репозиторий отвечает за то, что и после него
+ * подключает Google, здесь нет. Сам вход вынесен в [authorize] — в окне это device flow
+ * (`DesktopYandexLogin`); репозиторий отвечает за то, что и после него
  * остаётся прежним: хранение аккаунта, сброс привязки к коллекции и доступ к токену.
  *
  * Токен НЕ переживает перезапуск процесса: до появления защищённого хранения секретов
@@ -63,14 +64,19 @@ class DesktopAuthRepository(
             )
         )
 
-    override suspend fun signInWithYandex(): Result<UserAccount> = runCatching {
+    override suspend fun signInWithYandex(): Result<UserAccount> = try {
         val session = authorize()
         yandexToken = session.token
         saveAccount(session.account)
-        session.account
-    }.recoverCatching { error ->
-        throw IllegalStateException(
-            error.message ?: "Не удалось войти через Яндекс: ${error.javaClass.simpleName}"
+        Result.success(session.account)
+    } catch (error: CancellationException) {
+        // Отмена (закрыли диалог с кодом, ушли с экрана) — не ошибка входа.
+        throw error
+    } catch (error: Throwable) {
+        Result.failure(
+            IllegalStateException(
+                error.message ?: "Не удалось войти через Яндекс: ${error.javaClass.simpleName}"
+            )
         )
     }
 

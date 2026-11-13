@@ -30,6 +30,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.example.mycalendar.desktop.theme.LocalDesktopColors
 import com.example.mycalendar.desktop.theme.ThemeMode
+import com.example.mycalendar.domain.model.UserAccount
 import java.net.URI
 
 /**
@@ -49,6 +50,10 @@ fun SettingsScreen(
     onResetAlarm: () -> Unit,
     onPickBirthday: () -> Unit,
     onResetBirthday: () -> Unit,
+    account: UserAccount? = null,
+    loginError: String? = null,
+    onSignIn: () -> Unit = {},
+    onSignOut: () -> Unit = {},
 ) {
     val colors = LocalDesktopColors.current
     Column(
@@ -88,6 +93,46 @@ fun SettingsScreen(
                         Text(label, maxLines = 1)
                     }
                 }
+            }
+        }
+
+        SectionHeader("Календари")
+        Panel {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Яндекс", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = if (account == null) {
+                            "Не подключён — вход по коду на ya.ru/device"
+                        } else {
+                            "Подключено: ${account.displayName ?: account.email}"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.onSurfaceVariant,
+                        modifier = Modifier.testTag("settings-account"),
+                    )
+                }
+                if (account == null) {
+                    TextButton(onClick = onSignIn, modifier = Modifier.testTag("settings-sign-in")) {
+                        Text("Войти")
+                    }
+                } else {
+                    TextButton(onClick = onSignOut, modifier = Modifier.testTag("settings-sign-out")) {
+                        Text("Выйти")
+                    }
+                }
+            }
+            loginError?.let { message ->
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.testTag("settings-login-error"),
+                )
             }
         }
 

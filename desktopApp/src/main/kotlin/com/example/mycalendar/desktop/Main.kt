@@ -24,25 +24,37 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.isTraySupported
 import androidx.compose.ui.window.rememberWindowState
+import com.example.mycalendar.desktop.auth.DeviceCode
+import com.example.mycalendar.desktop.auth.DesktopYandexLogin
 import com.example.mycalendar.desktop.calendar.EventEditorDialog
 import com.example.mycalendar.desktop.calendar.MonthView
+import com.example.mycalendar.desktop.data.DesktopAuthRepository
+import com.example.mycalendar.desktop.data.DesktopAuthStore
 import com.example.mycalendar.desktop.data.DesktopEventRepository
 import com.example.mycalendar.desktop.data.DesktopPaths
+import com.example.mycalendar.desktop.data.DesktopSettingsRepository
 import com.example.mycalendar.desktop.data.DesktopSettingsStore
 import com.example.mycalendar.desktop.data.EventFileStore
 import com.example.mycalendar.desktop.settings.DesktopSettings
 import com.example.mycalendar.desktop.settings.SettingsScreen
+import com.example.mycalendar.desktop.settings.YandexLoginDialog
 import com.example.mycalendar.desktop.theme.DesktopTheme
 import com.example.mycalendar.desktop.theme.EventCardGradient
+import com.example.mycalendar.domain.model.CalendarProvider
 import com.example.mycalendar.domain.model.Event
+import java.awt.Desktop
 import java.awt.FileDialog
 import java.awt.Frame
+import java.awt.Toolkit
+import java.awt.datatransfer.StringSelection
+import java.net.URI
 import java.nio.file.Path
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
 import java.util.UUID
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /** Версия из nativeDistributions.packageVersion; отдельной подписи в градле нет. */
@@ -63,6 +75,8 @@ private sealed interface EditorTarget {
 fun main() {
     val repository = DesktopEventRepository(EventFileStore(DesktopPaths.eventsFile()))
     val settingsStore = DesktopSettingsStore(DesktopPaths.settingsFile())
+    val settingsRepository = DesktopSettingsRepository(settingsStore)
+    val authStore = DesktopAuthStore(DesktopPaths.accountFile())
     application {
         val stored by settingsStore.settings.collectAsState()
         LaunchedEffect(settingsStore) { settingsStore.load() }
@@ -90,6 +104,20 @@ fun main() {
             var selectedDate by remember { mutableStateOf(LocalDate.now()) }
             var editor by remember { mutableStateOf<EditorTarget?>(null) }
             var info by remember { mutableStateOf<Event?>(null) }
+
+            val login = remember { DesktopYandexLogin() }
+            var deviceCode by remember { mutableStateOf<DeviceCode?>(null) }
+            var loginError by remember { mutableStateOf<String?>(null) }
+            var loginJob by remember { mutableStateOf<Job?>(null) }
+            val authRepository = remember {
+                DesktopAuthRepository(authStore, settingsRepository) {
+                    login.signIn { code -> deviceCode = code }
+                }
+            }
+            val connections by authRepository.connections.collectAsState(initial = emptyList())
+            val yandexAccount = connections
+                .firstOrNull { it.provider == CalendarProvider.YANDEX }
+                ?.account
 
             DesktopTheme(settings.themeMode) {
                 when (screen) {
@@ -181,6 +209,42 @@ fun main() {
                         onResetBirthday = {
                             scope.launch { settingsStore.update { it.copy(birthdaySoundUri = null) } }
                         },
+                        account = yandexAccount,
+                        loginError = loginError,
+                        onSignIn = {
+                            loginError = null
+                            deviceCode = null
+                            loginJob = scope.launch {
+                                authRepository.signInWithYandex().onFailure { error ->
+                                    loginError = error.message ?: "Не удалось войти через Яндекс"
+                                }
+                                deviceCode = null
+                                loginJob = null
+                            }
+                        },
+                        onSignOut = {
+                            loginError = null
+                            scope.launch { authRepository.signOut(CalendarProvider.YANDEX) }
+                        },
+                    )
+                }
+
+                deviceCode?.let { code ->
+                    YandexLoginDialog(
+                        code = code,
+                        onCopy = { copyToClipboard(code.userCode) },
+                        onOpenPage = {
+                            if (!openInBrowser(code.verificationUrl)) {
+                                loginError = "Не удалось открыть браузер. " +
+                                    "Откройте ${code.verificationUrl} вручную."
+                            }
+                        },
+                        onCancel = {
+                            loginJob?.cancel()
+                            loginJob = null
+                            deviceCode = null
+                        },
+                        error = loginError,
                     )
                 }
             }
@@ -233,4 +297,19 @@ private fun pickSoundFile(): String? {
     val name = dialog.file ?: return null
     val dir = dialog.directory ?: return null
     return Path.of(dir, name).toUri().toString()
+}
+
+/** Страница входа открывается в системном браузере; false — браузера нет или он не открылся. */
+private fun openInBrowser(url: String): Boolean = runCatching {
+    if (!Desktop.isDesktopSupported()) return false
+    val desktop = Desktop.getDesktop()
+    if (!desktop.isSupported(Desktop.Action.BROWSE)) return false
+    desktop.browse(URI(url))
+    true
+}.getOrDefault(false)
+
+private fun copyToClipboard(text: String) {
+    runCatching {
+        Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(text), null)
+    }
 }
