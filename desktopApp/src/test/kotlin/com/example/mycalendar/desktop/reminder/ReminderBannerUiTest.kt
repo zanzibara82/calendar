@@ -23,6 +23,7 @@ class ReminderBannerUiTest {
                     title = "Планёрка",
                     label = label,
                     onOpen = {},
+                    onSnooze = {},
                     onDismiss = {},
                 )
             }
@@ -32,6 +33,7 @@ class ReminderBannerUiTest {
         onNodeWithText("Планёрка").assertExists()
         onNodeWithText(label).assertExists()
         onNodeWithText("Открыть").assertExists()
+        onNodeWithText("Отложить").assertExists()
         onNodeWithText("Закрыть").assertExists()
     }
 
@@ -44,6 +46,7 @@ class ReminderBannerUiTest {
                     title = "Планёрка",
                     label = label,
                     onOpen = { opened = true },
+                    onSnooze = {},
                     onDismiss = {},
                 )
             }
@@ -55,6 +58,26 @@ class ReminderBannerUiTest {
     }
 
     @Test
+    fun `snooze button reports`() = runComposeUiTest {
+        var snoozed = false
+        setContent {
+            DesktopTheme(ThemeMode.DARK) {
+                ReminderBanner(
+                    title = "Планёрка",
+                    label = label,
+                    onOpen = {},
+                    onSnooze = { snoozed = true },
+                    onDismiss = {},
+                )
+            }
+        }
+
+        onNodeWithTag("reminder-snooze").performClick()
+
+        assertTrue(snoozed)
+    }
+
+    @Test
     fun `dismiss button reports`() = runComposeUiTest {
         var dismissed = false
         setContent {
@@ -63,6 +86,7 @@ class ReminderBannerUiTest {
                     title = "Планёрка",
                     label = label,
                     onOpen = {},
+                    onSnooze = {},
                     onDismiss = { dismissed = true },
                 )
             }

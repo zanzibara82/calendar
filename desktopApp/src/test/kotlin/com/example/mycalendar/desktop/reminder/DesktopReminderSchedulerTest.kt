@@ -99,6 +99,57 @@ class DesktopReminderSchedulerTest {
         assertEquals(1, fired.size)
     }
 
+    @Test
+    fun `snooze fires the reminder again after ten minutes`() {
+        val event = event(start = now + HOUR, reminders = listOf(10))
+        val due = DueReminder(event, 10, now + HOUR)
+
+        scheduler.snooze(due)
+
+        assertEquals(1, timer.entries.size)
+        assertEquals(DesktopReminderScheduler.SNOOZE_MINUTES * MINUTE, timer.entries.single().delayMillis)
+
+        timer.fire(0)
+
+        assertEquals(
+            listOf(DueReminder(event, DesktopReminderScheduler.SNOOZE_MINUTES_MARKER, now + HOUR)),
+            fired,
+        )
+    }
+
+    @Test
+    fun `snoozed repeating reminder does not plan another occurrence`() {
+        val event = event(
+            start = now - 3 * DAY,
+            reminders = listOf(30),
+            rule = RepeatRule.WEEKLY,
+        )
+        scheduler.schedule(event)
+        timer.fire(0)
+        assertEquals(2, timer.entries.size)
+
+        scheduler.snooze(DueReminder(event, 30, now + 4 * DAY))
+        assertEquals(3, timer.entries.size)
+
+        timer.fire(2)
+
+        assertEquals(3, timer.entries.size)
+        assertEquals(
+            DueReminder(event, DesktopReminderScheduler.SNOOZE_MINUTES_MARKER, now + 4 * DAY),
+            fired.last(),
+        )
+    }
+
+    @Test
+    fun `cancel removes the snoozed reminder`() {
+        val event = event(start = now + HOUR, reminders = listOf(10))
+        scheduler.snooze(DueReminder(event, 10, now + HOUR))
+
+        scheduler.cancel(event)
+
+        assertTrue(timer.entries.single().cancelled)
+    }
+
     private fun event(
         start: Long,
         reminders: List<Int> = emptyList(),

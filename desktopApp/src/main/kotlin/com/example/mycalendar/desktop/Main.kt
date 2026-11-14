@@ -394,6 +394,10 @@ fun main() {
                                 reminder = null
                             },
                             onDismiss = { reminder = null },
+                            onSnooze = {
+                                reminderScheduler.snooze(due)
+                                reminder = null
+                            },
                             modifier = Modifier
                                 .align(Alignment.TopCenter)
                                 .padding(16.dp),

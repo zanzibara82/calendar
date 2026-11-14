@@ -18,7 +18,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 
 /**
- * Плашка напоминания поверх окна: название события, время начала и две кнопки.
+ * Плашка напоминания поверх окна: название события, время начала и три кнопки.
  * Показывается и когда окно было свёрнуто в трей — тогда окно выводится на передний план.
  */
 @Composable
@@ -26,6 +26,7 @@ fun ReminderBanner(
     title: String,
     label: String,
     onOpen: () -> Unit,
+    onSnooze: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -54,6 +55,12 @@ fun ReminderBanner(
                 modifier = Modifier.testTag("reminder-open"),
             ) {
                 Text("Открыть")
+            }
+            TextButton(
+                onClick = onSnooze,
+                modifier = Modifier.testTag("reminder-snooze"),
+            ) {
+                Text("Отложить")
             }
             TextButton(
                 onClick = onDismiss,

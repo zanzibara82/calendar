@@ -18,6 +18,11 @@ data class DueReminder(
  * а прошедшие напоминания ещё не начавшихся событий срабатывают сразу. Повторяющееся
  * событие после срабатывания заказывает следующее вхождение — та же цепочка, что
  * у будильников Android.
+ *
+ * «Отложить» — разовый заказ через [SNOOZE_MINUTES] минут с той же записью вхождения,
+ * но с меткой [SNOOZE_MINUTES_MARKER]: подпись становится «Событие начинается», как
+ * у отсроченного уведомления Android. Цепочку повтора отложенный заказ не трогает —
+ * она уже поставлена в момент первого срабатывания.
  */
 class DesktopReminderScheduler(
     private val onReminder: (DueReminder) -> Unit,
@@ -39,6 +44,13 @@ class DesktopReminderScheduler(
         pending.forEach { it.cancel() }
     }
 
+    /** Заказывает то же напоминание ещё раз — кнопка «Отложить» в плашке. */
+    fun snooze(due: DueReminder, delayMinutes: Int = SNOOZE_MINUTES) {
+        scheduleOneOff(due.event.id, delayMinutes * MINUTE_MILLIS) {
+            onReminder(DueReminder(due.event, SNOOZE_MINUTES_MARKER, due.occurrenceStart))
+        }
+    }
+
     /** Заново ставит в очередь набор событий — после загрузки хранилища при старте окна. */
     fun rescheduleAll(events: List<Event>) {
         events.forEach(::schedule)
@@ -55,18 +67,24 @@ class DesktopReminderScheduler(
     }
 
     private fun scheduleJob(event: Event, planned: PlannedReminder) {
-        val delay = (planned.triggerAt - clock()).coerceAtLeast(0L)
-        val ref = JobRef()
-        ref.cancellable = timer.schedule(delay) {
-            synchronized(lock) { jobs[event.id]?.remove(ref.cancellable) }
+        scheduleOneOff(event.id, planned.triggerAt - clock()) {
             onReminder(DueReminder(event, planned.minutes, planned.occurrenceStart))
             if (event.repeatRule != null) {
                 ReminderPlanner.planNext(event, planned.occurrenceStart, clock())
                     .forEach { next -> scheduleJob(event, next) }
             }
         }
+    }
+
+    /** Заказ под ключом события: `cancel(event)` снимет и обычные, и отложенные напоминания. */
+    private fun scheduleOneOff(eventId: String, delayMillis: Long, action: () -> Unit) {
+        val ref = JobRef()
+        ref.cancellable = timer.schedule(delayMillis.coerceAtLeast(0L)) {
+            synchronized(lock) { jobs[eventId]?.remove(ref.cancellable) }
+            action()
+        }
         ref.cancellable?.let { cancellable ->
-            synchronized(lock) { jobs.getOrPut(event.id) { mutableListOf() } += cancellable }
+            synchronized(lock) { jobs.getOrPut(eventId) { mutableListOf() } += cancellable }
         }
     }
 
@@ -75,4 +93,14 @@ class DesktopReminderScheduler(
         @Volatile
         var cancellable: Cancellable? = null
     }
+
+    companion object {
+        /** Отсрочка кнопки «Отложить» — тот же интервал, что SNOOZE_MINUTES на Android. */
+        const val SNOOZE_MINUTES = 10
+
+        /** Метка отложенного напоминания: подпись «Событие начинается», как на Android. */
+        const val SNOOZE_MINUTES_MARKER = -1
+    }
 }
+
+private const val MINUTE_MILLIS = 60_000L
