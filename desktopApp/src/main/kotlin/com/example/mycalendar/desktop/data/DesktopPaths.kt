@@ -24,4 +24,6 @@ object DesktopPaths {
     fun conflictsFile(): Path = dataDir().resolve("conflicts.json")
 
     fun accountFile(): Path = dataDir().resolve("account.json")
+
+    fun tokenFile(): Path = dataDir().resolve("token.bin")
 }

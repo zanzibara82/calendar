@@ -30,6 +30,7 @@ class DesktopAuthRepositoryTest {
     private class TempPaths(
         val account: Path,
         val settings: Path,
+        val token: Path,
     )
 
     private fun newFiles(): TempPaths {
@@ -37,8 +38,11 @@ class DesktopAuthRepositoryTest {
         return TempPaths(
             account = dir.resolve("account.json"),
             settings = dir.resolve("settings.json"),
+            token = dir.resolve("token.bin"),
         )
     }
+
+    private fun vault(files: TempPaths) = DesktopTokenVault(files.token, ReversingCipher())
 
     private fun repository(
         files: TempPaths,
@@ -48,6 +52,7 @@ class DesktopAuthRepositoryTest {
         val repository = DesktopAuthRepository(
             store = DesktopAuthStore(files.account),
             settingsRepository = settingsRepository,
+            tokenVault = vault(files),
             authorize = authorize,
         )
         return repository to settingsRepository
@@ -55,7 +60,8 @@ class DesktopAuthRepositoryTest {
 
     @Test
     fun `sign in stores the account and hands out the token`() = runBlocking {
-        val (repository, _) = repository(newFiles()) { session }
+        val files = newFiles()
+        val (repository, _) = repository(files) { session }
 
         val result = repository.signInWithYandex()
 
@@ -64,21 +70,35 @@ class DesktopAuthRepositoryTest {
         assertEquals(listOf(CalendarProvider.YANDEX), repository.connectedProviders())
         assertEquals("token-1", repository.getAccessToken())
         assertEquals("token-1", repository.getAccessToken(CalendarProvider.YANDEX))
+        assertEquals("token-1", vault(files).load())
         val connection = repository.connections.first().single()
         assertEquals(CalendarProvider.YANDEX, connection.provider)
         assertEquals(account, connection.account)
     }
 
     @Test
-    fun `account survives reload while the token does not`() = runBlocking {
+    fun `account and token survive reload`() = runBlocking {
         val files = newFiles()
         val (first, _) = repository(files) { session }
         first.signInWithYandex()
 
         val (reloaded, _) = repository(files) { error("вход не нужен") }
+        reloaded.restoreToken()
 
         assertEquals(account, reloaded.accountFor(CalendarProvider.YANDEX))
-        assertNull(reloaded.getAccessToken())
+        assertEquals("token-1", reloaded.getAccessToken())
+    }
+
+    @Test
+    fun `token without an account is dropped on restore`() = runBlocking {
+        val files = newFiles()
+        vault(files).save("stray")
+        val (repository, _) = repository(files) { session }
+
+        repository.restoreToken()
+
+        assertNull(repository.getAccessToken())
+        assertNull(vault(files).load())
     }
 
     @Test
@@ -94,7 +114,8 @@ class DesktopAuthRepositoryTest {
 
     @Test
     fun `sign out removes the account and the token`() = runBlocking {
-        val (repository, _) = repository(newFiles()) { session }
+        val files = newFiles()
+        val (repository, _) = repository(files) { session }
         repository.signInWithYandex()
 
         repository.signOut(CalendarProvider.YANDEX)
@@ -102,12 +123,14 @@ class DesktopAuthRepositoryTest {
         assertNull(repository.accountFor(CalendarProvider.YANDEX))
         assertTrue(repository.connectedProviders().isEmpty())
         assertNull(repository.getAccessToken())
+        assertNull(vault(files).load())
     }
 
     @Test
     fun `failed sign in keeps the previous account and repeats the reason`() = runBlocking {
         var online = true
-        val (repository, _) = repository(newFiles()) {
+        val files = newFiles()
+        val (repository, _) = repository(files) {
             if (online) session else error("Нет сети")
         }
         repository.signInWithYandex()
@@ -119,6 +142,7 @@ class DesktopAuthRepositoryTest {
         assertEquals("Нет сети", result.exceptionOrNull()?.message)
         assertEquals(account, repository.accountFor(CalendarProvider.YANDEX))
         assertEquals("token-1", repository.getAccessToken())
+        assertEquals("token-1", vault(files).load())
     }
 
     @Test
@@ -160,4 +184,11 @@ class DesktopAuthRepositoryTest {
         }
         assertEquals(1, backups.size)
     }
+}
+
+private class ReversingCipher : TokenCipher {
+
+    override fun encrypt(plain: ByteArray): ByteArray = plain.reversedArray()
+
+    override fun decrypt(blob: ByteArray): ByteArray = blob.reversedArray()
 }

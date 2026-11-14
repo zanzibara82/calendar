@@ -46,6 +46,7 @@ class DesktopSyncEngineTest {
         val auth = DesktopAuthRepository(
             store = DesktopAuthStore(dir.resolve("account.json")),
             settingsRepository = settings,
+            tokenVault = MemoryTokenVault(),
             authorize = {
                 YandexSession("token-1", UserAccount(CalendarProvider.YANDEX, "user@yandex.ru"))
             },

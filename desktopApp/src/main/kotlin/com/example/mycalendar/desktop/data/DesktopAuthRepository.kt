@@ -27,13 +27,15 @@ data class YandexSession(
  * (`DesktopYandexLogin`); репозиторий отвечает за то, что и после него
  * остаётся прежним: хранение аккаунта, сброс привязки к коллекции и доступ к токену.
  *
- * Токен НЕ переживает перезапуск процесса: до появления защищённого хранения секретов
- * он живёт в памяти. Аккаунт при этом сохраняется, поэтому после перезапуска вход
- * потребуется повторить, а события и очередь конфликтов не теряются.
+ * Токен переживает перезапуск: он лежит в [tokenVault] под защитой DPAPI, а при старте
+ * возвращается только если учётная запись Яндекса на месте. Выход из аккаунта стирает
+ * и файл токена. Аккаунт при этом сохраняется в account.json, поэтому события и очередь
+ * конфликтов не теряются.
  */
 class DesktopAuthRepository(
     private val store: DesktopAuthStore,
     private val settingsRepository: SettingsRepository,
+    private val tokenVault: TokenVault,
     private val authorize: suspend () -> YandexSession,
 ) : AuthRepository, AccessTokenProvider {
 
@@ -68,6 +70,9 @@ class DesktopAuthRepository(
         val session = authorize()
         yandexToken = session.token
         saveAccount(session.account)
+        // Вход состоялся и без сохранения токена: сбой диска не должен его отменять.
+        runCatching { tokenVault.save(session.token) }
+            .onFailure { System.err.println("token was not saved: ${it.message}") }
         Result.success(session.account)
     } catch (error: CancellationException) {
         // Отмена (закрыли диалог с кодом, ушли с экрана) — не ошибка входа.
@@ -80,9 +85,27 @@ class DesktopAuthRepository(
         )
     }
 
+    /**
+     * Возвращает сохранённый токен после перезапуска.
+     *
+     * Токен без учётной записи бессмыслен и опасен: он остался бы в файле после сбоя
+     * выхода. Поэтому сначала сверяется account.json, и осиротевший токен стирается.
+     */
+    suspend fun restoreToken() {
+        if (store.snapshot().containsKey(CalendarProvider.YANDEX.name)) {
+            yandexToken = tokenVault.load()
+        } else {
+            yandexToken = null
+            tokenVault.clear()
+        }
+    }
+
     override suspend fun signOut(provider: CalendarProvider) {
         store.update { accounts -> accounts - provider.name }
-        if (provider == CalendarProvider.YANDEX) yandexToken = null
+        if (provider == CalendarProvider.YANDEX) {
+            yandexToken = null
+            tokenVault.clear()
+        }
     }
 
     override suspend fun signOutAll() {

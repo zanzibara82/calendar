@@ -45,6 +45,8 @@ import com.example.mycalendar.desktop.data.DesktopPaths
 import com.example.mycalendar.desktop.data.DesktopRemoteDataSourceProvider
 import com.example.mycalendar.desktop.data.DesktopSettingsRepository
 import com.example.mycalendar.desktop.data.DesktopSettingsStore
+import com.example.mycalendar.desktop.data.DesktopTokenVault
+import com.example.mycalendar.desktop.data.DpapiTokenCipher
 import com.example.mycalendar.desktop.data.EventFileStore
 import com.example.mycalendar.desktop.reminder.DesktopReminderScheduler
 import com.example.mycalendar.desktop.reminder.DesktopReminderSoundPlayer
@@ -144,11 +146,13 @@ fun main() {
             var deviceCode by remember { mutableStateOf<DeviceCode?>(null) }
             var loginError by remember { mutableStateOf<String?>(null) }
             var loginJob by remember { mutableStateOf<Job?>(null) }
+            val tokenVault = remember { DesktopTokenVault(DesktopPaths.tokenFile(), DpapiTokenCipher()) }
             val authRepository = remember {
-                DesktopAuthRepository(authStore, settingsRepository) {
+                DesktopAuthRepository(authStore, settingsRepository, tokenVault) {
                     login.signIn { code -> deviceCode = code }
                 }
             }
+            LaunchedEffect(authRepository) { authRepository.restoreToken() }
             val connections by authRepository.connections.collectAsState(initial = emptyList())
             val yandexAccount = connections
                 .firstOrNull { it.provider == CalendarProvider.YANDEX }

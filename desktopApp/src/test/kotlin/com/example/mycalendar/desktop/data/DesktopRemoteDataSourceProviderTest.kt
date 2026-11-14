@@ -25,6 +25,7 @@ class DesktopRemoteDataSourceProviderTest {
             val auth = DesktopAuthRepository(
                 store = DesktopAuthStore(dir.resolve("account.json")),
                 settingsRepository = settings,
+                tokenVault = MemoryTokenVault(),
                 authorize = {
                     YandexSession("token", UserAccount(CalendarProvider.YANDEX, "user@yandex.ru"))
                 },
