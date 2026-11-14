@@ -163,7 +163,7 @@ app/src/main/java/com/example/mycalendar/
 JDK 21 умеет только WiX 3 (`candle.exe`/`light.exe`), поэтому внешний WiX 4+ не подойдёт;
 проверено и с внешним WiX 3.14.1 в `PATH` (портативно в `%LOCALAPPDATA%\wix314`) — это запасной
 вариант для сборки без сети. Артефакты — в
-`desktopApp/build/compose/binaries/main/{msi,exe}/MyCalendar-0.1.0.msi` (около 107 МиБ каждый).
+`desktopApp/build/compose/binaries/main/{msi,exe}/MyCalendar-0.2.0.msi` (около 110 МиБ каждый).
 MSI ставит программу для всех пользователей (Windows запросит права администратора), кладёт
 ярлыки на рабочий стол и в меню «Пуск» (группа `MyCalendar`); `upgradeUuid` закреплён в
 `build.gradle.kts`, поэтому следующая версия обновляет установленную, а не встаёт рядом.

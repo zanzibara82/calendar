@@ -9,8 +9,8 @@
 |---|---|
 | Debug APK | `app/build/outputs/apk/debug/app-debug.apk` |
 | Release APK (подписан, если есть `keystore.properties`) | `app/build/outputs/apk/release/app-release.apk` |
-| Windows MSI | `desktopApp/build/compose/binaries/main/msi/MyCalendar-0.1.0.msi` |
-| Windows EXE | `desktopApp/build/compose/binaries/main/exe/MyCalendar-0.1.0.exe` |
+| Windows MSI | `desktopApp/build/compose/binaries/main/msi/MyCalendar-0.2.0.msi` |
+| Windows EXE | `desktopApp/build/compose/binaries/main/exe/MyCalendar-0.2.0.exe` |
 | Отчёт unit-тестов | `app/build/reports/tests/testDebugUnitTest/index.html` |
 | Отчёт instrumented-тестов | `app/build/reports/androidTests/connected/debug/index.html` |
 | JUnit-XML instrumented | `app/build/outputs/androidTest-results/connected/debug/` |
@@ -57,8 +57,8 @@ Debug и release подписаны разными ключами, поэтом�
 распаковать в `%LOCALAPPDATA%\wix314` и добавить папку в пользовательский `PATH`; проверено —
 сборка проходит и с этим WiX 3.14.1 (проверка: `candle.exe -?` печатает версию 3.14.1).
 
-1. Запустите `MyCalendar-0.1.0.msi` двойным кликом или командой
-   `msiexec /i MyCalendar-0.1.0.msi`. Установка идёт для всех пользователей — Windows запросит
+1. Запустите `MyCalendar-0.2.0.msi` двойным кликом или командой
+   `msiexec /i MyCalendar-0.2.0.msi`. Установка идёт для всех пользователей — Windows запросит
    права администратора.
 2. Появятся ярлыки на рабочем столе и в меню «Пуск» (группа `MyCalendar`); запуск — любой из них.
 3. Данные лежат не в папке программы, а в `%APPDATA%\MyCalendar` (события, настройки, очередь

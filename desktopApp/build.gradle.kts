@@ -44,7 +44,7 @@ compose.desktop {
             // только первый прогон. WiX 4 не подойдёт — jpackage знает лишь WiX 3.
             targetFormats(TargetFormat.Exe, TargetFormat.Msi)
             packageName = "MyCalendar"
-            packageVersion = "0.1.0"
+            packageVersion = "0.2.0"
             vendor = "zanzibara82"
             windows {
                 menuGroup = "MyCalendar"
