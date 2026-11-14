@@ -50,6 +50,10 @@ fun SettingsScreen(
     onResetAlarm: () -> Unit,
     onPickBirthday: () -> Unit,
     onResetBirthday: () -> Unit,
+    autostartSupported: Boolean = false,
+    autostartEnabled: Boolean = false,
+    autostartError: String? = null,
+    onAutostartChange: (Boolean) -> Unit = {},
     account: UserAccount? = null,
     loginError: String? = null,
     onSignIn: () -> Unit = {},
@@ -246,6 +250,39 @@ fun SettingsScreen(
                     checked = settings.minimizeToTray,
                     onCheckedChange = onMinimizeToTrayChange,
                     modifier = Modifier.testTag("settings-minimize-to-tray"),
+                )
+            }
+            HorizontalDivider()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Запускать с Windows", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = if (autostartSupported) {
+                            "Программа стартует при входе в систему — напоминания приходят без ручного запуска."
+                        } else {
+                            "Доступно в установленной версии"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.onSurfaceVariant,
+                    )
+                    autostartError?.let { message ->
+                        Text(
+                            text = message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.testTag("settings-autostart-error"),
+                        )
+                    }
+                }
+                Checkbox(
+                    checked = autostartSupported && autostartEnabled,
+                    onCheckedChange = onAutostartChange,
+                    enabled = autostartSupported,
+                    modifier = Modifier.testTag("settings-autostart"),
                 )
             }
         }

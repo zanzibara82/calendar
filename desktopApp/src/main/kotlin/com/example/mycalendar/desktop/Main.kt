@@ -55,6 +55,7 @@ import com.example.mycalendar.desktop.settings.DesktopSettings
 import com.example.mycalendar.desktop.settings.SettingsScreen
 import com.example.mycalendar.desktop.settings.YandexLoginDialog
 import com.example.mycalendar.desktop.settings.syncStatusText
+import com.example.mycalendar.desktop.system.WindowsAutostartStore
 import com.example.mycalendar.desktop.theme.DesktopTheme
 import com.example.mycalendar.desktop.theme.EventCardGradient
 import com.example.mycalendar.domain.model.CalendarProvider
@@ -75,8 +76,10 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
 import java.util.UUID
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 
 /** Версия из nativeDistributions.packageVersion; отдельной подписи в градле нет. */
@@ -108,6 +111,14 @@ fun main() {
         val windowState = rememberWindowState(width = 1000.dp, height = 760.dp)
         var windowVisible by remember { mutableStateOf(true) }
         val trayAvailable = isTraySupported
+        val autostartStore = remember { WindowsAutostartStore() }
+        var autostartEnabled by remember { mutableStateOf(false) }
+        var autostartError by remember { mutableStateOf<String?>(null) }
+        LaunchedEffect(autostartStore) {
+            if (autostartStore.supported) {
+                autostartEnabled = withContext(Dispatchers.IO) { autostartStore.isEnabled() }
+            }
+        }
         val showWindow = {
             windowVisible = true
             windowState.isMinimized = false
@@ -320,6 +331,22 @@ fun main() {
                             },
                             onResetBirthday = {
                                 scope.launch { settingsStore.update { it.copy(birthdaySoundUri = null) } }
+                            },
+                            autostartSupported = autostartStore.supported,
+                            autostartEnabled = autostartEnabled,
+                            autostartError = autostartError,
+                            onAutostartChange = { enabled ->
+                                autostartError = null
+                                scope.launch {
+                                    val ok = withContext(Dispatchers.IO) {
+                                        autostartStore.setEnabled(enabled)
+                                    }
+                                    if (ok) {
+                                        autostartEnabled = enabled
+                                    } else {
+                                        autostartError = "Не удалось изменить автозапуск"
+                                    }
+                                }
                             },
                             account = yandexAccount,
                             loginError = loginError,

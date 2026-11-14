@@ -10,6 +10,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.example.mycalendar.desktop.theme.DesktopTheme
 import com.example.mycalendar.desktop.theme.ThemeMode
@@ -134,6 +135,59 @@ class SettingsScreenUiTest {
         onNodeWithTag("settings-minimize-to-tray").performClick()
 
         assertTrue(tray)
+    }
+
+    @Test
+    fun `autostart checkbox reports toggle`() = runComposeUiTest {
+        var autostart by mutableStateOf(false)
+        setContent {
+            DesktopTheme(ThemeMode.DARK) {
+                SettingsScreen(
+                    settings = defaults,
+                    dataDir = "dir",
+                    version = "0.1.0",
+                    onBack = {},
+                    onThemeChange = {},
+                    onQuietChange = {},
+                    onMinimizeToTrayChange = {},
+                    onPickAlarm = {},
+                    onResetAlarm = {},
+                    onPickBirthday = {},
+                    onResetBirthday = {},
+                    autostartSupported = true,
+                    autostartEnabled = autostart,
+                    onAutostartChange = { autostart = it },
+                )
+            }
+        }
+
+        onNodeWithTag("settings-autostart").performScrollTo().performClick()
+
+        assertTrue(autostart)
+    }
+
+    @Test
+    fun `autostart is disabled without packaged build`() = runComposeUiTest {
+        setContent {
+            DesktopTheme(ThemeMode.DARK) {
+                SettingsScreen(
+                    settings = defaults,
+                    dataDir = "dir",
+                    version = "0.1.0",
+                    onBack = {},
+                    onThemeChange = {},
+                    onQuietChange = {},
+                    onMinimizeToTrayChange = {},
+                    onPickAlarm = {},
+                    onResetAlarm = {},
+                    onPickBirthday = {},
+                    onResetBirthday = {},
+                )
+            }
+        }
+
+        onNodeWithTag("settings-autostart").assertIsNotEnabled()
+        onNodeWithText("Доступно в установленной версии").assertExists()
     }
 
     @Test
