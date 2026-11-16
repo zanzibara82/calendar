@@ -1,5 +1,6 @@
 @file:OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
 
+import java.util.Properties
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -38,10 +39,23 @@ dependencies {
 // mycalendar.version, иначе «О приложении» показывал бы устаревшую надпись.
 val appVersion = "0.2.3"
 
+// OAuth-клиент Google живёт только в local.properties (файл вне git).
+// Пустые значения — допустимая сборка: вход в Google просто выключен.
+val localProperties = Properties().apply {
+    rootProject.file("local.properties").takeIf { it.exists() }
+        ?.inputStream()?.use { load(it) }
+}
+val googleClientId = localProperties.getProperty("google.oauth.clientId").orEmpty().trim()
+val googleClientSecret = localProperties.getProperty("google.oauth.clientSecret").orEmpty().trim()
+
 compose.desktop {
     application {
         mainClass = "com.example.mycalendar.desktop.MainKt"
-        jvmArgs += listOf("-Dmycalendar.version=$appVersion")
+        jvmArgs += listOf(
+            "-Dmycalendar.version=$appVersion",
+            "-Dmycalendar.google.clientId=$googleClientId",
+            "-Dmycalendar.google.clientSecret=$googleClientSecret",
+        )
 
         nativeDistributions {
             // MSI упаковывается WiX 3 (candle.exe/light.exe): плагин сам кладёт его в

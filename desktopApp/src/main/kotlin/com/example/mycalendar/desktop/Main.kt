@@ -195,6 +195,12 @@ fun main() {
             val yandexAccount = connections
                 .firstOrNull { it.provider == CalendarProvider.YANDEX }
                 ?.account
+            val googleAccount = connections
+                .firstOrNull { it.provider == CalendarProvider.GOOGLE }
+                ?.account
+            val googleConfigured = remember { DesktopGoogleOAuthConfig.configured }
+            var googleSigningIn by remember { mutableStateOf(false) }
+            var googleLoginError by remember { mutableStateOf<String?>(null) }
 
             var reminder by remember { mutableStateOf<DueReminder?>(null) }
             val soundPolicy = remember { ReminderSoundPolicy(settingsRepository) }
@@ -416,6 +422,31 @@ fun main() {
                             onSync = startSync,
                             conflictCount = conflicts.size,
                             onOpenConflicts = { screen = Screen.CONFLICTS },
+                            googleAccount = googleAccount,
+                            googleLoginError = googleLoginError,
+                            googleSignInEnabled = googleConfigured,
+                            googleSigningIn = googleSigningIn,
+                            onGoogleSignIn = {
+                                if (!googleSigningIn) {
+                                    googleLoginError = null
+                                    googleSigningIn = true
+                                    scope.launch {
+                                        try {
+                                            authRepository.connectGoogleCalendar()
+                                                .onFailure { error ->
+                                                    googleLoginError = error.message
+                                                        ?: "Не удалось войти через Google"
+                                                }
+                                        } finally {
+                                            googleSigningIn = false
+                                        }
+                                    }
+                                }
+                            },
+                            onGoogleSignOut = {
+                                googleLoginError = null
+                                scope.launch { authRepository.signOut(CalendarProvider.GOOGLE) }
+                            },
                         )
 
                         Screen.CONFLICTS -> ConflictsScreen(
