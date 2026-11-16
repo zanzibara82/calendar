@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -141,7 +142,7 @@ class SettingsScreenUiTest {
             }
         }
 
-        onNodeWithTag("settings-minimize-to-tray").performClick()
+        onNodeWithTag("settings-minimize-to-tray").performScrollTo().performClick()
 
         assertTrue(tray)
     }
@@ -318,7 +319,7 @@ class SettingsScreenUiTest {
             }
         }
 
-        onNodeWithText("Не подключён", substring = true).assertExists()
+        onNodeWithTag("settings-account").assertTextContains("Не подключён", substring = true)
         onNodeWithTag("settings-sign-in").performClick()
 
         assertTrue(signedIn)
@@ -347,6 +348,114 @@ class SettingsScreenUiTest {
 
         onNodeWithTag("settings-login-error").assertExists()
         onNodeWithText("Нет сети").assertExists()
+    }
+
+    @Test
+    fun `google card invites to sign in`() = runComposeUiTest {
+        var signedIn = false
+        setContent {
+            DesktopTheme(ThemeMode.DARK) {
+                SettingsScreen(
+                    settings = defaults,
+                    dataDir = "dir",
+                    version = "0.1.0",
+                    onBack = {},
+                    onThemeChange = {},
+                    onQuietChange = {},
+                    onMinimizeToTrayChange = {},
+                    onPickAlarm = {},
+                    onResetAlarm = {},
+                    onPickBirthday = {},
+                    onResetBirthday = {},
+                    googleAccount = null,
+                    onGoogleSignIn = { signedIn = true },
+                )
+            }
+        }
+
+        onNodeWithTag("settings-google-account").assertExists()
+        onNodeWithTag("settings-google-sign-in").performClick()
+
+        assertTrue(signedIn)
+    }
+
+    @Test
+    fun `google card is disabled without credentials`() = runComposeUiTest {
+        setContent {
+            DesktopTheme(ThemeMode.DARK) {
+                SettingsScreen(
+                    settings = defaults,
+                    dataDir = "dir",
+                    version = "0.1.0",
+                    onBack = {},
+                    onThemeChange = {},
+                    onQuietChange = {},
+                    onMinimizeToTrayChange = {},
+                    onPickAlarm = {},
+                    onResetAlarm = {},
+                    onPickBirthday = {},
+                    onResetBirthday = {},
+                    googleSignInEnabled = false,
+                )
+            }
+        }
+
+        onNodeWithTag("settings-google-sign-in").assertIsNotEnabled()
+        onNodeWithText("Вход не настроен", substring = true).assertExists()
+    }
+
+    @Test
+    fun `connected google account signs out`() = runComposeUiTest {
+        var signedOut = false
+        setContent {
+            DesktopTheme(ThemeMode.DARK) {
+                SettingsScreen(
+                    settings = defaults,
+                    dataDir = "dir",
+                    version = "0.1.0",
+                    onBack = {},
+                    onThemeChange = {},
+                    onQuietChange = {},
+                    onMinimizeToTrayChange = {},
+                    onPickAlarm = {},
+                    onResetAlarm = {},
+                    onPickBirthday = {},
+                    onResetBirthday = {},
+                    googleAccount = UserAccount(CalendarProvider.GOOGLE, "ivan@gmail.com", "Иван"),
+                    onGoogleSignOut = { signedOut = true },
+                )
+            }
+        }
+
+        onNodeWithText("Подключено: Иван").assertExists()
+        onNodeWithTag("settings-google-sign-out").performClick()
+
+        assertTrue(signedOut)
+    }
+
+    @Test
+    fun `google signing in waits for the browser`() = runComposeUiTest {
+        setContent {
+            DesktopTheme(ThemeMode.DARK) {
+                SettingsScreen(
+                    settings = defaults,
+                    dataDir = "dir",
+                    version = "0.1.0",
+                    onBack = {},
+                    onThemeChange = {},
+                    onQuietChange = {},
+                    onMinimizeToTrayChange = {},
+                    onPickAlarm = {},
+                    onResetAlarm = {},
+                    onPickBirthday = {},
+                    onResetBirthday = {},
+                    googleSigningIn = true,
+                )
+            }
+        }
+
+        onNodeWithTag("settings-google-sign-in").assertIsNotEnabled()
+        onNodeWithText("Ожидаем подтверждения", substring = true).assertExists()
     }
 
     @Test

@@ -81,6 +81,12 @@ fun SettingsScreen(
     onSync: () -> Unit = {},
     conflictCount: Int = 0,
     onOpenConflicts: () -> Unit = {},
+    googleAccount: UserAccount? = null,
+    googleLoginError: String? = null,
+    googleSignInEnabled: Boolean = true,
+    googleSigningIn: Boolean = false,
+    onGoogleSignIn: () -> Unit = {},
+    onGoogleSignOut: () -> Unit = {},
     scrollState: ScrollState = rememberScrollState(),
 ) {
     val colors = LocalDesktopColors.current
@@ -144,6 +150,53 @@ fun SettingsScreen(
             }
 
             SectionHeader("Календари")
+            Panel {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("settings-google-card"),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Google", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            text = googleStatusText(
+                                account = googleAccount,
+                                signingIn = googleSigningIn,
+                                enabled = googleSignInEnabled,
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colors.onSurfaceVariant,
+                            modifier = Modifier.testTag("settings-google-account"),
+                        )
+                    }
+                    if (googleAccount == null) {
+                        TextButton(
+                            onClick = onGoogleSignIn,
+                            enabled = googleSignInEnabled && !googleSigningIn,
+                            modifier = Modifier.testTag("settings-google-sign-in"),
+                        ) {
+                            Text("Войти")
+                        }
+                    } else {
+                        TextButton(
+                            onClick = onGoogleSignOut,
+                            modifier = Modifier.testTag("settings-google-sign-out"),
+                        ) {
+                            Text("Выйти")
+                        }
+                    }
+                }
+                googleLoginError?.let { message ->
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.testTag("settings-google-error"),
+                    )
+                }
+            }
             Panel {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -420,4 +473,16 @@ internal fun soundLabel(uri: String?): String {
     if (uri == null) return "Системный"
     val name = runCatching { URI(uri).path }.getOrNull()?.substringAfterLast('/')
     return if (name.isNullOrBlank()) uri else name
+}
+
+/** Статус карточки Google: подключение важнее подсказки о входе. */
+internal fun googleStatusText(
+    account: UserAccount?,
+    signingIn: Boolean,
+    enabled: Boolean,
+): String = when {
+    account != null -> "Подключено: ${account.displayName ?: account.email}"
+    signingIn -> "Ожидаем подтверждения в браузере…"
+    !enabled -> "Вход не настроен: нет client_id в local.properties"
+    else -> "Не подключён — вход через браузер"
 }
