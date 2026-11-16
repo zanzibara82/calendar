@@ -184,7 +184,7 @@ keyPassword=...
 
 ## Тесты
 
-- **352 JVM-теста** — 46 в Android-приложении, 104 в `:shared`, 202 в `:desktopApp`; решатель конфликтов, репозитории на фейках, CalDAV-клиент против локального
+- **356 JVM-тестов** — 46 в Android-приложении, 104 в `:shared`, 206 в `:desktopApp`; решатель конфликтов, репозитории на фейках, CalDAV-клиент против локального
   mock-сервера (`MiniCalDavServer`, вместе с клиентом живёт в `:shared`), OAuth, планировщик напоминаний, сравнение версий и разбор
   ответа GitHub Releases; тонирование выходных и праздников покрыто реестром праздников
   (`HolidayRegistryTest`, 7), тоном дня (`DayMarkToneTest`, 3), контрастом пар палитры
@@ -193,7 +193,7 @@ keyPassword=...
   и `ReminderSoundPolicyTest` (6), имя коллекции из ответа источника — `YandexCalendarDataSourceTest`
   (6, из них 1 — `calendarName`); текст шапки недели — `WeekTitleTest` (4, включая недели
   на стыке месяцев и лет) и форма счётчика спорных полей — `ContestedFieldsLabelTest` (3);
-  итог 352 и 0 падений: `testDebugUnitTest` — 46, `:shared:test` — 104, `:desktopApp:test` — 202
+  итог 356 и 0 падений: `testDebugUnitTest` — 46, `:shared:test` — 104, `:desktopApp:test` — 206
   (замер 14.11.2026); в `:shared` правила разбора конфликта живут отдельно от usecase —
   `ResolveConflictRuleTest` (8): матрица исходов удаления и состав разобранной записи;
   общее с Android правило выбора вхождения для напоминания — `ReminderOccurrenceHelperTest` (5):
@@ -210,6 +210,7 @@ keyPassword=...
   не пишется; настоящий Windows DPAPI (`DpapiTokenCipherTest`, 1): blob скрывает токен и
   расшифровывается тем же пользователем; версия в «О приложении» берётся из
   `-Dmycalendar.version` (`AppVersionTest`, 3): свойство побеждает, без него — `dev`;
+  стартовый размер окна — полтора прежних и не больше экрана (`InitialWindowSizeTest`, 4);
   а общий движок синхронизации прогнан на этих хранилищах (`DesktopSyncEngineTest`, 3);
   вход через Яндекс по коду устройства проверен движком против локального HTTP-сервера
   (`DesktopYandexLoginTest`, 6): опрос токена до подтверждения, объяснение отказа сервера,

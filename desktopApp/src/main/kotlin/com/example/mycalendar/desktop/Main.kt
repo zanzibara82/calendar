@@ -110,7 +110,7 @@ fun main() {
         val stored by settingsStore.settings.collectAsState()
         LaunchedEffect(settingsStore) { settingsStore.load() }
         val settings = stored ?: DesktopSettings()
-        val windowState = rememberWindowState(width = 1000.dp, height = 760.dp)
+        val windowState = rememberWindowState(size = defaultWindowSize())
         var windowVisible by remember { mutableStateOf(true) }
         val trayAvailable = isTraySupported
         val autostartStore = remember { WindowsAutostartStore() }
