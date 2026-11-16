@@ -2,7 +2,7 @@ package com.example.mycalendar.data.remote.yandex
 
 import com.example.mycalendar.data.remote.RemoteEvent
 import com.example.mycalendar.domain.model.Event
-import com.example.mycalendar.domain.model.RepeatRule
+import com.example.mycalendar.domain.util.RruleCodec
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -44,7 +44,7 @@ object IcsMapper {
         event.description?.takeIf { it.isNotBlank() }?.let { lines += "DESCRIPTION:${escape(it)}" }
         lines += "DTSTART:${fmtUtc(event.startTime)}"
         lines += "DTEND:${fmtUtc(event.endTime)}"
-        repeatToRrule(event.repeatRule)?.let { lines += "RRULE:$it" }
+        RruleCodec.toRrule(event.repeatRule)?.let { lines += "RRULE:$it" }
         for (min in event.reminderMinutes) {
             lines += "BEGIN:VALARM"
             lines += "TRIGGER:${reminderToTrigger(min)}"
@@ -107,7 +107,7 @@ object IcsMapper {
             startTime = dtStart,
             endTime = dtEnd,
             reminderMinutes = reminders,
-            repeatRule = rruleToRepeat(rrule),
+            repeatRule = RruleCodec.fromRrule(rrule),
             updatedAt = lastModified ?: dtStart,
         )
     }
@@ -164,28 +164,6 @@ object IcsMapper {
                 "," -> ","
                 else -> c
             }
-        }
-    }
-
-    private fun repeatToRrule(rule: RepeatRule?): String? = when (rule) {
-        RepeatRule.DAILY -> "FREQ=DAILY"
-        RepeatRule.WEEKLY -> "FREQ=WEEKLY"
-        RepeatRule.MONTHLY -> "FREQ=MONTHLY"
-        RepeatRule.YEARLY -> "FREQ=YEARLY"
-        null -> null
-    }
-
-    private fun rruleToRepeat(rrule: String?): RepeatRule? {
-        val freq = rrule?.substringAfter("FREQ=", "")
-            ?.substringBefore(";")
-            ?.substringBefore(":")
-            ?.uppercase(Locale.US)
-        return when (freq) {
-            "DAILY" -> RepeatRule.DAILY
-            "WEEKLY" -> RepeatRule.WEEKLY
-            "MONTHLY" -> RepeatRule.MONTHLY
-            "YEARLY" -> RepeatRule.YEARLY
-            else -> null
         }
     }
 
