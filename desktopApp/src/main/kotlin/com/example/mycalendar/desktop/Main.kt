@@ -80,6 +80,7 @@ import java.time.ZoneId
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -100,6 +101,13 @@ private sealed interface EditorTarget {
 }
 
 fun main() {
+    val instance = SingleInstance(DesktopPaths.dataDir())
+    if (!instance.tryAcquire()) {
+        // Уже работает другой клиент (часто — свёрнутый в трей): просим его показать окно
+        // и уходим, не заводя вторую копию и вторую иконку в трее.
+        runCatching { instance.requestShow() }
+        return
+    }
     val repository = DesktopEventRepository(EventFileStore(DesktopPaths.eventsFile()))
     val settingsStore = DesktopSettingsStore(DesktopPaths.settingsFile())
     val settingsRepository = DesktopSettingsRepository(settingsStore)
@@ -124,6 +132,19 @@ fun main() {
         val showWindow = {
             windowVisible = true
             windowState.isMinimized = false
+        }
+        // Повторный запуск exe оставляет запрос «покажи окно» — вместо второй копии
+        // разворачиваем эту, даже если она свёрнута в трей.
+        LaunchedEffect(instance) {
+            var seen: String? = null
+            while (true) {
+                val token = withContext(Dispatchers.IO) { instance.pollShowRequest(seen) }
+                if (token != null) {
+                    seen = token
+                    showWindow()
+                }
+                delay(700)
+            }
         }
 
         Window(
