@@ -1,17 +1,26 @@
 package com.example.mycalendar.desktop.settings
 
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.test.v2.runComposeUiTest
+import androidx.compose.ui.unit.dp
 import com.example.mycalendar.desktop.theme.DesktopTheme
 import com.example.mycalendar.desktop.theme.ThemeMode
 import com.example.mycalendar.domain.model.CalendarProvider
@@ -450,6 +459,60 @@ class SettingsScreenUiTest {
         onNodeWithTag("settings-open-conflicts").performClick()
 
         assertTrue(opened)
+    }
+
+    @Test
+    fun `settings show a scrollbar`() = runComposeUiTest {
+        setContent {
+            DesktopTheme(ThemeMode.DARK) {
+                SettingsScreen(
+                    settings = defaults,
+                    dataDir = "dir",
+                    version = "0.1.0",
+                    onBack = {},
+                    onThemeChange = {},
+                    onQuietChange = {},
+                    onMinimizeToTrayChange = {},
+                    onPickAlarm = {},
+                    onResetAlarm = {},
+                    onPickBirthday = {},
+                    onResetBirthday = {},
+                )
+            }
+        }
+
+        onNodeWithTag("settings-scrollbar").assertExists()
+    }
+
+    @Test
+    fun `arrow key scrolls the settings`() = runComposeUiTest {
+        val scroll = ScrollState(0)
+        setContent {
+            DesktopTheme(ThemeMode.DARK) {
+                // Узкий и низкий вьюпорт: содержимое настроек заведомо выше него.
+                Box(modifier = Modifier.size(600.dp, 300.dp)) {
+                    SettingsScreen(
+                        settings = defaults,
+                        dataDir = "dir",
+                        version = "0.1.0",
+                        onBack = {},
+                        onThemeChange = {},
+                        onQuietChange = {},
+                        onMinimizeToTrayChange = {},
+                        onPickAlarm = {},
+                        onResetAlarm = {},
+                        onPickBirthday = {},
+                        onResetBirthday = {},
+                        scrollState = scroll,
+                    )
+                }
+            }
+        }
+
+        onNodeWithTag("settings-screen").requestFocus()
+        onNodeWithTag("settings-screen").performKeyInput { pressKey(Key.DirectionDown) }
+
+        assertTrue(scroll.value > 0)
     }
 
     @Test
