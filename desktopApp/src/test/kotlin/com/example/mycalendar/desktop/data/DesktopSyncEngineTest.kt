@@ -47,9 +47,15 @@ class DesktopSyncEngineTest {
             store = DesktopAuthStore(dir.resolve("account.json")),
             settingsRepository = settings,
             tokenVault = MemoryTokenVault(),
-            authorize = {
+            googleTokens = DesktopGoogleTokens(
+                vault = MemoryTokenVault(),
+                clientId = "client-id",
+                clientSecret = "client-secret",
+            ),
+            authorizeYandex = {
                 YandexSession("token-1", UserAccount(CalendarProvider.YANDEX, "user@yandex.ru"))
             },
+            authorizeGoogle = { error("вход Google не нужен") },
         )
         auth.signInWithYandex()
         remote = FakeRemote()

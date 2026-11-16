@@ -31,6 +31,7 @@ class DesktopAuthRepositoryTest {
         val account: Path,
         val settings: Path,
         val token: Path,
+        val googleToken: Path,
     )
 
     private fun newFiles(): TempPaths {
@@ -39,21 +40,32 @@ class DesktopAuthRepositoryTest {
             account = dir.resolve("account.json"),
             settings = dir.resolve("settings.json"),
             token = dir.resolve("token.bin"),
+            googleToken = dir.resolve("google-token.bin"),
         )
     }
 
     private fun vault(files: TempPaths) = DesktopTokenVault(files.token, ReversingCipher())
 
+    private fun googleTokens(files: TempPaths) = DesktopGoogleTokens(
+        vault = DesktopTokenVault(files.googleToken, ReversingCipher()),
+        clientId = "client-id",
+        clientSecret = "client-secret",
+        tokenUrl = "http://127.0.0.1:9/token",
+    )
+
     private fun repository(
         files: TempPaths,
-        authorize: suspend () -> YandexSession,
+        authorizeYandex: suspend () -> YandexSession,
+        authorizeGoogle: suspend () -> GoogleSession = { error("вход Google не нужен") },
     ): Pair<DesktopAuthRepository, DesktopSettingsRepository> {
         val settingsRepository = DesktopSettingsRepository(DesktopSettingsStore(files.settings))
         val repository = DesktopAuthRepository(
             store = DesktopAuthStore(files.account),
             settingsRepository = settingsRepository,
             tokenVault = vault(files),
-            authorize = authorize,
+            googleTokens = googleTokens(files),
+            authorizeYandex = authorizeYandex,
+            authorizeGoogle = authorizeGoogle,
         )
         return repository to settingsRepository
     }
@@ -61,7 +73,7 @@ class DesktopAuthRepositoryTest {
     @Test
     fun `sign in stores the account and hands out the token`() = runBlocking {
         val files = newFiles()
-        val (repository, _) = repository(files) { session }
+        val (repository, _) = repository(files, authorizeYandex = { session })
 
         val result = repository.signInWithYandex()
 
@@ -71,7 +83,9 @@ class DesktopAuthRepositoryTest {
         assertEquals("token-1", repository.getAccessToken())
         assertEquals("token-1", repository.getAccessToken(CalendarProvider.YANDEX))
         assertEquals("token-1", vault(files).load())
-        val connection = repository.connections.first().single()
+        val connection = repository.connections.first().single {
+            it.provider == CalendarProvider.YANDEX
+        }
         assertEquals(CalendarProvider.YANDEX, connection.provider)
         assertEquals(account, connection.account)
     }
@@ -79,11 +93,11 @@ class DesktopAuthRepositoryTest {
     @Test
     fun `account and token survive reload`() = runBlocking {
         val files = newFiles()
-        val (first, _) = repository(files) { session }
+        val (first, _) = repository(files, authorizeYandex = { session })
         first.signInWithYandex()
 
-        val (reloaded, _) = repository(files) { error("вход не нужен") }
-        reloaded.restoreToken()
+        val (reloaded, _) = repository(files, authorizeYandex = { error("вход не нужен") })
+        reloaded.restoreTokens()
 
         assertEquals(account, reloaded.accountFor(CalendarProvider.YANDEX))
         assertEquals("token-1", reloaded.getAccessToken())
@@ -93,9 +107,9 @@ class DesktopAuthRepositoryTest {
     fun `token without an account is dropped on restore`() = runBlocking {
         val files = newFiles()
         vault(files).save("stray")
-        val (repository, _) = repository(files) { session }
+        val (repository, _) = repository(files, authorizeYandex = { session })
 
-        repository.restoreToken()
+        repository.restoreTokens()
 
         assertNull(repository.getAccessToken())
         assertNull(vault(files).load())
@@ -104,7 +118,7 @@ class DesktopAuthRepositoryTest {
     @Test
     fun `new sign in forgets the collection of the previous account`() = runBlocking {
         val files = newFiles()
-        val (repository, settingsRepository) = repository(files) { session }
+        val (repository, settingsRepository) = repository(files, authorizeYandex = { session })
         settingsRepository.setCollectionUrl(CalendarProvider.YANDEX, "https://caldav.yandex.ru/old/")
 
         repository.signInWithYandex()
@@ -115,7 +129,7 @@ class DesktopAuthRepositoryTest {
     @Test
     fun `sign out removes the account and the token`() = runBlocking {
         val files = newFiles()
-        val (repository, _) = repository(files) { session }
+        val (repository, _) = repository(files, authorizeYandex = { session })
         repository.signInWithYandex()
 
         repository.signOut(CalendarProvider.YANDEX)
@@ -130,9 +144,9 @@ class DesktopAuthRepositoryTest {
     fun `failed sign in keeps the previous account and repeats the reason`() = runBlocking {
         var online = true
         val files = newFiles()
-        val (repository, _) = repository(files) {
+        val (repository, _) = repository(files, authorizeYandex = {
             if (online) session else error("Нет сети")
-        }
+        })
         repository.signInWithYandex()
         online = false
 
@@ -147,9 +161,9 @@ class DesktopAuthRepositoryTest {
 
     @Test
     fun `cancelled sign in stays a cancellation`() = runBlocking {
-        val (repository, _) = repository(newFiles()) {
+        val (repository, _) = repository(newFiles(), authorizeYandex = {
             throw CancellationException("пользователь закрыл диалог")
-        }
+        })
 
         try {
             repository.signInWithYandex()
@@ -160,22 +174,74 @@ class DesktopAuthRepositoryTest {
     }
 
     @Test
-    fun `google is unsupported and has no token`() = runBlocking {
-        val (repository, _) = repository(newFiles()) { session }
+    fun `google sign in stores the account and the tokens`() = runBlocking {
+        val files = newFiles()
+        val googleAccount = UserAccount(
+            provider = CalendarProvider.GOOGLE,
+            email = "user@gmail.com",
+            displayName = "Пользователь Google",
+        )
+        val googleSession = GoogleSession(
+            tokens = GoogleTokens("access-g", "refresh-g", expiresAt = Long.MAX_VALUE),
+            account = googleAccount,
+        )
+        val (repository, _) = repository(
+            files,
+            authorizeYandex = { error("Яндекс не нужен") },
+            authorizeGoogle = { googleSession },
+        )
 
         val result = repository.connectGoogleCalendar()
 
-        assertTrue(result.isFailure)
-        assertTrue(result.exceptionOrNull()?.message.orEmpty().contains("не поддерживается"))
+        assertEquals(googleAccount, result.getOrNull())
+        assertEquals(googleAccount, repository.accountFor(CalendarProvider.GOOGLE))
+        assertEquals(listOf(CalendarProvider.GOOGLE), repository.connectedProviders())
+        assertEquals("access-g", repository.getAccessToken(CalendarProvider.GOOGLE))
+        assertEquals("access-g", googleTokens(files).accessToken())
+    }
+
+    @Test
+    fun `google and yandex are independent`() = runBlocking {
+        val files = newFiles()
+        val googleAccount = UserAccount(CalendarProvider.GOOGLE, "user@gmail.com")
+        val googleSession = GoogleSession(
+            tokens = GoogleTokens("access-g", "refresh-g", expiresAt = Long.MAX_VALUE),
+            account = googleAccount,
+        )
+        val (repository, _) = repository(
+            files,
+            authorizeYandex = { session },
+            authorizeGoogle = { googleSession },
+        )
+        repository.signInWithYandex()
+        repository.connectGoogleCalendar()
+
+        repository.signOut(CalendarProvider.GOOGLE)
+
+        assertEquals(account, repository.accountFor(CalendarProvider.YANDEX))
+        assertEquals("token-1", repository.getAccessToken(CalendarProvider.YANDEX))
+        assertNull(repository.accountFor(CalendarProvider.GOOGLE))
         assertNull(repository.getAccessToken(CalendarProvider.GOOGLE))
-        assertNull(repository.getAccessToken(CalendarProvider.LOCAL))
+        assertNull(googleTokens(files).accessToken())
+    }
+
+    @Test
+    fun `google tokens without an account are dropped on restore`() = runBlocking {
+        val files = newFiles()
+        googleTokens(files).save(GoogleTokens("access", "refresh", expiresAt = Long.MAX_VALUE))
+        val (repository, _) = repository(files, authorizeYandex = { session })
+
+        repository.restoreTokens()
+
+        assertNull(repository.getAccessToken(CalendarProvider.GOOGLE))
+        assertNull(googleTokens(files).accessToken())
     }
 
     @Test
     fun `corrupt account file is quarantined and starts empty`() = runBlocking {
         val files = newFiles()
         Files.writeString(files.account, "{ not json")
-        val (repository, _) = repository(files) { session }
+        val (repository, _) = repository(files, authorizeYandex = { session })
 
         assertNull(repository.accountFor(CalendarProvider.YANDEX))
         assertFalse(Files.exists(files.account))

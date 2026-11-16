@@ -50,7 +50,8 @@ data class RemoteFetch(
 /**
  * Абстракция удалённого календаря: pull-запросы изменённых событий и push-операции.
  * Реализации: SystemCalendarDataSource (Google через системный календарь
- * Android, CalendarContract), YandexCalendarDataSource (REST).
+ * Android, CalendarContract), GoogleCalendarDataSource (Google Calendar API v3),
+ * YandexCalendarDataSource (REST).
  */
 interface RemoteCalendarDataSource {
 

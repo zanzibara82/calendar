@@ -27,9 +27,12 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.isTraySupported
 import androidx.compose.ui.window.rememberWindowState
+import com.example.mycalendar.data.remote.google.GoogleCalendarDataSource
 import com.example.mycalendar.data.remote.yandex.CalDavClient
 import com.example.mycalendar.data.remote.yandex.YandexCalendarDataSource
 import com.example.mycalendar.data.repository.SyncRepositoryImpl
+import com.example.mycalendar.desktop.auth.DesktopGoogleLogin
+import com.example.mycalendar.desktop.auth.DesktopGoogleOAuthConfig
 import com.example.mycalendar.desktop.auth.DeviceCode
 import com.example.mycalendar.desktop.auth.DesktopYandexLogin
 import com.example.mycalendar.desktop.calendar.EventEditorDialog
@@ -41,6 +44,7 @@ import com.example.mycalendar.desktop.data.DesktopAuthStore
 import com.example.mycalendar.desktop.data.DesktopConflictRepository
 import com.example.mycalendar.desktop.data.DesktopConflictStore
 import com.example.mycalendar.desktop.data.DesktopEventRepository
+import com.example.mycalendar.desktop.data.DesktopGoogleTokens
 import com.example.mycalendar.desktop.data.DesktopPaths
 import com.example.mycalendar.desktop.data.DesktopRemoteDataSourceProvider
 import com.example.mycalendar.desktop.data.DesktopSettingsRepository
@@ -164,16 +168,29 @@ fun main() {
             var info by remember { mutableStateOf<Event?>(null) }
 
             val login = remember { DesktopYandexLogin() }
+            val googleLogin = remember { DesktopGoogleLogin() }
             var deviceCode by remember { mutableStateOf<DeviceCode?>(null) }
             var loginError by remember { mutableStateOf<String?>(null) }
             var loginJob by remember { mutableStateOf<Job?>(null) }
             val tokenVault = remember { DesktopTokenVault(DesktopPaths.tokenFile(), DpapiTokenCipher()) }
-            val authRepository = remember {
-                DesktopAuthRepository(authStore, settingsRepository, tokenVault) {
-                    login.signIn { code -> deviceCode = code }
-                }
+            val googleTokens = remember {
+                DesktopGoogleTokens(
+                    vault = DesktopTokenVault(DesktopPaths.googleTokenFile(), DpapiTokenCipher()),
+                    clientId = DesktopGoogleOAuthConfig.clientId,
+                    clientSecret = DesktopGoogleOAuthConfig.clientSecret,
+                )
             }
-            LaunchedEffect(authRepository) { authRepository.restoreToken() }
+            val authRepository = remember {
+                DesktopAuthRepository(
+                    store = authStore,
+                    settingsRepository = settingsRepository,
+                    tokenVault = tokenVault,
+                    googleTokens = googleTokens,
+                    authorizeYandex = { login.signIn { code -> deviceCode = code } },
+                    authorizeGoogle = { googleLogin.signIn(::openInBrowser) },
+                )
+            }
+            LaunchedEffect(authRepository) { authRepository.restoreTokens() }
             val connections by authRepository.connections.collectAsState(initial = emptyList())
             val yandexAccount = connections
                 .firstOrNull { it.provider == CalendarProvider.YANDEX }
@@ -213,7 +230,11 @@ fun main() {
                     conflictResolver = SyncConflictResolver(),
                     conflictRepository = conflictRepository,
                     dataSourceProvider = DesktopRemoteDataSourceProvider(
-                        YandexCalendarDataSource(
+                        google = GoogleCalendarDataSource(
+                            http = OkHttpClient(),
+                            authRepository = authRepository,
+                        ),
+                        yandex = YandexCalendarDataSource(
                             caldav = CalDavClient(OkHttpClient()),
                             auth = authRepository,
                             authRepository = authRepository,

@@ -20,26 +20,27 @@ data class YandexSession(
 )
 
 /**
- * [AuthRepository] desktop-клиента.
+ * [AuthRepository] desktop-клиента: Яндекс и Google независимы.
  *
- * На Windows пока есть только Яндекс: системного календаря, через который Android
- * подключает Google, здесь нет. Сам вход вынесен в [authorize] — в окне это device flow
- * (`DesktopYandexLogin`); репозиторий отвечает за то, что и после него
- * остаётся прежним: хранение аккаунта, сброс привязки к коллекции и доступ к токену.
+ * Яндекс входит по коду устройства, Google — через браузер (loopback + PKCE);
+ * оба входа вынесены в колбэки, чтобы репозиторий не знал про UI и HTTP.
+ * Аккаунты лежат в `account.json`, токены — в двух отдельных файлах под DPAPI:
+ * выход из одного календаря не трогает другой.
  *
- * Токен переживает перезапуск: он лежит в [tokenVault] под защитой DPAPI, а при старте
- * возвращается только если учётная запись Яндекса на месте. Выход из аккаунта стирает
- * и файл токена. Аккаунт при этом сохраняется в account.json, поэтому события и очередь
- * конфликтов не теряются.
+ * Токен без учётной записи бессмыслен: после сбоя выхода он остался бы в файле,
+ * поэтому при восстановлении сначала сверяется `account.json`, а осиротевший
+ * токен стирается.
  */
 class DesktopAuthRepository(
     private val store: DesktopAuthStore,
     private val settingsRepository: SettingsRepository,
     private val tokenVault: TokenVault,
-    private val authorize: suspend () -> YandexSession,
+    private val googleTokens: DesktopGoogleTokens,
+    private val authorizeYandex: suspend () -> YandexSession,
+    private val authorizeGoogle: suspend () -> GoogleSession,
 ) : AuthRepository, AccessTokenProvider {
 
-    private val managedProviders = listOf(CalendarProvider.YANDEX)
+    private val managedProviders = listOf(CalendarProvider.GOOGLE, CalendarProvider.YANDEX)
 
     @Volatile
     private var yandexToken: String? = null
@@ -59,18 +60,27 @@ class DesktopAuthRepository(
     override suspend fun connectedProviders(): List<CalendarProvider> =
         managedProviders.filter { store.snapshot().readAccount(it) != null }
 
-    override suspend fun connectGoogleCalendar(): Result<UserAccount> =
-        Result.failure(
-            IllegalStateException(
-                "Google Календарь на Windows пока не поддерживается: системного календаря нет"
-            )
-        )
-
-    override suspend fun signInWithYandex(): Result<UserAccount> = try {
-        val session = authorize()
-        yandexToken = session.token
+    override suspend fun connectGoogleCalendar(): Result<UserAccount> = try {
+        val session = authorizeGoogle()
         saveAccount(session.account)
         // Вход состоялся и без сохранения токена: сбой диска не должен его отменять.
+        runCatching { googleTokens.save(session.tokens) }
+            .onFailure { System.err.println("google token was not saved: ${it.message}") }
+        Result.success(session.account)
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: Throwable) {
+        Result.failure(
+            IllegalStateException(
+                error.message ?: "Не удалось войти через Google: ${error.javaClass.simpleName}"
+            )
+        )
+    }
+
+    override suspend fun signInWithYandex(): Result<UserAccount> = try {
+        val session = authorizeYandex()
+        yandexToken = session.token
+        saveAccount(session.account)
         runCatching { tokenVault.save(session.token) }
             .onFailure { System.err.println("token was not saved: ${it.message}") }
         Result.success(session.account)
@@ -86,25 +96,32 @@ class DesktopAuthRepository(
     }
 
     /**
-     * Возвращает сохранённый токен после перезапуска.
-     *
-     * Токен без учётной записи бессмыслен и опасен: он остался бы в файле после сбоя
-     * выхода. Поэтому сначала сверяется account.json, и осиротевший токен стирается.
+     * Возвращает сохранённые токены после перезапуска — каждый только при
+     * наличии своей учётной записи. Осиротевший токен стирается.
      */
-    suspend fun restoreToken() {
+    suspend fun restoreTokens() {
         if (store.snapshot().containsKey(CalendarProvider.YANDEX.name)) {
             yandexToken = tokenVault.load()
         } else {
             yandexToken = null
             tokenVault.clear()
         }
+        if (store.snapshot().containsKey(CalendarProvider.GOOGLE.name)) {
+            googleTokens.restore()
+        } else {
+            googleTokens.clear()
+        }
     }
 
     override suspend fun signOut(provider: CalendarProvider) {
         store.update { accounts -> accounts - provider.name }
-        if (provider == CalendarProvider.YANDEX) {
-            yandexToken = null
-            tokenVault.clear()
+        when (provider) {
+            CalendarProvider.YANDEX -> {
+                yandexToken = null
+                tokenVault.clear()
+            }
+            CalendarProvider.GOOGLE -> googleTokens.clear()
+            CalendarProvider.LOCAL -> Unit
         }
     }
 
@@ -114,13 +131,12 @@ class DesktopAuthRepository(
 
     override suspend fun getAccessToken(provider: CalendarProvider, forceRefresh: Boolean): String? =
         when (provider) {
-            // Google синхронизируется через системный календарь Android; на desktop его нет.
-            CalendarProvider.GOOGLE -> null
+            CalendarProvider.GOOGLE -> googleTokens.accessToken(forceRefresh)
             CalendarProvider.YANDEX -> yandexToken
             CalendarProvider.LOCAL -> null
         }
 
-    /** [AccessTokenProvider] глазами CalDAV-источника: токен есть только у Яндекса. */
+    /** [AccessTokenProvider] глазами CalDAV-источника: там бывает только Яндекс. */
     override fun getAccessToken(): String? = yandexToken
 
     private suspend fun saveAccount(account: UserAccount) {

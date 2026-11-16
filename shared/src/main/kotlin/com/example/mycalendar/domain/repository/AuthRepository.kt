@@ -40,12 +40,13 @@ interface AuthRepository {
     suspend fun connectedProviders(): List<CalendarProvider>
 
     /**
-     * Подключение Google Календаря через СИСТЕМНЫЙ календарь Android.
+     * Подключение Google Календаря.
      *
-     * Аккаунт Google уже добавлен на телефон, а его календарь уже синхронизируется
-     * системой в [android.provider.CalendarContract] — поэтому OAuth-клиент,
-     * client_id и регистрация в Google Cloud Console НЕ нужны вовсе.
-     * Требуется только runtime-разрешение READ/WRITE_CALENDAR.
+     * Android использует системный календарь: OAuth не нужен, достаточно
+     * READ/WRITE_CALENDAR, а аккаунт владельца берётся из CalendarContract.
+     *
+     * Windows входит через браузер (loopback + PKCE) и работает с Google
+     * Calendar API напрямую.
      *
      * @return аккаунт-владелец выбранного календаря (обычно e-mail Google).
      */
@@ -66,8 +67,9 @@ interface AuthRepository {
     /**
      * OAuth access token для API выбранного провайдера.
      *
-     * Google здесь всегда null: его синхронизация идёт через системный календарь
-     * ([android.provider.CalendarContract]) и токен не нужен.
+     * На Android Google здесь всегда null: синхронизация идёт через системный
+     * календарь и токен не нужен. На Windows Google возвращает access-токен
+     * Calendar API, а Яндекс — токен CalDAV.
      *
      * @param forceRefresh — сбросить закешированный токен (после 401).
      */
