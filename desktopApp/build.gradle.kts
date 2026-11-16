@@ -36,7 +36,7 @@ dependencies {
 
 // Единственное место версии клиента: она же уходит в рантайм свойством
 // mycalendar.version, иначе «О приложении» показывал бы устаревшую надпись.
-val appVersion = "0.2.2"
+val appVersion = "0.2.3"
 
 compose.desktop {
     application {
