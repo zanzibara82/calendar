@@ -26,4 +26,6 @@ object DesktopPaths {
     fun accountFile(): Path = dataDir().resolve("account.json")
 
     fun tokenFile(): Path = dataDir().resolve("token.bin")
+
+    fun googleTokenFile(): Path = dataDir().resolve("google-token.bin")
 }
