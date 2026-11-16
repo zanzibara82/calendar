@@ -84,8 +84,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 
-/** Версия из nativeDistributions.packageVersion; отдельной подписи в градле нет. */
-private const val APP_VERSION = "0.1.0"
+/** Версия из nativeDistributions.packageVersion, переданная через -Dmycalendar.version. */
+private val APP_VERSION = appVersion(System.getProperty("mycalendar.version"))
 
 private enum class Screen { MONTH, SETTINGS, CONFLICTS }
 

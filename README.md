@@ -163,7 +163,7 @@ app/src/main/java/com/example/mycalendar/
 JDK 21 умеет только WiX 3 (`candle.exe`/`light.exe`), поэтому внешний WiX 4+ не подойдёт;
 проверено и с внешним WiX 3.14.1 в `PATH` (портативно в `%LOCALAPPDATA%\wix314`) — это запасной
 вариант для сборки без сети. Артефакты — в
-`desktopApp/build/compose/binaries/main/{msi,exe}/MyCalendar-0.2.0.msi` (около 110 МиБ каждый).
+`desktopApp/build/compose/binaries/main/{msi,exe}/MyCalendar-0.2.1.msi` (около 110 МиБ каждый).
 MSI ставит программу для всех пользователей (Windows запросит права администратора), кладёт
 ярлыки на рабочий стол и в меню «Пуск» (группа `MyCalendar`); `upgradeUuid` закреплён в
 `build.gradle.kts`, поэтому следующая версия обновляет установленную, а не встаёт рядом.
@@ -184,7 +184,7 @@ keyPassword=...
 
 ## Тесты
 
-- **349 JVM-теста** — 46 в Android-приложении, 104 в `:shared`, 199 в `:desktopApp`; решатель конфликтов, репозитории на фейках, CalDAV-клиент против локального
+- **352 JVM-теста** — 46 в Android-приложении, 104 в `:shared`, 202 в `:desktopApp`; решатель конфликтов, репозитории на фейках, CalDAV-клиент против локального
   mock-сервера (`MiniCalDavServer`, вместе с клиентом живёт в `:shared`), OAuth, планировщик напоминаний, сравнение версий и разбор
   ответа GitHub Releases; тонирование выходных и праздников покрыто реестром праздников
   (`HolidayRegistryTest`, 7), тоном дня (`DayMarkToneTest`, 3), контрастом пар палитры
@@ -193,7 +193,7 @@ keyPassword=...
   и `ReminderSoundPolicyTest` (6), имя коллекции из ответа источника — `YandexCalendarDataSourceTest`
   (6, из них 1 — `calendarName`); текст шапки недели — `WeekTitleTest` (4, включая недели
   на стыке месяцев и лет) и форма счётчика спорных полей — `ContestedFieldsLabelTest` (3);
-  итог 349 и 0 падений: `testDebugUnitTest` — 46, `:shared:test` — 104, `:desktopApp:test` — 199
+  итог 352 и 0 падений: `testDebugUnitTest` — 46, `:shared:test` — 104, `:desktopApp:test` — 202
   (замер 14.11.2026); в `:shared` правила разбора конфликта живут отдельно от usecase —
   `ResolveConflictRuleTest` (8): матрица исходов удаления и состав разобранной записи;
   общее с Android правило выбора вхождения для напоминания — `ReminderOccurrenceHelperTest` (5):
@@ -208,7 +208,8 @@ keyPassword=...
   хранилище токена (`TokenVaultTest`, 5): шифротекст на диске не содержит токена, отсутствие файла
   даёт null, очистка удаляет файл, нечитаемый blob стирается вместо падения запуска, пустой токен
   не пишется; настоящий Windows DPAPI (`DpapiTokenCipherTest`, 1): blob скрывает токен и
-  расшифровывается тем же пользователем;
+  расшифровывается тем же пользователем; версия в «О приложении» берётся из
+  `-Dmycalendar.version` (`AppVersionTest`, 3): свойство побеждает, без него — `dev`;
   а общий движок синхронизации прогнан на этих хранилищах (`DesktopSyncEngineTest`, 3);
   вход через Яндекс по коду устройства проверен движком против локального HTTP-сервера
   (`DesktopYandexLoginTest`, 6): опрос токена до подтверждения, объяснение отказа сервера,

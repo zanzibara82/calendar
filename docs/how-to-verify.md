@@ -9,8 +9,8 @@
 |---|---|
 | Debug APK | `app/build/outputs/apk/debug/app-debug.apk` |
 | Release APK (подписан, если есть `keystore.properties`) | `app/build/outputs/apk/release/app-release.apk` |
-| Windows MSI | `desktopApp/build/compose/binaries/main/msi/MyCalendar-0.2.0.msi` |
-| Windows EXE | `desktopApp/build/compose/binaries/main/exe/MyCalendar-0.2.0.exe` |
+| Windows MSI | `desktopApp/build/compose/binaries/main/msi/MyCalendar-0.2.1.msi` |
+| Windows EXE | `desktopApp/build/compose/binaries/main/exe/MyCalendar-0.2.1.exe` |
 | Отчёт unit-тестов | `app/build/reports/tests/testDebugUnitTest/index.html` |
 | Отчёт instrumented-тестов | `app/build/reports/androidTests/connected/debug/index.html` |
 | JUnit-XML instrumented | `app/build/outputs/androidTest-results/connected/debug/` |
@@ -57,8 +57,8 @@ Debug и release подписаны разными ключами, поэтом�
 распаковать в `%LOCALAPPDATA%\wix314` и добавить папку в пользовательский `PATH`; проверено —
 сборка проходит и с этим WiX 3.14.1 (проверка: `candle.exe -?` печатает версию 3.14.1).
 
-1. Запустите `MyCalendar-0.2.0.msi` двойным кликом или командой
-   `msiexec /i MyCalendar-0.2.0.msi`. Установка идёт для всех пользователей — Windows запросит
+1. Запустите `MyCalendar-0.2.1.msi` двойным кликом или командой
+   `msiexec /i MyCalendar-0.2.1.msi`. Установка идёт для всех пользователей — Windows запросит
    права администратора.
 2. Появятся ярлыки на рабочем столе и в меню «Пуск» (группа `MyCalendar`); запуск — любой из них.
 3. Данные лежат не в папке программы, а в `%APPDATA%\MyCalendar` (события, настройки, очередь
@@ -285,8 +285,9 @@ adb shell am instrument -w -r -e class com.example.mycalendar.DayViewHolidayUiTe
     ru.zanzibara82.calendar.test/com.example.mycalendar.HiltTestRunner
 ```
 
-Ожидается (замерено 14.11.2026 по отчётам полных прогонов): JVM — 349 тестов
-(46 в `:app`, 104 в `:shared`, 199 в `:desktopApp`), 0 падений; линт — 0 ошибок,
+Ожидается (по отчётам полных прогонов; `:app` и `:shared` — замер 14.11.2026,
+`:desktopApp` — замер 16.11.2026): JVM — 352 теста
+(46 в `:app`, 104 в `:shared`, 202 в `:desktopApp`), 0 падений; линт — 0 ошибок,
 17 предупреждений (состав ниже); connected — 75 тестов, 0 падений.
 `WeekViewCardsUiTest` проверяет карточки и в понедельник, и в воскресенье: даты в нём считаются от
 текущего дня, а не зашиты, и стрелками периодов он не пользуется. По месяцам сеткой ездит только
@@ -300,7 +301,7 @@ adb shell am instrument -w -r -e class com.example.mycalendar.DayViewHolidayUiTe
 ## Автоматические проверки
 
 ```bash
-./gradlew :app:testDebugUnitTest :shared:test :desktopApp:test  # JVM: 349 тестов, 0 падений
+./gradlew :app:testDebugUnitTest :shared:test :desktopApp:test  # JVM: 352 теста, 0 падений
 ./gradlew :app:lintDebug                                        # 0 ошибок, 17 предупреждений
 ./gradlew :app:connectedDebugAndroidTest                        # эмулятор/устройство: 75 тестов
 ```

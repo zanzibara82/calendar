@@ -34,9 +34,14 @@ dependencies {
     testImplementation(compose.uiTest)
 }
 
+// Единственное место версии клиента: она же уходит в рантайм свойством
+// mycalendar.version, иначе «О приложении» показывал бы устаревшую надпись.
+val appVersion = "0.2.1"
+
 compose.desktop {
     application {
         mainClass = "com.example.mycalendar.desktop.MainKt"
+        jvmArgs += listOf("-Dmycalendar.version=$appVersion")
 
         nativeDistributions {
             // MSI упаковывается WiX 3 (candle.exe/light.exe): плагин сам кладёт его в
@@ -44,7 +49,7 @@ compose.desktop {
             // только первый прогон. WiX 4 не подойдёт — jpackage знает лишь WiX 3.
             targetFormats(TargetFormat.Exe, TargetFormat.Msi)
             packageName = "MyCalendar"
-            packageVersion = "0.2.0"
+            packageVersion = appVersion
             vendor = "zanzibara82"
             windows {
                 menuGroup = "MyCalendar"
